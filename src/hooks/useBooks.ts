@@ -1,4 +1,3 @@
-'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { Book } from '@/types';
 import { getBooks, saveBooks } from '@/lib/storage';
