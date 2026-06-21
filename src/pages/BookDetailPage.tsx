@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
 import StarRating from '@/components/StarRating';
 import BookSearch from '@/components/BookSearch';
@@ -58,6 +59,8 @@ export default function BookDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
 
   const [editTitle, setEditTitle] = useState('');
   const [editAuthor, setEditAuthor] = useState('');
@@ -124,6 +127,22 @@ export default function BookDetailPage() {
     if (!id) return;
     deleteBook(id);
     navigate('/');
+  }
+
+  async function handleSaveShareCard() {
+    if (!shareCardRef.current) return;
+    setSavingCard(true);
+    try {
+      const dataUrl = await toPng(shareCardRef.current, { pixelRatio: 3, cacheBust: true });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `리뷰_${book?.title ?? 'book'}.png`;
+      a.click();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingCard(false);
+    }
   }
 
   function addQuote() {
@@ -554,14 +573,14 @@ export default function BookDetailPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6"
           onClick={(e) => e.target === e.currentTarget && setShowShareCard(false)}>
           <div className="w-full max-w-sm">
-            <div className="rounded-3xl overflow-hidden"
-              style={{ background: 'linear-gradient(160deg, #0f0c29, #302b63, #24243e)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
+            <div ref={shareCardRef} className="rounded-3xl overflow-hidden"
+              style={{ background: 'linear-gradient(160deg, #1a1035 0%, #0d0d1a 100%)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
               <div className="relative h-48 overflow-hidden">
                 {book.coverUrl
                   ? <img src={book.coverUrl} alt="" className="w-full h-full object-cover opacity-40" />
                   : <div className="w-full h-full bg-gradient-to-br from-indigo-800 to-purple-900" />
                 }
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, #0f0c29 100%)' }} />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, #1a1035 100%)' }} />
                 {book.coverUrl && (
                   <img src={book.coverUrl} alt={book.title}
                     className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 rounded-xl object-cover"
@@ -596,14 +615,34 @@ export default function BookDetailPage() {
                   {book.endDate && <div className="text-center"><p className="text-white/30 text-[9px] uppercase tracking-widest">완독일</p><p className="text-white text-sm font-medium">{book.endDate.slice(0,7)}</p></div>}
                 </div>
 
-                <p className="text-white/20 text-[10px] text-center mt-4 tracking-widest uppercase">나의 서재</p>
+                <div className="flex items-center justify-center gap-1.5 mt-4">
+                  <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                    </svg>
+                  </div>
+                  <p className="text-white/30 text-[10px] tracking-widest uppercase">나의 서재</p>
+                </div>
               </div>
             </div>
 
-            <button onClick={() => setShowShareCard(false)}
-              className="w-full mt-3 py-3.5 rounded-2xl bg-white/10 text-white text-sm font-medium backdrop-blur-sm border border-white/10">
-              닫기 (스크린샷으로 저장)
-            </button>
+            {/* Action buttons */}
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button
+                onClick={handleSaveShareCard}
+                disabled={savingCard}
+                className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white text-[#1D1D1F] text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-60"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {savingCard ? '저장 중...' : '이미지 저장'}
+              </button>
+              <button onClick={() => setShowShareCard(false)}
+                className="py-3.5 rounded-2xl bg-white/10 text-white text-sm font-medium backdrop-blur-sm border border-white/10 active:opacity-70 transition-opacity">
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}

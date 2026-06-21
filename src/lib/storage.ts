@@ -44,3 +44,64 @@ export function getReadingStreak(): number {
   }
   return streak;
 }
+
+export interface DailyReading {
+  date: string;
+  pages: number;
+  bookId?: string;
+}
+
+const DAILY_KEY = 'daily-reading';
+
+export function getDailyReadings(): DailyReading[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(DAILY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function logDailyPages(pages: number, bookId?: string): void {
+  if (typeof window === 'undefined') return;
+  const date = new Date().toISOString().slice(0, 10);
+  const existing = getDailyReadings();
+  const idx = existing.findIndex((d) => d.date === date);
+  if (idx >= 0) {
+    existing[idx] = { date, pages, bookId };
+  } else {
+    existing.push({ date, pages, bookId });
+  }
+  localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
+  logReadingDate();
+}
+
+export function getTodayPages(): number {
+  const today = new Date().toISOString().slice(0, 10);
+  return getDailyReadings().find((d) => d.date === today)?.pages ?? 0;
+}
+
+export function getWeeklyPages(): { date: string; pages: number; label: string }[] {
+  const readings = getDailyReadings();
+  const result = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const date = d.toISOString().slice(0, 10);
+    const pages = readings.find((r) => r.date === date)?.pages ?? 0;
+    const label = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+    result.push({ date, pages, label });
+  }
+  return result;
+}
+
+export function hasDoneReadingToday(): boolean {
+  if (typeof window === 'undefined') return false;
+  const today = new Date().toISOString().slice(0, 10);
+  const lastShown = localStorage.getItem('daily-popup-date');
+  return lastShown === today;
+}
+
+export function markDailyPopupShown(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('daily-popup-date', new Date().toISOString().slice(0, 10));
+}

@@ -12,15 +12,16 @@ import BookListItem from '@/components/BookListItem';
 import BookShelf from '@/components/BookShelf';
 import EmptyState from '@/components/EmptyState';
 import DriveSync from '@/components/DriveSync';
+import DailyReadingModal from '@/components/DailyReadingModal';
 import { ReadingStatus, Book } from '@/types';
-import { getReadingStreak } from '@/lib/storage';
+import { getReadingStreak, hasDoneReadingToday } from '@/lib/storage';
 
 type Tab = 'all' | ReadingStatus;
 type ViewMode = 'grid' | 'list' | 'shelf';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: '전체' },
-  { key: 'done', label: '읽음' },
+  { key: 'done', label: '완독' },
   { key: 'reading', label: '읽는 중' },
   { key: 'want', label: '읽을 예정' },
   { key: 'stopped', label: '중단' },
@@ -54,12 +55,20 @@ export default function HomePage() {
   const [streak, setStreak] = useState(0);
   const [genre, setGenre] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showDailyModal, setShowDailyModal] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('view-mode') as ViewMode | null;
     if (saved) setViewMode(saved);
     setStreak(getReadingStreak());
   }, []);
+
+  useEffect(() => {
+    if (loaded && books.some((b) => b.status === 'reading') && !hasDoneReadingToday()) {
+      const t = setTimeout(() => setShowDailyModal(true), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [loaded, books]);
 
   function toggleView(mode: ViewMode) {
     setViewMode(mode);
@@ -94,6 +103,7 @@ export default function HomePage() {
 
   const genres = Array.from(new Set(books.map(b => b.genre).filter(Boolean) as string[]));
   const readingBooks = books.filter(b => b.status === 'reading');
+  const recentBooks = [...books].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6);
   const filtered = books
     .filter((b) => tab === 'all' || b.status === tab)
     .filter((b) => !genre || b.genre === genre)
@@ -101,6 +111,9 @@ export default function HomePage() {
 
   const activeBook = activeId ? books.find((b) => b.id === activeId) : null;
   const canDrag = !search && !genre && tab === 'all' && viewMode !== 'shelf';
+
+  const showReadingSection = readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search && !genre;
+  const showRecentSection = recentBooks.length > 0 && tab === 'all' && !search && !genre && readingBooks.length === 0;
 
   if (!loaded) {
     return (
@@ -114,6 +127,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#F5F5F7]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-28 sm:pb-16">
 
+        {/* Header */}
         <div className="flex items-end justify-between mb-5 sm:mb-7">
           <div>
             <p className="text-[#AEAEB2] text-xs font-medium tracking-widest uppercase mb-1">My Library</p>
@@ -144,6 +158,7 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Reading streak banner */}
         {streak >= 2 && (
           <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-2xl" style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)', boxShadow: '0 4px 16px rgba(245,158,11,0.3)' }}>
             <span className="text-2xl">🔥</span>
@@ -154,6 +169,7 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Search + view toggle */}
         <div className="flex gap-2 mb-4">
           <div className="relative flex-1">
             <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -170,7 +186,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="flex gap-2 mb-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        {/* Status tabs */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {TABS.filter((t) => t.key === 'all' || counts[t.key] > 0).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${tab === t.key ? TAB_ACTIVE[t.key] : 'bg-white text-[#6E6E73] hover:bg-gray-50'}`}
@@ -181,6 +198,7 @@ export default function HomePage() {
           ))}
         </div>
 
+        {/* Genre filter */}
         {genres.length > 0 && (
           <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             <button onClick={() => setGenre(null)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${genre === null ? 'bg-[#1D1D1F] text-white' : 'bg-white text-[#6E6E73]'}`} style={genre !== null ? { boxShadow: '0 1px 6px rgba(0,0,0,0.06)' } : {}}>전체</button>
@@ -190,32 +208,110 @@ export default function HomePage() {
           </div>
         )}
 
-        {canDrag && books.length > 1 && <p className="text-[#AEAEB2] text-xs mb-3 text-center">꾹 눌러서 순서를 바꿀 수 있어요</p>}
+        {canDrag && books.length > 1 && (
+          <p className="text-[#AEAEB2] text-xs mb-3 text-center">꾹 눌러서 순서를 바꿀 수 있어요</p>
+        )}
 
         {books.length === 0 ? (
           <EmptyState />
         ) : (
           <>
-            {readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search && !genre && (
+            {/* 읽는 중 섹션 */}
+            {showReadingSection && (
+              <div className="mb-7">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-bold text-[#1D1D1F]">읽는 중</h2>
+                  {readingBooks.length > 2 && (
+                    <button onClick={() => setTab('reading')} className="text-xs text-[#AEAEB2] hover:text-[#6E6E73] transition-colors">
+                      더 보기
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {readingBooks.slice(0, 3).map(book => {
+                    const pct = book.currentPage && book.pages && book.pages > 0
+                      ? Math.round(book.currentPage / book.pages * 100)
+                      : null;
+                    return (
+                      <div
+                        key={book.id}
+                        className="bg-white rounded-2xl overflow-hidden"
+                        style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}
+                      >
+                        <Link to={`/book/${book.id}`} className="flex items-center gap-4 p-4">
+                          <div
+                            className="flex-shrink-0 rounded-xl overflow-hidden"
+                            style={{ width: 52, height: 76, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+                          >
+                            {book.coverUrl
+                              ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-sm">{book.title.slice(0, 2)}</span></div>
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-[#1D1D1F] text-sm truncate leading-snug">{book.title}</p>
+                            <p className="text-[#6E6E73] text-xs mt-0.5 truncate">{book.author}</p>
+                            {pct !== null && (
+                              <div className="mt-2.5">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[10px] text-[#AEAEB2]">{book.currentPage}p / {book.pages}p</span>
+                                  <span className="text-[10px] font-semibold text-blue-500">{pct}%</span>
+                                </div>
+                                <div className="h-1.5 bg-[#F5F5F7] rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                      width: `${pct}%`,
+                                      background: 'linear-gradient(90deg, #60a5fa, #3b82f6)',
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                        <div className="px-4 pb-4 flex gap-2">
+                          <Link
+                            to={`/timer/${book.id}`}
+                            className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white text-center"
+                            style={{ background: 'linear-gradient(135deg, #60a5fa, #3b82f6)' }}
+                          >
+                            기록하기
+                          </Link>
+                          <Link
+                            to={`/book/${book.id}`}
+                            className="px-4 py-2.5 rounded-xl text-xs font-medium text-[#6E6E73] bg-[#F5F5F7]"
+                          >
+                            상세보기
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 최근 추가한 책 (읽는 중이 없을 때) */}
+            {showRecentSection && (
               <div className="mb-6">
-                <h2 className="text-sm font-semibold text-[#1D1D1F] mb-3">지금 읽는 중</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-bold text-[#1D1D1F]">최근 추가한 책</h2>
+                </div>
                 <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-                  {readingBooks.map(book => (
-                    <Link key={book.id} to={`/book/${book.id}`} className="flex-shrink-0 block">
-                      <div className="relative w-28 rounded-2xl overflow-hidden" style={{ height: 168, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+                  {recentBooks.map(book => (
+                    <Link key={book.id} to={`/book/${book.id}`} className="flex-shrink-0">
+                      <div
+                        className="relative rounded-2xl overflow-hidden"
+                        style={{ width: 96, height: 140, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
+                      >
                         {book.coverUrl
                           ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
                           : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-lg">{book.title.slice(0, 2)}</span></div>
                         }
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.85) 100%)' }} />
-                        {book.currentPage && book.pages && book.pages > 0 && (
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-                            <div className="h-full bg-indigo-400" style={{ width: `${Math.min(book.currentPage / book.pages * 100, 100)}%` }} />
-                          </div>
-                        )}
+                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.75) 100%)' }} />
                         <div className="absolute bottom-2 left-2 right-2">
                           <p className="text-white text-[10px] font-semibold line-clamp-2 leading-tight">{book.title}</p>
-                          {book.currentPage && book.pages && <p className="text-white/60 text-[9px] mt-0.5">{Math.round(book.currentPage / book.pages * 100)}%</p>}
                         </div>
                       </div>
                     </Link>
@@ -224,8 +320,11 @@ export default function HomePage() {
               </div>
             )}
 
+            {/* Main book grid/list/shelf */}
             {filtered.length === 0 ? (
-              <div className="text-center py-20 text-[#6E6E73] text-sm">{search ? `"${search}"에 해당하는 책이 없어요` : '이 탭에 책이 없어요'}</div>
+              <div className="text-center py-20 text-[#6E6E73] text-sm">
+                {search ? `"${search}"에 해당하는 책이 없어요` : '이 탭에 책이 없어요'}
+              </div>
             ) : viewMode === 'shelf' ? (
               <div className="rounded-3xl overflow-hidden p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
                 <BookShelf books={filtered} />
@@ -258,7 +357,8 @@ export default function HomePage() {
         )}
       </div>
 
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-[#F5F5F7]/90 backdrop-blur-md border-t border-black/5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+      {/* Mobile bottom nav */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-white/90 backdrop-blur-md border-t border-black/5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
         <Link to="/stats" className="flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
           <span className="text-[10px] font-medium">통계</span>
@@ -270,8 +370,20 @@ export default function HomePage() {
         <Link to="/add" className="w-14 h-14 bg-[#1D1D1F] text-white rounded-full flex items-center justify-center active:scale-95 transition-transform" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
           <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
         </Link>
-        <div className="flex items-center justify-end w-12"><DriveSync /></div>
+        <button onClick={() => setShowDailyModal(true)} className="flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+          <span className="text-[10px] font-medium">기록</span>
+        </button>
+        <div className="flex items-center justify-end w-10"><DriveSync /></div>
       </div>
+
+      {/* Daily reading modal */}
+      {showDailyModal && (
+        <DailyReadingModal
+          readingBook={readingBooks[0]}
+          onClose={() => setShowDailyModal(false)}
+        />
+      )}
     </div>
   );
 }

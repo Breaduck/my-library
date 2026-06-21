@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
 import { Book } from '@/types';
 import { getReadingStreak } from '@/lib/storage';
+import MonthlyShareCard from '@/components/MonthlyShareCard';
 
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const WEEK_DAYS = ['일','월','화','수','목','금','토'];
@@ -40,12 +42,17 @@ function buildDayBooks(books: Book[], year: number, month: number): Record<numbe
 export default function StatsPage() {
   const { books, loaded } = useBooks();
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [goal, setGoal] = useState(12);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState('12');
   const [calendarMonth, setCalendarMonth] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [showShareCard, setShowShareCard] = useState(false);
+  const [shareMonth, setShareMonth] = useState(currentMonth);
+  const [savingCal, setSavingCal] = useState(false);
+  const calRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('reading-goal');
@@ -57,6 +64,22 @@ export default function StatsPage() {
     setGoal(n); setGoalInput(String(n));
     localStorage.setItem('reading-goal', String(n));
     setEditingGoal(false);
+  }
+
+  async function handleSaveCalImage() {
+    if (!calRef.current) return;
+    setSavingCal(true);
+    try {
+      const dataUrl = await toPng(calRef.current, { pixelRatio: 3, cacheBust: true });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `나의서재_달력_${selectedYear}년.png`;
+      a.click();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingCal(false);
+    }
   }
 
   if (!loaded) return (
@@ -75,7 +98,6 @@ export default function StatsPage() {
   if (!years.includes(currentYear)) years.unshift(currentYear);
 
   const yearDone = done.filter((b) => getYearMonth(b.endDate)?.year === selectedYear);
-
   const totalPagesThisYear = yearDone.filter(b => b.pages).reduce((acc, b) => acc + (b.pages ?? 0), 0);
 
   const monthlyCounts = Array(12).fill(0);
@@ -184,7 +206,7 @@ export default function StatsPage() {
         {/* 상태별 현황 */}
         <div className="grid grid-cols-4 gap-2 mb-4">
           {[
-            { label: '읽음',      count: done.length,    color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: '완독',      count: done.length,    color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: '읽는 중',   count: reading.length, color: 'text-blue-600',    bg: 'bg-blue-50' },
             { label: '읽을 예정', count: want.length,    color: 'text-purple-600',  bg: 'bg-purple-50' },
             { label: '중단',      count: stopped.length, color: 'text-gray-500',    bg: 'bg-gray-100' },
@@ -243,49 +265,103 @@ export default function StatsPage() {
           <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-[#1D1D1F]">{selectedYear}년 독서 달력</h2>
-              <p className="text-[10px] text-[#AEAEB2]">월을 탭해 일별 보기</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveCalImage}
+                  disabled={savingCal}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F5F5F7] text-[#6E6E73] text-xs font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  {savingCal ? '저장 중' : '이미지 저장'}
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-6 gap-2">
-              {MONTHS.map((m, i) => {
-                const count = monthlyCounts[i];
-                const intensity = count === 0 ? 0 : Math.min(count / maxMonthly, 1);
-                const isSelected = calendarMonth === i;
-                return (
-                  <button key={m}
-                    onClick={() => {
-                      if (count === 0) return;
-                      setCalendarMonth(calendarMonth === i ? null : i);
-                      setSelectedDay(null);
-                    }}
-                    className="flex flex-col items-center gap-1.5 group"
-                    disabled={count === 0}>
-                    <div
-                      className="w-full aspect-square rounded-xl flex items-center justify-center text-sm font-bold transition-all"
-                      style={{
-                        backgroundColor: isSelected
-                          ? '#1D1D1F'
-                          : count > 0
-                          ? `rgba(99,102,241,${0.12 + intensity * 0.78})`
-                          : '#F5F5F7',
-                        color: isSelected ? '#fff' : count > 0 ? (intensity > 0.45 ? '#fff' : '#4338ca') : '#D1D1D6',
-                        boxShadow: isSelected ? '0 2px 12px rgba(0,0,0,0.2)' : 'none',
-                        transform: isSelected ? 'scale(1.06)' : 'none',
-                      }}>
-                      {count > 0 ? count : ''}
-                    </div>
-                    <span className={`text-[10px] ${count > 0 ? 'text-[#6E6E73]' : 'text-[#D1D1D6]'}`}>{m}</span>
-                  </button>
-                );
-              })}
+
+            <div ref={calRef} className="bg-white rounded-xl p-1">
+              <div className="grid grid-cols-6 gap-2">
+                {MONTHS.map((m, i) => {
+                  const count = monthlyCounts[i];
+                  const intensity = count === 0 ? 0 : Math.min(count / maxMonthly, 1);
+                  const isSelected = calendarMonth === i;
+                  const monthBooks = yearDone.filter((b) => getYearMonth(b.endDate)?.month === i);
+                  const coverBook = monthBooks.find((b) => b.coverUrl);
+                  return (
+                    <button key={m}
+                      onClick={() => {
+                        if (count === 0) return;
+                        setCalendarMonth(calendarMonth === i ? null : i);
+                        setSelectedDay(null);
+                      }}
+                      className="flex flex-col items-center gap-1.5 group"
+                      disabled={count === 0}>
+                      <div
+                        className="w-full aspect-square rounded-xl overflow-hidden flex items-center justify-center text-sm font-bold transition-all relative"
+                        style={{
+                          backgroundColor: isSelected
+                            ? '#1D1D1F'
+                            : count > 0
+                            ? `rgba(99,102,241,${0.12 + intensity * 0.78})`
+                            : '#F5F5F7',
+                          color: isSelected ? '#fff' : count > 0 ? (intensity > 0.45 ? '#fff' : '#4338ca') : '#D1D1D6',
+                          boxShadow: isSelected ? '0 2px 12px rgba(0,0,0,0.2)' : 'none',
+                          transform: isSelected ? 'scale(1.06)' : 'none',
+                        }}>
+                        {coverBook && !isSelected && count > 0 && (
+                          <img
+                            src={coverBook.coverUrl}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover opacity-30"
+                          />
+                        )}
+                        <span className="relative z-10">{count > 0 ? count : ''}</span>
+                      </div>
+                      <span className={`text-[10px] ${count > 0 ? 'text-[#6E6E73]' : 'text-[#D1D1D6]'}`}>{m}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* 월별 공유 카드 버튼 */}
+            {yearDone.length > 0 && (
+              <button
+                onClick={() => {
+                  const lastDoneMonth = yearDone.reduce((max, b) => {
+                    const ym = getYearMonth(b.endDate);
+                    return ym && ym.month > max ? ym.month : max;
+                  }, 0);
+                  setShareMonth(lastDoneMonth);
+                  setShowShareCard(true);
+                }}
+                className="mt-4 w-full py-3 rounded-xl bg-[#F5F5F7] text-[#6E6E73] text-sm font-medium flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                월별 독서 카드 공유하기
+              </button>
+            )}
 
             {/* 월별 일별 달력 (인라인 확장) */}
             {calendarMonth !== null && (
               <div className="mt-5 pt-5 border-t border-[#F5F5F7]">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-[#1D1D1F]">{selectedYear}년 {calendarMonth + 1}월</p>
-                  <button onClick={() => { setCalendarMonth(null); setSelectedDay(null); }}
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] text-sm">×</button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setShareMonth(calendarMonth); setShowShareCard(true); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F5F5F7] text-[#6E6E73] text-xs font-medium"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      공유
+                    </button>
+                    <button onClick={() => { setCalendarMonth(null); setSelectedDay(null); }}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] text-sm">×</button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-7 mb-1">
                   {WEEK_DAYS.map((d, i) => (
@@ -299,20 +375,35 @@ export default function StatsPage() {
                     const hasBooks = dayBooksArr.length > 0;
                     const isSelected = selectedDay === day;
                     const dow = (calFirstDay + day - 1) % 7;
+                    const coverBook = dayBooksArr.find((b) => b.coverUrl);
                     return (
                       <button key={day}
                         onClick={() => hasBooks && setSelectedDay(isSelected ? null : day)}
                         className="flex flex-col items-center py-0.5"
                         disabled={!hasBooks}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
-                          isSelected ? 'bg-[#1D1D1F] text-white' :
-                          hasBooks ? 'bg-indigo-100 text-indigo-700' :
-                          'text-[#1D1D1F]'
-                        } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : ''} ${isSelected ? 'text-white' : ''}`}
-                          style={isSelected ? { color: '#fff' } : {}}>
-                          {day}
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all overflow-hidden relative ${
+                            isSelected ? 'bg-[#1D1D1F] text-white' : ''
+                          } ${!hasBooks && !isSelected ? (dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-[#1D1D1F]') : ''}`}
+                          style={hasBooks && !isSelected ? { boxShadow: '0 1px 4px rgba(0,0,0,0.12)' } : {}}
+                        >
+                          {coverBook && !isSelected && (
+                            <img src={coverBook.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                          )}
+                          <span
+                            className="relative z-10 font-semibold"
+                            style={{
+                              color: isSelected
+                                ? '#fff'
+                                : hasBooks
+                                ? '#4338ca'
+                                : dow === 0 ? '#f87171' : dow === 6 ? '#60a5fa' : '#1D1D1F',
+                            }}
+                          >
+                            {day}
+                          </span>
                         </div>
-                        {hasBooks && (
+                        {hasBooks && !isSelected && (
                           <div className="flex gap-0.5 mt-0.5">
                             {dayBooksArr.slice(0, 3).map((_, bi) => (
                               <div key={bi} className="w-1 h-1 rounded-full bg-indigo-400" />
@@ -427,6 +518,16 @@ export default function StatsPage() {
           <div className="text-center py-20 text-[#6E6E73] text-sm">아직 기록된 책이 없어요</div>
         )}
       </div>
+
+      {/* 월별 공유 카드 모달 */}
+      {showShareCard && (
+        <MonthlyShareCard
+          books={yearDone}
+          year={selectedYear}
+          month={shareMonth}
+          onClose={() => setShowShareCard(false)}
+        />
+      )}
     </div>
   );
 }
