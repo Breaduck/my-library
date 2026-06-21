@@ -33,7 +33,6 @@ export async function GET() {
           'X-Naver-Client-Id': clientId,
           'X-Naver-Client-Secret': clientSecret,
         },
-        next: { revalidate: 3600 },
       }
     );
 
