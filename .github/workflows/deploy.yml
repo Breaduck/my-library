@@ -40,9 +40,9 @@ jobs:
             git push
           fi
 
-      - name: Deploy via Wrangler (optional, requires CF secrets)
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
-        run: npx wrangler pages deploy dist --project-name=my-library --commit-dirty=true
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=my-library-ehx --branch=master --commit-dirty=true
