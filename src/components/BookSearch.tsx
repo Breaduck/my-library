@@ -1,4 +1,3 @@
-'use client';
 import { useState, useEffect, useRef } from 'react';
 import { searchBooks } from '@/lib/bookApi';
 import { BookSearchResult } from '@/types';

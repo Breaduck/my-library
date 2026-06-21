@@ -1,5 +1,4 @@
-'use client';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import { Book, ReadingStatus } from '@/types';
 
 export const STATUS_META: Record<ReadingStatus, { label: string; badge: string; dot: string }> = {
@@ -23,7 +22,7 @@ export default function BookCard({ book }: { book: Book }) {
   const grad = GRADIENTS[book.title.charCodeAt(0) % GRADIENTS.length];
 
   return (
-    <Link href={`/book/${book.id}`} className="block group">
+    <Link to={`/book/${book.id}`} className="block group">
       <div
         className="relative overflow-hidden rounded-2xl sm:rounded-3xl cursor-pointer"
         style={{

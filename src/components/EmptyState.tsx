@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 
 export default function EmptyState() {
   return (
@@ -20,7 +20,7 @@ export default function EmptyState() {
         첫 번째 책을 추가해서<br />나만의 서재를 채워보세요
       </p>
       <Link
-        href="/add"
+        to="/add"
         className="flex items-center gap-2 px-6 py-3.5 bg-[#1D1D1F] text-white rounded-full text-sm font-semibold hover:bg-[#3A3A3C] active:scale-[0.98] transition-all"
         style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
       >

@@ -1,4 +1,3 @@
-'use client';
 export default function BookProgress({ currentPage, pages }: { currentPage: number; pages: number }) {
   const pct = Math.min(Math.round((currentPage / pages) * 100), 100);
   return (

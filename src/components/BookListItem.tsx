@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import { Book } from '@/types';
 import { STATUS_META } from './BookCard';
 import StarRating from './StarRating';
@@ -30,7 +30,7 @@ export default function BookListItem({ book }: { book: Book }) {
   const color = PLACEHOLDER_COLORS[book.title.charCodeAt(0) % PLACEHOLDER_COLORS.length];
 
   return (
-    <Link href={`/book/${book.id}`} className="block">
+    <Link to={`/book/${book.id}`} className="block">
       <div
         className="bg-white rounded-2xl flex items-center gap-4 p-4 active:bg-gray-50 transition-colors"
         style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}

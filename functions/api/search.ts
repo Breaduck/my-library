@@ -1,0 +1,122 @@
+interface Env {
+  ALADIN_TTB_KEY: string;
+  NAVER_CLIENT_ID: string;
+  NAVER_CLIENT_SECRET: string;
+}
+
+const GENRE_MAP: [RegExp, string][] = [
+  [/소설|시\/희곡|시,희곡|fiction/i, '소설'],
+  [/에세이|essay/i, '에세이'],
+  [/자기계발|self.?help/i, '자기계발'],
+  [/경제|경영|business|economics/i, '경제/경영'],
+  [/역사|history/i, '역사'],
+  [/과학|science/i, '과학'],
+  [/철학|philosophy/i, '철학'],
+  [/심리|psychology/i, '심리학'],
+  [/사회|social/i, '사회'],
+  [/예술|art/i, '예술'],
+  [/여행|travel/i, '여행'],
+  [/인문|humanities/i, '인문학'],
+];
+
+function mapGenre(category: string): string | undefined {
+  for (const [re, genre] of GENRE_MAP) {
+    if (re.test(category)) return genre;
+  }
+  return undefined;
+}
+
+function cleanTitle(raw: string): string {
+  return raw.replace(/<[^>]+>/g, '').replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+}
+
+function cleanNaverAuthor(raw: string): string {
+  return raw.replace(/<[^>]+>/g, '').split('^').map((s) => s.trim()).filter(Boolean).join(', ') || '저자 미상';
+}
+
+function cleanAladinAuthor(raw: string): string {
+  return raw.replace(/\s*\([^)]*\)/g, '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || '저자 미상';
+}
+
+function json(data: unknown) {
+  return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+}
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const url = new URL(context.request.url);
+  const query = url.searchParams.get('q');
+  if (!query?.trim()) return json([]);
+
+  const aladinKey = context.env.ALADIN_TTB_KEY;
+  const naverClientId = context.env.NAVER_CLIENT_ID;
+  const naverClientSecret = context.env.NAVER_CLIENT_SECRET;
+
+  if (aladinKey) {
+    try {
+      const res = await fetch(
+        `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${aladinKey}&Query=${encodeURIComponent(query)}&QueryType=Keyword&MaxResults=10&start=1&SearchTarget=Book&output=js&Version=20131101&Cover=Big`
+      );
+      const data = await res.json() as { item?: Record<string, unknown>[] };
+      if (Array.isArray(data.item) && data.item.length > 0) {
+        return json(data.item.map((item) => ({
+          title: String(item.title || ''),
+          author: cleanAladinAuthor(String(item.author || '')),
+          coverUrl: String(item.cover || '').replace('coversum', 'cover200'),
+          pages: typeof item.itemPage === 'number' && item.itemPage > 0 ? item.itemPage : undefined,
+          isbn: String(item.isbn13 || item.isbn || ''),
+          genre: mapGenre(String(item.categoryName || '')),
+        })));
+      }
+    } catch {}
+  }
+
+  if (naverClientId && naverClientSecret) {
+    try {
+      const res = await fetch(
+        `https://openapi.naver.com/v1/search/book.json?query=${encodeURIComponent(query)}&display=10`,
+        { headers: { 'X-Naver-Client-Id': naverClientId, 'X-Naver-Client-Secret': naverClientSecret } }
+      );
+      const data = await res.json() as { items?: Record<string, string>[] };
+      if (data.items && data.items.length > 0) {
+        return json(data.items.map((item) => ({
+          title: cleanTitle(item.title),
+          author: cleanNaverAuthor(item.author),
+          coverUrl: item.image || '',
+          isbn: item.isbn?.split(' ').find((s) => s.length === 13) || item.isbn?.split(' ')[0] || '',
+        })));
+      }
+    } catch {}
+  }
+
+  try {
+    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10&fields=title,author_name,cover_i`);
+    const data = await res.json() as { docs?: Record<string, unknown>[] };
+    const results = (data.docs || []).filter((d) => d.title && d.cover_i).map((d) => ({
+      title: d.title as string,
+      author: Array.isArray(d.author_name) ? (d.author_name[0] as string) : '저자 미상',
+      coverUrl: `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg`,
+    }));
+    if (results.length > 0) return json(results);
+  } catch {}
+
+  try {
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=10`);
+    const data = await res.json() as { items?: Record<string, unknown>[] };
+    const results = (data.items || []).map((item) => {
+      const info = item.volumeInfo as Record<string, unknown> | undefined;
+      const links = info?.imageLinks as Record<string, string> | undefined;
+      const categories = info?.categories as string[] | undefined;
+      const cover = links?.extraLarge || links?.large || links?.medium || links?.thumbnail || '';
+      return {
+        title: (info?.title as string) || '',
+        author: Array.isArray(info?.authors) ? (info.authors[0] as string) : '저자 미상',
+        coverUrl: cover.replace('http://', 'https://'),
+        pages: typeof info?.pageCount === 'number' && (info.pageCount as number) > 0 ? (info.pageCount as number) : undefined,
+        genre: mapGenre(categories?.[0] || '') || undefined,
+      };
+    }).filter((b) => b.title);
+    return json(results);
+  } catch {}
+
+  return json([]);
+};

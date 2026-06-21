@@ -1,5 +1,4 @@
-'use client';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import { Book } from '@/types';
 
 const SPINE_GRADIENTS = [
@@ -52,7 +51,7 @@ export default function BookShelf({ books }: Props) {
               return (
                 <Link
                   key={book.id}
-                  href={`/book/${book.id}`}
+                  to={`/book/${book.id}`}
                   className="flex-shrink-0 group relative"
                   style={{ width: spineWidth }}
                   title={`${book.title} — ${book.author}`}

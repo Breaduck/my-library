@@ -1,9 +1,8 @@
-'use client';
 import { useState, useEffect, useRef } from 'react';
 import * as gd from '@/lib/googleDrive';
 import { Book } from '@/types';
 
-const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 
 type SyncState = 'idle' | 'connecting' | 'synced' | 'saving' | 'error';
 
