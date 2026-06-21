@@ -3,11 +3,10 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useBooks } from '@/hooks/useBooks';
 import BookSearch from '@/components/BookSearch';
 import StarRating from '@/components/StarRating';
+import DateField from '@/components/DateField';
 import { BookSearchResult, ReadingStatus } from '@/types';
 
 interface QuoteDraft { text: string; page: string; }
-
-const GENRES = ['소설','에세이','자기계발','경제/경영','역사','과학','철학','심리학','사회','예술','여행','인문학','기타'];
 
 const STATUS_OPTIONS: { key: ReadingStatus; label: string; emoji: string; active: string }[] = [
   { key: 'want',    label: '읽을 예정', emoji: '🔖', active: 'bg-purple-500 text-white border-purple-500' },
@@ -15,6 +14,10 @@ const STATUS_OPTIONS: { key: ReadingStatus; label: string; emoji: string; active
   { key: 'done',    label: '읽음',      emoji: '✅', active: 'bg-emerald-500 text-white border-emerald-500' },
   { key: 'stopped', label: '중단',      emoji: '🚫', active: 'bg-gray-500 text-white border-gray-500' },
 ];
+
+const REVIEW_PLACEHOLDER = `이 책을 읽으며 어떤 감정이 스쳐갔나요?
+가장 기억에 남는 장면, 마음을 두드린 문장,
+다시 떠올리고 싶은 생각을 자유롭게 적어보세요.`;
 
 export default function AddPage() {
   const navigate = useNavigate();
@@ -25,14 +28,12 @@ export default function AddPage() {
   const [author, setAuthor] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [status, setStatus] = useState<ReadingStatus>('done');
-  const [oneLiner, setOneLiner] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [review, setReview] = useState('');
   const [rating, setRating] = useState(0);
   const [quotes, setQuotes] = useState<QuoteDraft[]>([{ text: '', page: '' }]);
   const [pages, setPages] = useState('');
-  const [genre, setGenre] = useState('');
   const [currentPage, setCurrentPage] = useState('');
   const [showManual, setShowManual] = useState(false);
 
@@ -63,7 +64,6 @@ export default function AddPage() {
 
   async function handleSelect(r: BookSearchResult) {
     setTitle(r.title); setAuthor(r.author); setCoverUrl(r.coverUrl);
-    if (r.genre) setGenre(r.genre);
     if (r.pages) setPages(String(r.pages));
     else fetchPages(r.isbn, r.title, r.author);
   }
@@ -77,10 +77,9 @@ export default function AddPage() {
   function handleSave() {
     if (!title.trim()) return;
     addBook({
-      title: title.trim(), author: author.trim(), coverUrl, status, oneLiner,
+      title: title.trim(), author: author.trim(), coverUrl, status, oneLiner: '',
       startDate, endDate, review, rating, totalReadingTime: 0,
       pages: pages ? parseInt(pages) : undefined,
-      genre: genre || undefined,
       currentPage: currentPage ? parseInt(currentPage) : undefined,
       quotes: quotes.filter((q) => q.text.trim()).map((q) => ({ ...q, id: crypto.randomUUID() })),
     });
@@ -90,7 +89,7 @@ export default function AddPage() {
   const inp = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all';
   const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
   const showDates = status === 'reading' || status === 'done' || status === 'stopped';
-  const showReview = status === 'done';
+  const showReview = status === 'reading' || status === 'done';
 
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
@@ -140,86 +139,103 @@ export default function AddPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
-            <h2 className="text-sm font-semibold text-[#1D1D1F] mb-1">한줄평</h2>
-            <p className="text-xs text-[#AEAEB2] mb-3">이 책을 한 문장으로 표현한다면</p>
-            <input type="text" value={oneLiner} onChange={(e) => setOneLiner(e.target.value.slice(0, 100))} placeholder="예) 존재의 무게를 온몸으로 느끼게 해준 소설" className={inp} />
-            <p className="text-right text-xs text-[#AEAEB2] mt-1">{oneLiner.length}/100</p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
-            <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-sm font-semibold text-[#1D1D1F]">장르</h2>
-              {genre && <span className="text-[10px] text-[#AEAEB2]">자동 감지 · 변경 가능</span>}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {GENRES.map(g => (
-                <button key={g} type="button" onClick={() => setGenre(genre === g ? '' : g)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${genre === g ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-[#F5F5F7] text-[#6E6E73] border-transparent'}`}>
-                  {g}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {showDates && (
             <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
               <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">읽은 기간</h2>
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">시작일</label>
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inp} />
-                </div>
+              <div className="space-y-3">
+                <DateField label="시작일" value={startDate} onChange={setStartDate} presets={['today', 'yesterday', 'week-ago']} />
                 {status === 'done' && (
+                  <DateField label="종료일" value={endDate} onChange={setEndDate} presets={['today', 'yesterday']} />
+                )}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">총 페이지 수</label>
+                  <input type="number" value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예) 328" className={inp} min="1" />
+                </div>
+                {status === 'reading' && (
                   <div>
-                    <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">종료일</label>
-                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inp} />
+                    <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">현재 페이지</label>
+                    <input type="number" value={currentPage} onChange={e => setCurrentPage(e.target.value)} placeholder="예) 145" className={inp} min="1" />
                   </div>
                 )}
               </div>
-              <div className="w-1/2 pr-1.5">
-                <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">총 페이지 수 (선택)</label>
-                <input type="number" value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예) 328" className={inp} min="1" />
-              </div>
-              {status === 'reading' && (
-                <div className="mt-3 w-1/2 pr-1.5">
-                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">현재 페이지</label>
-                  <input type="number" value={currentPage} onChange={e => setCurrentPage(e.target.value)} placeholder="예) 145" className={inp} min="1" />
-                </div>
-              )}
             </div>
           )}
 
           {showReview && (
             <>
-              <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
-                <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">별점</h2>
-                <StarRating value={rating} onChange={setRating} />
+              {status === 'done' && (
+                <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
+                  <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">별점</h2>
+                  <StarRating value={rating} onChange={setRating} />
+                </div>
+              )}
+
+              {/* 독후감 — 그라데이션 카드 */}
+              <div className="rounded-2xl overflow-hidden relative"
+                style={{
+                  background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #fff7ed 100%)',
+                  boxShadow: '0 2px 24px rgba(168,85,247,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+                  border: '1px solid rgba(168,85,247,0.08)',
+                }}>
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-30 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, #d8b4fe 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+                <div className="relative p-5 sm:p-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">✨</span>
+                    <h2 className="text-sm font-bold text-[#1D1D1F]">나의 기록</h2>
+                  </div>
+                  <p className="text-[11px] text-[#6E6E73] mb-4 ml-7">읽으면서 떠오른 생각을 기록해보세요</p>
+                  <textarea value={review} onChange={(e) => setReview(e.target.value)}
+                    placeholder={REVIEW_PLACEHOLDER}
+                    rows={6}
+                    className="w-full px-4 py-3 rounded-xl bg-white/70 backdrop-blur-sm text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-purple-200 focus:bg-white transition-all resize-none leading-relaxed"
+                    style={{ fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif' }}
+                  />
+                  <p className="text-right text-[10px] text-[#AEAEB2] mt-1.5">{review.length}자</p>
+                </div>
               </div>
-              <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
-                <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">독후감</h2>
-                <textarea value={review} onChange={(e) => setReview(e.target.value)} placeholder="이 책을 읽고 어떤 생각이 들었나요?" rows={5} className={`${inp} resize-none`} />
-              </div>
-              <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
-                <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">인상깊은 구절</h2>
-                <div className="space-y-5">
-                  {quotes.map((q, i) => (
-                    <div key={i} className="space-y-2">
-                      <div className="flex gap-2 items-start">
-                        <textarea value={q.text} onChange={(e) => updateQuote(i, 'text', e.target.value)} placeholder="기억에 남는 구절..." rows={3} className={`flex-1 ${inp} resize-none`} />
-                        {quotes.length > 1 && (
-                          <button type="button" onClick={() => removeQuote(i)} className="mt-2 w-10 h-10 flex items-center justify-center rounded-xl hover:bg-red-50 text-[#AEAEB2] hover:text-red-400 transition-colors flex-shrink-0">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        )}
+
+              {/* 인상깊은 구절 — 그라데이션 카드 */}
+              <div className="rounded-2xl overflow-hidden relative"
+                style={{
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #ecfeff 50%, #f0fdf4 100%)',
+                  boxShadow: '0 2px 24px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+                  border: '1px solid rgba(59,130,246,0.08)',
+                }}>
+                <div className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-20 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, #93c5fd 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
+                <div className="relative p-5 sm:p-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📜</span>
+                    <h2 className="text-sm font-bold text-[#1D1D1F]">인상깊은 구절</h2>
+                  </div>
+                  <p className="text-[11px] text-[#6E6E73] mb-4 ml-7">밑줄 긋고 싶은 문장을 모아두세요</p>
+                  <div className="space-y-4">
+                    {quotes.map((q, i) => (
+                      <div key={i} className="rounded-xl bg-white/70 backdrop-blur-sm p-3 space-y-2 border border-white/60">
+                        <div className="flex gap-2 items-start">
+                          <textarea value={q.text} onChange={(e) => updateQuote(i, 'text', e.target.value)}
+                            placeholder='"마음에 닿은 문장을 옮겨 적어보세요"'
+                            rows={3}
+                            className="flex-1 px-3 py-2 rounded-lg bg-transparent text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none resize-none italic leading-relaxed"
+                            style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}
+                          />
+                          {quotes.length > 1 && (
+                            <button type="button" onClick={() => removeQuote(i)} className="mt-1 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-[#AEAEB2] hover:text-red-400 transition-colors flex-shrink-0">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          )}
+                        </div>
+                        <input type="text" value={q.page} onChange={(e) => updateQuote(i, 'page', e.target.value)} placeholder="p. 페이지 (선택)" className="w-32 px-2.5 py-1.5 rounded-md bg-white/60 text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-1 focus:ring-blue-300 transition-all" />
                       </div>
-                      <input type="text" value={q.page} onChange={(e) => updateQuote(i, 'page', e.target.value)} placeholder="p. 페이지 (선택)" className="w-36 px-3 py-2 rounded-lg bg-[#F5F5F7] text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" />
-                    </div>
-                  ))}
-                  <button type="button" onClick={addQuote} className="flex items-center gap-1.5 text-[#0071E3] text-sm font-medium">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    구절 추가
-                  </button>
+                    ))}
+                    <button type="button" onClick={addQuote} className="flex items-center gap-1.5 text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      구절 추가
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

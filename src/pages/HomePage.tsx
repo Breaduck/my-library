@@ -53,7 +53,6 @@ export default function HomePage() {
   const [tab, setTab] = useState<Tab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [streak, setStreak] = useState(0);
-  const [genre, setGenre] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showDailyModal, setShowDailyModal] = useState(false);
 
@@ -86,7 +85,7 @@ export default function HomePage() {
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    if (search || genre || tab !== 'all') return;
+    if (search || tab !== 'all') return;
     const oldIndex = books.findIndex((b) => b.id === active.id);
     const newIndex = books.findIndex((b) => b.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -101,19 +100,17 @@ export default function HomePage() {
     stopped: books.filter((b) => b.status === 'stopped').length,
   };
 
-  const genres = Array.from(new Set(books.map(b => b.genre).filter(Boolean) as string[]));
   const readingBooks = books.filter(b => b.status === 'reading');
   const recentBooks = [...books].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6);
   const filtered = books
     .filter((b) => tab === 'all' || b.status === tab)
-    .filter((b) => !genre || b.genre === genre)
     .filter((b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase()));
 
   const activeBook = activeId ? books.find((b) => b.id === activeId) : null;
-  const canDrag = !search && !genre && tab === 'all' && viewMode !== 'shelf';
+  const canDrag = !search && tab === 'all' && viewMode !== 'shelf';
 
-  const showReadingSection = readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search && !genre;
-  const showRecentSection = recentBooks.length > 0 && tab === 'all' && !search && !genre && readingBooks.length === 0;
+  const showReadingSection = readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search;
+  const showRecentSection = recentBooks.length > 0 && tab === 'all' && !search && readingBooks.length === 0;
 
   if (!loaded) {
     return (
@@ -197,16 +194,6 @@ export default function HomePage() {
             </button>
           ))}
         </div>
-
-        {/* Genre filter */}
-        {genres.length > 0 && (
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-            <button onClick={() => setGenre(null)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${genre === null ? 'bg-[#1D1D1F] text-white' : 'bg-white text-[#6E6E73]'}`} style={genre !== null ? { boxShadow: '0 1px 6px rgba(0,0,0,0.06)' } : {}}>전체</button>
-            {genres.map(g => (
-              <button key={g} onClick={() => setGenre(genre === g ? null : g)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${genre === g ? 'bg-indigo-500 text-white' : 'bg-white text-[#6E6E73]'}`} style={genre !== g ? { boxShadow: '0 1px 6px rgba(0,0,0,0.06)' } : {}}>{g}</button>
-            ))}
-          </div>
-        )}
 
         {canDrag && books.length > 1 && (
           <p className="text-[#AEAEB2] text-xs mb-3 text-center">꾹 눌러서 순서를 바꿀 수 있어요</p>

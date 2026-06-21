@@ -51,9 +51,6 @@ export default function BookListItem({ book }: { book: Book }) {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-[#1D1D1F] text-sm truncate">{book.title}</p>
           <p className="text-[#6E6E73] text-xs mt-0.5 truncate">{book.author}</p>
-          {book.oneLiner && (
-            <p className="text-[#AEAEB2] text-xs mt-1 italic truncate">&ldquo;{book.oneLiner}&rdquo;</p>
-          )}
           {book.status === 'reading' && book.currentPage && book.pages && (
             <div className="mt-1.5">
               <div className="flex items-center gap-2">

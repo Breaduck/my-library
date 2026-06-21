@@ -61,15 +61,6 @@ export default function BookCard({ book }: { book: Book }) {
           style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0) 35%, rgba(0,0,0,0.12) 55%, rgba(0,0,0,0.85) 100%)' }}
         />
 
-        {/* Genre pill — bottom-left above text */}
-        {book.genre && (
-          <div className="absolute left-2.5" style={{ bottom: 52 }}>
-            <span className="text-[9px] font-medium px-2 py-0.5 rounded-full backdrop-blur-sm bg-black/40 text-white/80 border border-white/10">
-              {book.genre}
-            </span>
-          </div>
-        )}
-
         {/* Progress bar for reading books */}
         {book.status === 'reading' && book.currentPage && book.pages && book.pages > 0 && (() => {
           const ratio = Math.min(book.currentPage / book.pages, 1);

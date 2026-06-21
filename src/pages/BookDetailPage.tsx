@@ -1,19 +1,22 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
 import StarRating from '@/components/StarRating';
 import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
+import DateField from '@/components/DateField';
 import { BookSearchResult, Quote, ReadingStatus } from '@/types';
-
-const GENRES = ['소설','에세이','자기계발','경제/경영','역사','과학','철학','심리학','사회','예술','여행','인문학','기타'];
 
 interface QuoteDraft {
   id: string;
   text: string;
   page: string;
 }
+
+const REVIEW_PLACEHOLDER = `이 책을 읽으며 어떤 감정이 스쳐갔나요?
+가장 기억에 남는 장면, 마음을 두드린 문장,
+다시 떠올리고 싶은 생각을 자유롭게 적어보세요.`;
 
 function formatDateShort(dateStr: string) {
   if (!dateStr) return '';
@@ -68,15 +71,63 @@ export default function BookDetailPage() {
   const [editStatus, setEditStatus] = useState<ReadingStatus>('done');
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
-  const [editReview, setEditReview] = useState('');
   const [editRating, setEditRating] = useState(0);
-  const [editQuotes, setEditQuotes] = useState<QuoteDraft[]>([]);
-  const [editOneLiner, setEditOneLiner] = useState('');
   const [editPages, setEditPages] = useState('');
-  const [editGenre, setEditGenre] = useState('');
   const [editCurrentPage, setEditCurrentPage] = useState('');
 
   const book = books.find((b) => b.id === id);
+
+  /* ── inline review / quotes (view mode, auto-save on blur) ── */
+  const [liveReview, setLiveReview] = useState('');
+  const [liveQuotes, setLiveQuotes] = useState<QuoteDraft[]>([]);
+
+  useEffect(() => {
+    if (!book) return;
+    setLiveReview(book.review);
+    setLiveQuotes(
+      book.quotes.length > 0
+        ? book.quotes.map((q) => ({ id: q.id, text: q.text, page: q.page || '' }))
+        : [{ id: crypto.randomUUID(), text: '', page: '' }]
+    );
+  }, [book?.id, book?.review, book?.quotes]);
+
+  function commitReview() {
+    if (!book || !id) return;
+    if (liveReview === book.review) return;
+    updateBook(id, { review: liveReview });
+  }
+
+  function commitQuotes() {
+    if (!book || !id) return;
+    const next: Quote[] = liveQuotes
+      .filter((q) => q.text.trim())
+      .map((q) => ({ id: q.id, text: q.text, page: q.page || undefined }));
+    const sameLen = next.length === book.quotes.length;
+    const same = sameLen && next.every((q, i) => {
+      const b = book.quotes[i];
+      return b && b.id === q.id && b.text === q.text && (b.page || undefined) === q.page;
+    });
+    if (same) return;
+    updateBook(id, { quotes: next });
+  }
+
+  function addLiveQuote() {
+    setLiveQuotes((p) => [...p, { id: crypto.randomUUID(), text: '', page: '' }]);
+  }
+  function removeLiveQuote(i: number) {
+    setLiveQuotes((p) => {
+      const next = p.filter((_, idx) => idx !== i);
+      // commit immediately since blur won't fire on removed input
+      if (book && id) {
+        const cleaned: Quote[] = next.filter((q) => q.text.trim()).map((q) => ({ id: q.id, text: q.text, page: q.page || undefined }));
+        updateBook(id, { quotes: cleaned });
+      }
+      return next.length === 0 ? [{ id: crypto.randomUUID(), text: '', page: '' }] : next;
+    });
+  }
+  function updateLiveQuote(i: number, f: 'text' | 'page', v: string) {
+    setLiveQuotes((p) => p.map((q, idx) => (idx === i ? { ...q, [f]: v } : q)));
+  }
 
   function startEdit() {
     if (!book) return;
@@ -86,25 +137,14 @@ export default function BookDetailPage() {
     setEditStatus(book.status ?? 'done');
     setEditStartDate(book.startDate);
     setEditEndDate(book.endDate);
-    setEditReview(book.review);
     setEditRating(book.rating);
-    setEditQuotes(
-      book.quotes.length > 0
-        ? book.quotes.map((q) => ({ id: q.id, text: q.text, page: q.page || '' }))
-        : [{ id: crypto.randomUUID(), text: '', page: '' }]
-    );
-    setEditOneLiner(book.oneLiner || '');
     setEditPages(book.pages ? String(book.pages) : '');
-    setEditGenre(book.genre || '');
     setEditCurrentPage(book.currentPage ? String(book.currentPage) : '');
     setIsEditing(true);
   }
 
   function saveEdit() {
     if (!editTitle.trim() || !id) return;
-    const quotes: Quote[] = editQuotes
-      .filter((q) => q.text.trim())
-      .map((q) => ({ id: q.id, text: q.text, page: q.page || undefined }));
     updateBook(id, {
       title: editTitle.trim(),
       author: editAuthor.trim(),
@@ -112,12 +152,8 @@ export default function BookDetailPage() {
       status: editStatus,
       startDate: editStartDate,
       endDate: editEndDate,
-      review: editReview,
       rating: editRating,
-      quotes,
-      oneLiner: editOneLiner,
       pages: editPages ? parseInt(editPages) : undefined,
-      genre: editGenre || undefined,
       currentPage: editCurrentPage ? parseInt(editCurrentPage) : undefined,
     });
     setIsEditing(false);
@@ -145,16 +181,6 @@ export default function BookDetailPage() {
     }
   }
 
-  function addQuote() {
-    setEditQuotes((p) => [...p, { id: crypto.randomUUID(), text: '', page: '' }]);
-  }
-  function removeQuote(i: number) {
-    setEditQuotes((p) => p.filter((_, idx) => idx !== i));
-  }
-  function updateQuoteDraft(i: number, f: 'text' | 'page', v: string) {
-    setEditQuotes((p) => p.map((q, idx) => (idx === i ? { ...q, [f]: v } : q)));
-  }
-
   if (!loaded) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center">
@@ -180,7 +206,7 @@ export default function BookDetailPage() {
   /* ─── EDIT MODE ─── */
   if (isEditing) {
     const showDates = editStatus === 'reading' || editStatus === 'done' || editStatus === 'stopped';
-    const showReview = editStatus === 'done';
+    const showRating = editStatus === 'done';
 
     return (
       <div className="min-h-screen bg-[#F5F5F7]">
@@ -242,97 +268,37 @@ export default function BookDetailPage() {
               </div>
             </div>
 
-            {/* One-liner */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
-              <h2 className="text-sm font-semibold text-[#1D1D1F] mb-1">한줄평</h2>
-              <p className="text-xs text-[#AEAEB2] mb-3">이 책을 한 문장으로 표현한다면</p>
-              <input type="text" value={editOneLiner} onChange={(e) => setEditOneLiner(e.target.value.slice(0, 100))}
-                placeholder="예) 존재의 무게를 온몸으로 느끼게 해준 소설" className={inputClass} />
-              <p className="text-right text-xs text-[#AEAEB2] mt-1">{editOneLiner.length}/100</p>
-            </div>
-
-            {/* Genre */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
-              <h2 className="text-sm font-semibold text-[#1D1D1F] mb-3">장르</h2>
-              <div className="flex flex-wrap gap-2">
-                {GENRES.map(g => (
-                  <button key={g} type="button" onClick={() => setEditGenre(editGenre === g ? '' : g)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${editGenre === g ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-[#F5F5F7] text-[#6E6E73] border-transparent'}`}>
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Dates */}
             {showDates && (
               <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
                 <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">읽은 기간</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">시작일</label>
-                    <input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} className={inputClass} />
-                  </div>
+                <div className="space-y-3">
+                  <DateField label="시작일" value={editStartDate} onChange={setEditStartDate} presets={['today', 'yesterday', 'week-ago']} />
                   {editStatus === 'done' && (
+                    <DateField label="종료일" value={editEndDate} onChange={setEditEndDate} presets={['today', 'yesterday']} />
+                  )}
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">총 페이지 수</label>
+                    <input type="number" value={editPages} onChange={(e) => setEditPages(e.target.value)} placeholder="예) 328" className={inputClass} min="1" />
+                  </div>
+                  {editStatus === 'reading' && (
                     <div>
-                      <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">종료일</label>
-                      <input type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} className={inputClass} />
+                      <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">현재 페이지</label>
+                      <input type="number" value={editCurrentPage} onChange={e => setEditCurrentPage(e.target.value)} placeholder="예) 145" className={inputClass} min="1" />
                     </div>
                   )}
                 </div>
-                <div className="mt-3 w-1/2 pr-1.5">
-                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">총 페이지 수 (선택)</label>
-                  <input type="number" value={editPages} onChange={(e) => setEditPages(e.target.value)}
-                    placeholder="예) 328" className={inputClass} min="1" />
-                </div>
-                {editStatus === 'reading' && (
-                  <div className="mt-3 w-1/2 pr-1.5">
-                    <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">현재 페이지</label>
-                    <input type="number" value={editCurrentPage} onChange={e => setEditCurrentPage(e.target.value)}
-                      placeholder="예) 145" className={inputClass} min="1" />
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Review fields (done only) */}
-            {showReview && (
-              <>
-                <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
-                  <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">별점</h2>
-                  <StarRating value={editRating} onChange={setEditRating} />
-                </div>
-                <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
-                  <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">독후감</h2>
-                  <textarea value={editReview} onChange={(e) => setEditReview(e.target.value)} rows={5} className={`${inputClass} resize-none`} />
-                </div>
-                <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
-                  <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">인상깊은 구절</h2>
-                  <div className="space-y-5">
-                    {editQuotes.map((q, i) => (
-                      <div key={q.id} className="space-y-2">
-                        <div className="flex gap-2 items-start">
-                          <textarea value={q.text} onChange={(e) => updateQuoteDraft(i, 'text', e.target.value)} rows={3} className={`flex-1 ${inputClass} resize-none`} />
-                          {editQuotes.length > 1 && (
-                            <button type="button" onClick={() => removeQuote(i)} className="mt-2 w-10 h-10 flex items-center justify-center rounded-xl hover:bg-red-50 text-[#AEAEB2] hover:text-red-400 transition-colors flex-shrink-0">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                        <input type="text" value={q.page} onChange={(e) => updateQuoteDraft(i, 'page', e.target.value)} placeholder="p. 페이지 (선택)" className="w-36 px-3 py-2 rounded-lg bg-[#F5F5F7] text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" />
-                      </div>
-                    ))}
-                    <button type="button" onClick={addQuote} className="flex items-center gap-1.5 text-[#0071E3] text-sm font-medium">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      구절 추가
-                    </button>
-                  </div>
-                </div>
-              </>
+            {/* Rating (done only) */}
+            {showRating && (
+              <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
+                <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">별점</h2>
+                <StarRating value={editRating} onChange={setEditRating} />
+              </div>
             )}
           </div>
         </div>
@@ -446,14 +412,6 @@ export default function BookDetailPage() {
                 <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${badge.cls}`}>
                   {badge.label}
                 </span>
-                {book.genre && (
-                  <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
-                    {book.genre}
-                  </span>
-                )}
-                {book.oneLiner && (
-                  <p className="text-[#6E6E73] text-sm italic">&ldquo;{book.oneLiner}&rdquo;</p>
-                )}
               </div>
               {book.status === 'done' && book.rating > 0 && (
                 <StarRating value={book.rating} readonly />
@@ -496,48 +454,82 @@ export default function BookDetailPage() {
           </div>
         )}
 
-        {book.review && (
-          <div className="bg-white rounded-2xl p-5 sm:p-6 mb-3 sm:mb-4" style={cardStyle}>
-            <h2 className="text-sm font-semibold text-[#1D1D1F] mb-3">독후감</h2>
-            <p className="text-[#3A3A3C] text-sm leading-relaxed whitespace-pre-wrap">{book.review}</p>
-          </div>
-        )}
-
-        {book.quotes.length > 0 && (
-          <div className="space-y-3 mb-3 sm:mb-4">
-            <div className="flex items-center gap-2 px-1">
-              <h2 className="text-sm font-semibold text-[#1D1D1F]">인상깊은 구절</h2>
-              <span className="text-xs text-[#AEAEB2]">{book.quotes.length}개</span>
+        {(book.status === 'reading' || book.status === 'done' || book.status === 'stopped') && (
+          <>
+            {/* 독후감 (인라인 편집) */}
+            <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
+              style={{
+                background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #fff7ed 100%)',
+                boxShadow: '0 2px 24px rgba(168,85,247,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+                border: '1px solid rgba(168,85,247,0.08)',
+              }}>
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-30 pointer-events-none"
+                style={{ background: 'radial-gradient(circle, #d8b4fe 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+              <div className="relative p-5 sm:p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">✨</span>
+                  <h2 className="text-sm font-bold text-[#1D1D1F]">나의 기록</h2>
+                </div>
+                <p className="text-[11px] text-[#6E6E73] mb-4 ml-7">읽으면서 떠오른 생각을 자유롭게 기록해보세요</p>
+                <textarea value={liveReview} onChange={(e) => setLiveReview(e.target.value)} onBlur={commitReview}
+                  placeholder={REVIEW_PLACEHOLDER}
+                  rows={Math.max(5, liveReview.split('\n').length + 1)}
+                  className="w-full px-4 py-3 rounded-xl bg-white/70 backdrop-blur-sm text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-purple-200 focus:bg-white transition-all resize-none leading-relaxed"
+                  style={{ fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif' }}
+                />
+                {liveReview.length > 0 && (
+                  <p className="text-right text-[10px] text-[#AEAEB2] mt-1.5">{liveReview.length}자 · 자동 저장됨</p>
+                )}
+              </div>
             </div>
-            {book.quotes.map((quote, idx) => (
-              <div key={quote.id} className="relative overflow-hidden rounded-2xl"
-                style={{
-                  background: idx % 2 === 0
-                    ? 'linear-gradient(135deg, #f8f7ff 0%, #ede9fe 100%)'
-                    : 'linear-gradient(135deg, #fff7ed 0%, #fde8d0 100%)',
-                  boxShadow: '0 2px 16px rgba(0,0,0,0.05)',
-                }}>
-                <span className="absolute top-2 left-3 font-serif leading-none select-none pointer-events-none"
-                  style={{
-                    fontSize: 80,
-                    color: idx % 2 === 0 ? 'rgba(99,102,241,0.10)' : 'rgba(251,146,60,0.14)',
-                    lineHeight: 1,
-                  }}>"</span>
-                <div className="relative px-5 pt-6 pb-4">
-                  <p className="text-[#1D1D1F] text-[15px] leading-[1.75] font-medium italic"
-                    style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
-                    {quote.text}
-                  </p>
-                  {quote.page && (
-                    <p className="text-[#AEAEB2] text-xs mt-3 flex items-center gap-1">
-                      <span className="w-4 h-px bg-[#AEAEB2] inline-block" />
-                      p. {quote.page}
-                    </p>
+
+            {/* 인상깊은 구절 (인라인 편집) */}
+            <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
+              style={{
+                background: 'linear-gradient(135deg, #eff6ff 0%, #ecfeff 50%, #f0fdf4 100%)',
+                boxShadow: '0 2px 24px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+                border: '1px solid rgba(59,130,246,0.08)',
+              }}>
+              <div className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-20 pointer-events-none"
+                style={{ background: 'radial-gradient(circle, #93c5fd 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
+              <div className="relative p-5 sm:p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">📜</span>
+                  <h2 className="text-sm font-bold text-[#1D1D1F]">인상깊은 구절</h2>
+                  {liveQuotes.filter(q => q.text.trim()).length > 0 && (
+                    <span className="text-[10px] text-[#6E6E73] ml-1">{liveQuotes.filter(q => q.text.trim()).length}개</span>
                   )}
                 </div>
+                <p className="text-[11px] text-[#6E6E73] mb-4 ml-7">밑줄 긋고 싶은 문장을 모아두세요</p>
+                <div className="space-y-4">
+                  {liveQuotes.map((q, i) => (
+                    <div key={q.id} className="rounded-xl bg-white/70 backdrop-blur-sm p-3 space-y-2 border border-white/60">
+                      <div className="flex gap-2 items-start">
+                        <textarea value={q.text} onChange={(e) => updateLiveQuote(i, 'text', e.target.value)} onBlur={commitQuotes}
+                          placeholder='"마음에 닿은 문장을 옮겨 적어보세요"'
+                          rows={Math.max(2, q.text.split('\n').length + 1)}
+                          className="flex-1 px-3 py-2 rounded-lg bg-transparent text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none resize-none italic leading-relaxed"
+                          style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}
+                        />
+                        {liveQuotes.length > 1 && (
+                          <button type="button" onClick={() => removeLiveQuote(i)} className="mt-1 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-[#AEAEB2] hover:text-red-400 transition-colors flex-shrink-0">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        )}
+                      </div>
+                      <input type="text" value={q.page} onChange={(e) => updateLiveQuote(i, 'page', e.target.value)} onBlur={commitQuotes}
+                        placeholder="p. 페이지 (선택)"
+                        className="w-32 px-2.5 py-1.5 rounded-md bg-white/60 text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-1 focus:ring-blue-300 transition-all" />
+                    </div>
+                  ))}
+                  <button type="button" onClick={addLiveQuote} className="flex items-center gap-1.5 text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    구절 추가
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          </>
         )}
 
         {/* Timer card */}
@@ -596,10 +588,6 @@ export default function BookDetailPage() {
                   <div className="flex justify-center gap-1 mt-2">
                     {[1,2,3,4,5].map(s => <span key={s} className={`text-lg ${book.rating >= s ? 'text-amber-400' : 'text-white/15'}`}>★</span>)}
                   </div>
-                )}
-
-                {book.oneLiner && (
-                  <p className="text-white/70 text-sm italic text-center mt-3 px-2 leading-relaxed">&ldquo;{book.oneLiner}&rdquo;</p>
                 )}
 
                 {book.quotes.length > 0 && (
