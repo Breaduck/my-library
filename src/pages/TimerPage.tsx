@@ -2,22 +2,18 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useBooks } from '@/hooks/useBooks';
 import { logReadingDate } from '@/lib/storage';
+import ClassicTimer from '@/components/timer/ClassicTimer';
+import AirplaneTimer from '@/components/timer/AirplaneTimer';
+import PlaylistTimer from '@/components/timer/PlaylistTimer';
 
-const R = 112;
-const SW = 10;
-const SIZE = (R + SW) * 2 + 8;
-const CX = SIZE / 2;
-const CY = SIZE / 2;
-const CIRC = 2 * Math.PI * R;
 const HOUR = 3600;
+type Mode = 'classic' | 'airplane' | 'playlist';
 
-function fmt(s: number) {
-  const h = Math.floor(s / HOUR);
-  const m = Math.floor((s % HOUR) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-}
+const MODES: { key: Mode; label: string; desc: string }[] = [
+  { key: 'classic',  label: '일반형',     desc: '깔끔한 링 타이머' },
+  { key: 'airplane', label: '비행기 여행', desc: '책으로 떠나는 여행' },
+  { key: 'playlist', label: '플레이리스트', desc: '독서를 재생' },
+];
 
 function fmtTotal(s: number): string {
   if (s === 0) return '0분';
@@ -36,8 +32,21 @@ export default function TimerPage() {
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [savedElapsed, setSavedElapsed] = useState(0);
+  const [mode, setMode] = useState<Mode>('classic');
+  const [showModeSheet, setShowModeSheet] = useState(false);
 
   const book = books.find((b) => b.id === id);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('timer-mode') as Mode | null;
+    if (saved && MODES.some((m) => m.key === saved)) setMode(saved);
+  }, []);
+
+  function changeMode(m: Mode) {
+    setMode(m);
+    localStorage.setItem('timer-mode', m);
+    setShowModeSheet(false);
+  }
 
   useEffect(() => {
     if (!running) return;
@@ -128,24 +137,14 @@ export default function TimerPage() {
     );
   }
 
-  /* ── Timer ── */
-  const progress = elapsed > 0 ? (elapsed % HOUR) / HOUR : 0;
-  const lap = Math.floor(elapsed / HOUR);
-  const dashOffset = CIRC * (1 - progress);
   const accumulated = (book.totalReadingTime ?? 0) + elapsed;
+  const currentMode = MODES.find((m) => m.key === mode)!;
 
   return (
     <div className="min-h-screen bg-[#0C0C18] flex flex-col select-none"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
 
-      {book.coverUrl && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <img src={book.coverUrl} alt="" className="w-full h-full object-cover opacity-[0.07] scale-125"
-            style={{ filter: 'blur(48px)' }} />
-        </div>
-      )}
-
-      <div className="relative flex items-center justify-between px-5 pt-5 pb-2">
+      <div className="relative flex items-center justify-between px-5 pt-5 pb-2 z-10">
         <Link to={`/book/${id}`}
           className="w-10 h-10 flex items-center justify-center rounded-full text-white active:opacity-60 transition-opacity"
           style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -153,81 +152,35 @@ export default function TimerPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        {elapsed > 0 && (
+
+        {/* 모드 선택 버튼 */}
+        <button onClick={() => setShowModeSheet(true)}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-white text-xs font-medium active:opacity-70 transition-opacity"
+          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {currentMode.label}
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {elapsed > 0 ? (
           <button onClick={handleFinish}
-            className="px-5 py-2.5 rounded-full text-white/80 text-sm font-medium border border-white/10 active:opacity-70 transition-opacity"
+            className="px-4 py-2 rounded-full text-white/80 text-xs font-medium border border-white/10 active:opacity-70 transition-opacity"
             style={{ background: 'rgba(255,255,255,0.08)' }}>
             종료 & 저장
           </button>
+        ) : (
+          <div className="w-10" />
         )}
       </div>
 
-      <div className="relative flex flex-col items-center mt-5 px-6">
-        <div className="rounded-2xl overflow-hidden flex-shrink-0 mb-3"
-          style={{ width: 64, height: 92, boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
-          {book.coverUrl
-            ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                <span className="text-white/50 text-sm font-bold">{book.title.slice(0, 2)}</span>
-              </div>
-          }
-        </div>
-        <p className="text-white font-medium text-sm text-center max-w-[220px] leading-snug line-clamp-1">{book.title}</p>
-        <p className="text-white/40 text-xs mt-0.5 max-w-[180px] text-center truncate">{book.author}</p>
+      <div className="relative flex-1 flex flex-col">
+        {mode === 'classic'  && <ClassicTimer  book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
+        {mode === 'airplane' && <AirplaneTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
+        {mode === 'playlist' && <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
       </div>
 
-      <div className="relative flex-1 flex flex-col items-center justify-center mt-2">
-        <div className="relative" style={{ width: SIZE, height: SIZE }}>
-          <svg width={SIZE} height={SIZE}>
-            <defs>
-              <linearGradient id="ringGrad" x1="0" y1="1" x2="1" y2="0">
-                <stop offset="0%" stopColor="#818CF8" />
-                <stop offset="100%" stopColor="#C084FC" />
-              </linearGradient>
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-            <g transform={`rotate(-90 ${CX} ${CY})`}>
-              <circle cx={CX} cy={CY} r={R} fill="none"
-                stroke="rgba(255,255,255,0.06)" strokeWidth={SW} />
-              {elapsed > 0 && (
-                <circle cx={CX} cy={CY} r={R} fill="none"
-                  stroke="url(#ringGrad)" strokeWidth={SW}
-                  strokeLinecap="round"
-                  strokeDasharray={CIRC}
-                  strokeDashoffset={dashOffset}
-                  filter={running ? 'url(#glow)' : undefined}
-                  style={{ transition: running ? 'stroke-dashoffset 1s linear' : 'none' }}
-                />
-              )}
-            </g>
-          </svg>
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <p className="text-white tabular-nums font-extralight"
-              style={{ fontSize: elapsed >= HOUR ? 38 : 52, letterSpacing: '-0.025em', lineHeight: 1 }}>
-              {fmt(elapsed)}
-            </p>
-            {lap > 0 && (
-              <p className="text-white/30 text-xs mt-2">{lap}시간 완료</p>
-            )}
-            {!running && elapsed === 0 && (
-              <p className="text-white/25 text-xs mt-2">탭하여 시작</p>
-            )}
-          </div>
-        </div>
-
-        {accumulated > 0 && (
-          <div className="mt-4 flex flex-col items-center">
-            <p className="text-white/25 text-[10px] tracking-[0.12em] uppercase mb-0.5">총 독서 시간</p>
-            <p className="text-white/55 text-base font-light">{fmtTotal(accumulated)}</p>
-          </div>
-        )}
-      </div>
-
-      <div className="relative flex items-center justify-center pt-4 pb-2">
+      <div className="relative flex items-center justify-center pt-4 pb-2 z-10">
         <button
           onClick={() => setRunning((r) => !r)}
           className="w-[76px] h-[76px] rounded-full bg-white flex items-center justify-center active:scale-95 transition-transform"
@@ -243,6 +196,71 @@ export default function TimerPage() {
           )}
         </button>
       </div>
+
+      {/* Mode picker bottom sheet */}
+      {showModeSheet && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+          onClick={(e) => e.target === e.currentTarget && setShowModeSheet(false)}>
+          <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(180deg, #1a1a2e 0%, #0c0c18 100%)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+            }}>
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-2 sm:hidden" />
+            <div className="px-6 pt-3 pb-4">
+              <h3 className="text-white text-base font-bold mb-1">타이머 모드</h3>
+              <p className="text-white/40 text-xs">취향에 맞는 방식으로 책에 빠져들어요</p>
+            </div>
+            <div className="px-3 pb-3 space-y-2">
+              {MODES.map((m) => {
+                const active = mode === m.key;
+                return (
+                  <button key={m.key} onClick={() => changeMode(m.key)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-left active:scale-[0.98]"
+                    style={{
+                      background: active ? 'rgba(129,140,248,0.18)' : 'rgba(255,255,255,0.04)',
+                      border: active ? '1px solid rgba(129,140,248,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                    <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: active
+                          ? 'linear-gradient(135deg, #818CF8, #C084FC)'
+                          : 'rgba(255,255,255,0.05)',
+                      }}>
+                      {m.key === 'classic' && (
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                      {m.key === 'airplane' && (
+                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                        </svg>
+                      )}
+                      {m.key === 'playlist' && (
+                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm font-semibold">{m.label}</p>
+                      <p className="text-white/50 text-xs mt-0.5">{m.desc}</p>
+                    </div>
+                    {active && (
+                      <svg className="w-5 h-5 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
