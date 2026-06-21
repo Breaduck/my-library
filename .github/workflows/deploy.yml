@@ -36,7 +36,10 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes in dist/"
           else
-            git commit -m "build: update dist [skip ci]"
+            # NOTE: do NOT include [skip ci] — Cloudflare Pages honors it too
+            # and stops auto-deploying. paths-ignore: dist/** in this workflow
+            # already prevents infinite loops.
+            git commit -m "build: rebuild dist"
             git push
           fi
 
