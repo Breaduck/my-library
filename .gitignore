@@ -19,7 +19,7 @@
 
 # production
 /build
-/dist
+# /dist - committed for Cloudflare Pages (no build command configured)
 
 # misc
 .DS_Store
