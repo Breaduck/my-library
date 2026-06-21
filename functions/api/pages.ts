@@ -9,11 +9,12 @@ function json(data: unknown) {
 async function pagesByAladinIsbn(isbn: string, key: string): Promise<number | null> {
   try {
     const res = await fetch(
-      `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${key}&itemIdType=ISBN13&ItemId=${isbn}&output=js&Version=20131101`
+      `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${key}&itemIdType=ISBN13&ItemId=${isbn}&output=js&Version=20131101&OptResult=subInfo`
     );
     if (!res.ok) return null;
-    const data = await res.json() as { item?: { itemPage?: number }[] };
-    const page = data.item?.[0]?.itemPage;
+    const data = await res.json() as { item?: { itemPage?: number; subInfo?: { itemPage?: number } }[] };
+    const item = data.item?.[0];
+    const page = item?.itemPage ?? item?.subInfo?.itemPage;
     return typeof page === 'number' && page > 0 ? page : null;
   } catch {
     return null;

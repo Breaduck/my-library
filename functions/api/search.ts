@@ -27,15 +27,36 @@ function mapGenre(category: string): string | undefined {
 }
 
 function cleanTitle(raw: string): string {
-  return raw.replace(/<[^>]+>/g, '').replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+  let t = raw.replace(/<[^>]+>/g, '').trim();
+  const dash = t.indexOf(' - ');
+  if (dash > 0) t = t.slice(0, dash).trim();
+  return t.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*\[[^\]]*\]\s*$/, '').replace(/^\[[^\]]+\]\s*/, '').trim();
 }
 
 function cleanNaverAuthor(raw: string): string {
   return raw.replace(/<[^>]+>/g, '').split('^').map((s) => s.trim()).filter(Boolean).join(', ') || '저자 미상';
 }
 
+/* "마이클 샌델 (지은이), 김명철 (옮긴이), 김선욱 (감수)" → "마이클 샌델"
+   역할 마커가 있으면 (지은이)만 추리고, 없으면 첫 사람만 남긴다. */
 function cleanAladinAuthor(raw: string): string {
-  return raw.replace(/\s*\([^)]*\)/g, '').split(',').map((s) => s.trim()).filter(Boolean).join(', ') || '저자 미상';
+  if (!raw) return '저자 미상';
+  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  const writers = parts.filter((p) => /\(지은이\)/.test(p)).map((p) => p.replace(/\s*\([^)]*\)\s*/g, '').trim()).filter(Boolean);
+  if (writers.length > 0) return writers.join(', ');
+  const stripped = parts.map((p) => p.replace(/\s*\([^)]*\)\s*/g, '').trim()).filter(Boolean);
+  return stripped[0] || '저자 미상';
+}
+
+/* "정의란 무엇인가 - 한국 200만 부 돌파, 37개국..." → "정의란 무엇인가"
+   "[큰글자] 책 제목" → 책 제목 (선행 [태그] 제거) */
+function cleanAladinTitle(raw: string): string {
+  if (!raw) return '';
+  let t = raw.replace(/<[^>]+>/g, '').trim();
+  const dash = t.indexOf(' - ');
+  if (dash > 0) t = t.slice(0, dash).trim();
+  t = t.replace(/^\[[^\]]+\]\s*/, '').trim();
+  return t;
 }
 
 /* 알라딘 표지: coversum / cover200 → cover500 (고화질) */
@@ -82,7 +103,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const data = await res.json() as { item?: Record<string, unknown>[] };
       if (Array.isArray(data.item) && data.item.length > 0) {
         return json(data.item.map((item) => ({
-          title: String(item.title || ''),
+          title: cleanAladinTitle(String(item.title || '')),
           author: cleanAladinAuthor(String(item.author || '')),
           coverUrl: upgradeAladinCover(String(item.cover || '')),
           pages: pickAladinPages(item),
