@@ -257,15 +257,22 @@ export default function BookDetailPage() {
             {/* Status */}
             <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
               <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">독서 상태</h2>
-              <div className="grid grid-cols-4 gap-2">
-                {STATUS_OPTIONS.map((opt) => (
-                  <button key={opt.key} type="button" onClick={() => setEditStatus(opt.key)}
-                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all ${editStatus === opt.key ? opt.active : 'border-[#F5F5F7] bg-[#F5F5F7] text-[#6E6E73]'}`}>
-                    <span className="text-xl">{opt.emoji}</span>
-                    <span className="text-xs">{opt.label}</span>
-                  </button>
-                ))}
-              </div>
+              {(() => {
+                const visibleOptions = STATUS_OPTIONS.filter(
+                  (opt) => opt.key !== 'stopped' || editStatus === 'reading' || editStatus === 'stopped'
+                );
+                return (
+                  <div className={`grid gap-2 ${visibleOptions.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                    {visibleOptions.map((opt) => (
+                      <button key={opt.key} type="button" onClick={() => setEditStatus(opt.key)}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all ${editStatus === opt.key ? opt.active : 'border-[#F5F5F7] bg-[#F5F5F7] text-[#6E6E73]'}`}>
+                        <span className="text-xl">{opt.emoji}</span>
+                        <span className="text-xs">{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Dates */}
@@ -454,9 +461,9 @@ export default function BookDetailPage() {
           </div>
         )}
 
-        {(book.status === 'reading' || book.status === 'done' || book.status === 'stopped') && (
+        {book.status === 'reading' && (
           <>
-            {/* 독후감 (인라인 편집) */}
+            {/* 독후감 (인라인 편집 — 읽는 중만) */}
             <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
               style={{
                 background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #fff7ed 100%)',
@@ -483,7 +490,7 @@ export default function BookDetailPage() {
               </div>
             </div>
 
-            {/* 인상깊은 구절 (인라인 편집) */}
+            {/* 인상깊은 구절 (인라인 편집 — 읽는 중만) */}
             <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
               style={{
                 background: 'linear-gradient(135deg, #eff6ff 0%, #ecfeff 50%, #f0fdf4 100%)',
@@ -529,6 +536,64 @@ export default function BookDetailPage() {
                 </div>
               </div>
             </div>
+          </>
+        )}
+
+        {(book.status === 'done' || book.status === 'stopped') && (book.review || book.quotes.length > 0) && (
+          <>
+            {/* 독후감 — 읽기전용 */}
+            {book.review && (
+              <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
+                style={{
+                  background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #fff7ed 100%)',
+                  boxShadow: '0 2px 24px rgba(168,85,247,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+                  border: '1px solid rgba(168,85,247,0.08)',
+                }}>
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-30 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, #d8b4fe 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+                <div className="relative p-5 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">✨</span>
+                    <h2 className="text-sm font-bold text-[#1D1D1F]">나의 기록</h2>
+                  </div>
+                  <p className="text-[15px] text-[#1D1D1F] leading-relaxed whitespace-pre-wrap"
+                    style={{ fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif' }}>
+                    {book.review}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 인상깊은 구절 — 읽기전용 */}
+            {book.quotes.length > 0 && (
+              <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
+                style={{
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #ecfeff 50%, #f0fdf4 100%)',
+                  boxShadow: '0 2px 24px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+                  border: '1px solid rgba(59,130,246,0.08)',
+                }}>
+                <div className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-20 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, #93c5fd 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
+                <div className="relative p-5 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">📜</span>
+                    <h2 className="text-sm font-bold text-[#1D1D1F]">인상깊은 구절</h2>
+                    <span className="text-[10px] text-[#6E6E73] ml-1">{book.quotes.length}개</span>
+                  </div>
+                  <div className="space-y-3">
+                    {book.quotes.map((q) => (
+                      <div key={q.id} className="rounded-xl bg-white/70 p-3 border border-white/60">
+                        <p className="text-[15px] text-[#1D1D1F] italic leading-relaxed whitespace-pre-wrap"
+                          style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
+                          &ldquo;{q.text}&rdquo;
+                        </p>
+                        {q.page && <p className="text-[10px] text-[#AEAEB2] mt-1.5">p. {q.page}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 

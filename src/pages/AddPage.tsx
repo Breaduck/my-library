@@ -12,7 +12,6 @@ const STATUS_OPTIONS: { key: ReadingStatus; label: string; emoji: string; active
   { key: 'want',    label: '읽을 예정', emoji: '🔖', active: 'bg-purple-500 text-white border-purple-500' },
   { key: 'reading', label: '읽는 중',   emoji: '📖', active: 'bg-blue-500 text-white border-blue-500' },
   { key: 'done',    label: '읽음',      emoji: '✅', active: 'bg-emerald-500 text-white border-emerald-500' },
-  { key: 'stopped', label: '중단',      emoji: '🚫', active: 'bg-gray-500 text-white border-gray-500' },
 ];
 
 const REVIEW_PLACEHOLDER = `이 책을 읽으며 어떤 감정이 스쳐갔나요?
@@ -88,7 +87,7 @@ export default function AddPage() {
 
   const inp = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all';
   const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
-  const showDates = status === 'reading' || status === 'done' || status === 'stopped';
+  const showDates = status === 'reading' || status === 'done';
   const showReview = status === 'reading' || status === 'done';
 
   return (
@@ -128,7 +127,7 @@ export default function AddPage() {
 
           <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
             <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">독서 상태</h2>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {STATUS_OPTIONS.map((opt) => (
                 <button key={opt.key} type="button" onClick={() => setStatus(opt.key)}
                   className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-all ${status === opt.key ? opt.active : 'border-[#F5F5F7] bg-[#F5F5F7] text-[#6E6E73]'}`}>
@@ -138,30 +137,6 @@ export default function AddPage() {
               ))}
             </div>
           </div>
-
-          {showDates && (
-            <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
-              <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">읽은 기간</h2>
-              <div className="space-y-3">
-                <DateField label="시작일" value={startDate} onChange={setStartDate} presets={['today', 'yesterday', 'week-ago']} />
-                {status === 'done' && (
-                  <DateField label="종료일" value={endDate} onChange={setEndDate} presets={['today', 'yesterday']} />
-                )}
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">총 페이지 수</label>
-                  <input type="number" value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예) 328" className={inp} min="1" />
-                </div>
-                {status === 'reading' && (
-                  <div>
-                    <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">현재 페이지</label>
-                    <input type="number" value={currentPage} onChange={e => setCurrentPage(e.target.value)} placeholder="예) 145" className={inp} min="1" />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {showReview && (
             <>
@@ -239,6 +214,30 @@ export default function AddPage() {
                 </div>
               </div>
             </>
+          )}
+
+          {showDates && (
+            <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
+              <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">읽은 기간</h2>
+              <div className="space-y-3">
+                <DateField label="시작일" value={startDate} onChange={setStartDate} presets={['today', 'yesterday', 'week-ago']} />
+                {status === 'done' && (
+                  <DateField label="종료일" value={endDate} onChange={setEndDate} presets={['today', 'yesterday']} />
+                )}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">총 페이지 수</label>
+                  <input type="number" value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예) 328" className={inp} min="1" />
+                </div>
+                {status === 'reading' && (
+                  <div>
+                    <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">현재 페이지</label>
+                    <input type="number" value={currentPage} onChange={e => setCurrentPage(e.target.value)} placeholder="예) 145" className={inp} min="1" />
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
