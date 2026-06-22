@@ -625,56 +625,94 @@ export default function BookDetailPage() {
         </div>
       </div>
 
-      {/* 공유 카드 모달 */}
+      {/* 나만의 독서 리뷰 카드 모달 */}
       {showShareCard && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6"
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5"
           onClick={(e) => e.target === e.currentTarget && setShowShareCard(false)}>
-          <div className="w-full max-w-sm">
-            <div ref={shareCardRef} className="rounded-3xl overflow-hidden"
-              style={{ background: 'linear-gradient(160deg, #1a1035 0%, #0d0d1a 100%)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
-              <div className="relative h-48 overflow-hidden">
-                {book.coverUrl
-                  ? <img src={book.coverUrl} alt="" className="w-full h-full object-cover opacity-40" />
-                  : <div className="w-full h-full bg-gradient-to-br from-indigo-800 to-purple-900" />
-                }
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, #1a1035 100%)' }} />
-                {book.coverUrl && (
-                  <img src={book.coverUrl} alt={book.title}
-                    className="absolute bottom-[-20px] left-1/2 -translate-x-1/2 rounded-xl object-cover"
-                    style={{ width: 80, height: 114, boxShadow: '0 12px 32px rgba(0,0,0,0.7)' }} />
-                )}
-              </div>
+          <div className="w-full max-w-xs">
+            {/* Card */}
+            <div ref={shareCardRef} className="rounded-3xl overflow-hidden relative"
+              style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.5)' }}>
 
-              <div className="px-6 pt-8 pb-6">
-                <p className="text-white font-bold text-lg text-center leading-tight">{book.title}</p>
-                <p className="text-white/50 text-sm text-center mt-1">{book.author}</p>
+              {/* Warm background */}
+              <div className="absolute inset-0" style={{ background: '#F4EDE4' }} />
 
-                {book.rating > 0 && (
-                  <div className="flex justify-center gap-1 mt-2">
-                    {[1,2,3,4,5].map(s => <span key={s} className={`text-lg ${book.rating >= s ? 'text-amber-400' : 'text-white/15'}`}>★</span>)}
-                  </div>
-                )}
+              {/* Blurred cover BG */}
+              {book.coverUrl && (
+                <div className="absolute inset-0 overflow-hidden">
+                  <img src={book.coverUrl} alt=""
+                    className="w-full h-full object-cover"
+                    style={{ filter: 'blur(48px)', opacity: 0.25, transform: 'scale(1.4)' }} />
+                </div>
+              )}
 
-                {book.quotes.length > 0 && (
-                  <div className="mt-4 px-4 py-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p className="text-white/80 text-xs italic leading-relaxed line-clamp-3">&ldquo;{book.quotes[0].text}&rdquo;</p>
-                    {book.quotes[0].page && <p className="text-white/30 text-[10px] mt-1">p. {book.quotes[0].page}</p>}
-                  </div>
-                )}
-
-                <div className="flex justify-center gap-4 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  {book.pages && <div className="text-center"><p className="text-white/30 text-[9px] uppercase tracking-widest">페이지</p><p className="text-white text-sm font-medium">{book.pages}p</p></div>}
-                  {(book.totalReadingTime ?? 0) > 0 && <div className="text-center"><p className="text-white/30 text-[9px] uppercase tracking-widest">독서시간</p><p className="text-white text-sm font-medium">{Math.floor((book.totalReadingTime??0)/3600) > 0 ? `${Math.floor((book.totalReadingTime??0)/3600)}시간` : `${Math.floor((book.totalReadingTime??0)/60)}분`}</p></div>}
-                  {book.endDate && <div className="text-center"><p className="text-white/30 text-[9px] uppercase tracking-widest">완독일</p><p className="text-white text-sm font-medium">{book.endDate.slice(0,7)}</p></div>}
+              <div className="relative">
+                {/* Quote / Review text */}
+                <div className="px-7 pt-8 pb-7">
+                  {book.quotes.length > 0 ? (
+                    <div>
+                      <p className="text-[#2D1B0E]/20 text-4xl leading-none mb-2" style={{ fontFamily: 'Georgia, serif' }}>&ldquo;</p>
+                      <p className="text-[#2D1B0E] text-[13px] leading-[1.9] line-clamp-6"
+                        style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
+                        {book.quotes[0].text}
+                      </p>
+                      {book.quotes[0].page && (
+                        <p className="text-[#8C7B6B] text-[10px] mt-2">— p.{book.quotes[0].page}</p>
+                      )}
+                    </div>
+                  ) : book.review ? (
+                    <div>
+                      <p className="text-[#2D1B0E]/20 text-4xl leading-none mb-2" style={{ fontFamily: 'Georgia, serif' }}>&ldquo;</p>
+                      <p className="text-[#2D1B0E] text-[13px] leading-[1.9] line-clamp-6"
+                        style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
+                        {book.review}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[#8C7B6B] text-sm italic py-4 text-center"
+                      style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
+                      나만의 독서 기록
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-center gap-1.5 mt-4">
-                  <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-                    </svg>
+                {/* Divider */}
+                <div className="mx-6 h-px" style={{ background: 'rgba(45,27,14,0.12)' }} />
+
+                {/* Book info */}
+                <div className="px-5 py-5 flex items-center gap-3.5">
+                  {book.coverUrl
+                    ? <img src={book.coverUrl} alt={book.title}
+                        className="rounded-xl object-cover flex-shrink-0"
+                        style={{ width: 44, height: 62, boxShadow: '0 6px 20px rgba(0,0,0,0.22)' }} />
+                    : <div className="rounded-xl flex-shrink-0 flex items-center justify-center"
+                        style={{ width: 44, height: 62, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+                        <span className="text-white text-sm font-bold">{book.title.slice(0, 1)}</span>
+                      </div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[#1D1D1F] text-sm leading-snug line-clamp-2">{book.title}</p>
+                    <p className="text-[#8C7B6B] text-xs mt-0.5 truncate">{book.author}</p>
+                    {book.rating > 0 && (
+                      <div className="flex gap-0.5 mt-1.5">
+                        {[1,2,3,4,5].map((s) => (
+                          <span key={s} className={`text-xs ${book.rating >= s ? 'text-amber-500' : 'text-[#D4C4B0]'}`}>★</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-white/30 text-[10px] tracking-widest uppercase">나의 서재</p>
+                  {book.endDate && (
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[9px] text-[#C4B4A4] uppercase tracking-wide">완독일</p>
+                      <p className="text-[11px] text-[#8C7B6B] font-medium">{book.endDate.slice(0, 7)}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* App branding */}
+                <div className="px-5 pb-4 flex items-center justify-end gap-1">
+                  <div className="w-3 h-3 rounded-sm" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }} />
+                  <p className="text-[9px] tracking-widest uppercase" style={{ color: '#C4B4A4' }}>나의 서재</p>
                 </div>
               </div>
             </div>
@@ -692,7 +730,7 @@ export default function BookDetailPage() {
                 {savingCard ? '저장 중...' : '이미지 저장'}
               </button>
               <button onClick={() => setShowShareCard(false)}
-                className="py-3.5 rounded-2xl bg-white/10 text-white text-sm font-medium backdrop-blur-sm border border-white/10 active:opacity-70 transition-opacity">
+                className="py-3.5 rounded-2xl bg-white/10 text-white text-sm font-medium border border-white/10 active:opacity-70 transition-opacity">
                 닫기
               </button>
             </div>
