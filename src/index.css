@@ -43,6 +43,34 @@ body {
   padding-bottom: calc(env(safe-area-inset-bottom) + 24px);
 }
 
+/* iOS notch / Dynamic Island */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pt-safe-4 {
+  padding-top: calc(env(safe-area-inset-top) + 16px);
+}
+.pt-safe-6 {
+  padding-top: calc(env(safe-area-inset-top) + 24px);
+}
+
+/* 페이지 상단 패딩 — 노치/Dynamic Island를 항상 피한다.
+   sub 페이지: pt-6 sm:pt-12 자리 / 홈: pt-10 sm:pt-14 자리 */
+.page-pt {
+  padding-top: calc(env(safe-area-inset-top) + 24px);
+}
+.page-pt-lg {
+  padding-top: calc(env(safe-area-inset-top) + 40px);
+}
+@media (min-width: 640px) {
+  .page-pt {
+    padding-top: calc(env(safe-area-inset-top) + 48px);
+  }
+  .page-pt-lg {
+    padding-top: calc(env(safe-area-inset-top) + 56px);
+  }
+}
+
 input[type='date']::-webkit-calendar-picker-indicator {
   opacity: 0.5;
   cursor: pointer;

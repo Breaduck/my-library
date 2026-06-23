@@ -1,0 +1,20 @@
+{
+  "name": "나의 서재",
+  "short_name": "나의 서재",
+  "description": "읽은 책을 기록하는 나만의 서재",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F5F7",
+  "theme_color": "#F5F5F7",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

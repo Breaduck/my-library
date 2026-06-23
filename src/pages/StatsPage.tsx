@@ -138,7 +138,7 @@ export default function StatsPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12"
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 page-pt"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 48px)' }}>
 
         {/* Header */}
@@ -155,7 +155,7 @@ export default function StatsPage() {
         {/* 연도 선택 */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {years.map((y) => (
-            <button key={y} onClick={() => { setSelectedYear(y); setCalendarMonth(null); setSelectedDay(null); }}
+            <button key={y} onClick={() => { setSelectedYear(y); setCalSelectedDay(null); }}
               className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedYear === y ? 'bg-[#1D1D1F] text-white' : 'bg-white text-[#6E6E73] hover:bg-gray-50'}`}
               style={selectedYear !== y ? { boxShadow: '0 1px 6px rgba(0,0,0,0.06)' } : {}}>
               {y}년
@@ -271,69 +271,45 @@ export default function StatsPage() {
         </div>
 
         {/* ── 독서 달력 ── */}
-        <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
-          {/* Header */}
+        <div className="bg-white rounded-3xl p-5 sm:p-6 mb-4" style={cs}>
+          {/* Header — 큰 월/년 + 좌우 네비 */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2.5">
-              <h2 className="text-sm font-semibold text-[#1D1D1F]">독서 달력</h2>
+              <span className="text-lg font-bold text-[#1D1D1F] tracking-tight">
+                {calDisplayYear}.{String(calDisplayMonth + 1).padStart(2, '0')}
+              </span>
               {calMonthDoneCount > 0 && (
                 <span className="text-[11px] font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
-                  {calMonthDoneCount}권 완독
+                  {calMonthDoneCount}권
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleSaveCalImage}
-                disabled={savingCal}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F5F5F7] text-[#6E6E73] text-xs font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            <div className="flex items-center gap-1">
+              <button onClick={prevCalMonth}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] active:bg-gray-100 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                {savingCal ? '저장 중' : '저장'}
               </button>
-              <button
-                onClick={() => setShowShareCard(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F5F5F7] text-[#6E6E73] text-xs font-medium hover:bg-gray-100 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              <button onClick={nextCalMonth}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] active:bg-gray-100 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-                공유
               </button>
             </div>
-          </div>
-
-          {/* Month navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={prevCalMonth}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] hover:bg-gray-100 active:bg-gray-200 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <span className="text-base font-bold text-[#1D1D1F] tracking-tight">
-              {calDisplayYear}.{String(calDisplayMonth + 1).padStart(2, '0')}
-            </span>
-            <button onClick={nextCalMonth}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] hover:bg-gray-100 active:bg-gray-200 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
 
           <div ref={calRef} className="bg-white rounded-xl">
             {/* Weekday headers */}
-            <div className="grid grid-cols-7 mb-2">
+            <div className="grid grid-cols-7 mb-3">
               {WEEK_DAYS.map((d, i) => (
-                <div key={d} className={`text-center text-[10px] font-semibold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
+                <div key={d} className={`text-center text-[11px] font-medium py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
               ))}
             </div>
 
-            {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-x-1 gap-y-2">
+            {/* Calendar grid — 표지 위 + 일자 아래, 북베어 스타일 */}
+            <div className="grid grid-cols-7 gap-x-1 gap-y-3">
               {Array.from({ length: calFirstDay }).map((_, i) => <div key={`e${i}`} />)}
               {Array.from({ length: calTotalDays }, (_, i) => i + 1).map((day) => {
                 const dayBooksArr = calDayBooks[day] || [];
@@ -345,18 +321,18 @@ export default function StatsPage() {
                   <button
                     key={day}
                     onClick={() => hasBooks && setCalSelectedDay(isSelected ? null : day)}
-                    className="flex flex-col items-center gap-0.5"
+                    className="flex flex-col items-center gap-1.5 outline-none"
                     disabled={!hasBooks}
                   >
-                    {/* Date cell */}
+                    {/* Cover thumbnail box — 1:1, 표지 없으면 빈 사각형 (그리드 일관성 유지) */}
                     <div
-                      className="w-full rounded-xl overflow-hidden relative flex items-end justify-start"
+                      className="w-full rounded-lg overflow-hidden relative"
                       style={{
-                        aspectRatio: '2/3',
+                        aspectRatio: '1 / 1',
                         background: hasBooks
-                          ? coverBook ? 'transparent' : 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                          ? coverBook ? 'transparent' : 'linear-gradient(135deg, #818CF8, #C084FC)'
                           : 'transparent',
-                        boxShadow: hasBooks ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                        boxShadow: hasBooks ? '0 2px 6px rgba(0,0,0,0.10)' : 'none',
                         outline: isSelected ? '2px solid #6366f1' : 'none',
                         outlineOffset: 1,
                       }}
@@ -364,28 +340,60 @@ export default function StatsPage() {
                       {coverBook && (
                         <img src={coverBook.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       )}
-                      {hasBooks && (
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 60%)' }} />
-                      )}
-                      {hasBooks && dayBooksArr.length > 1 && (
-                        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center">
-                          <span className="text-white text-[8px] font-bold">{dayBooksArr.length}</span>
+                      {hasBooks && !coverBook && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-white text-[10px] font-bold">
+                            {dayBooksArr[0].title.slice(0, 1)}
+                          </span>
                         </div>
                       )}
-                      <span
-                        className="relative z-10 text-[10px] font-bold px-1 pb-0.5 leading-none"
-                        style={{
-                          color: hasBooks ? '#fff' : dow === 0 ? '#f87171' : dow === 6 ? '#60a5fa' : '#6E6E73',
-                          textShadow: hasBooks ? '0 1px 3px rgba(0,0,0,0.6)' : 'none',
-                        }}
-                      >
-                        {day}
-                      </span>
+                      {hasBooks && dayBooksArr.length > 1 && (
+                        <div className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#1D1D1F] flex items-center justify-center border-2 border-white">
+                          <span className="text-white text-[8px] font-bold leading-none">+{dayBooksArr.length - 1}</span>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Date number below — 메인 정보 */}
+                    <span
+                      className="text-[11px] leading-none"
+                      style={{
+                        color: isSelected
+                          ? '#6366f1'
+                          : dow === 0 ? '#f87171' : dow === 6 ? '#60a5fa' : hasBooks ? '#1D1D1F' : '#AEAEB2',
+                        fontWeight: hasBooks || isSelected ? 700 : 500,
+                      }}
+                    >
+                      {day}
+                    </span>
                   </button>
                 );
               })}
             </div>
+          </div>
+
+          {/* 저장 / 공유 — 캘린더 하단에 절제된 액션 영역 */}
+          <div className="mt-4 pt-4 border-t border-[#F5F5F7] flex items-center gap-2">
+            <button
+              onClick={handleSaveCalImage}
+              disabled={savingCal || calMonthDoneCount === 0}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#F5F5F7] text-[#1D1D1F] text-xs font-medium hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              {savingCal ? '저장 중' : '이미지로 저장'}
+            </button>
+            <button
+              onClick={() => setShowShareCard(true)}
+              disabled={calMonthDoneCount === 0}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#F5F5F7] text-[#1D1D1F] text-xs font-medium hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              공유 카드
+            </button>
           </div>
 
           {/* Selected day books */}

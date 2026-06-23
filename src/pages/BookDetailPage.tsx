@@ -210,7 +210,7 @@ export default function BookDetailPage() {
 
     return (
       <div className="min-h-screen bg-[#F5F5F7]">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12 pb-32 sm:pb-12">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 page-pt pb-32 sm:pb-12">
           <div className="flex items-center gap-3 mb-8">
             <button
               onClick={() => setIsEditing(false)}
@@ -358,7 +358,7 @@ export default function BookDetailPage() {
   /* ─── VIEW MODE ─── */
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12"
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 page-pt"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 48px)' }}>
 
         {/* Header */}
@@ -379,9 +379,6 @@ export default function BookDetailPage() {
             <button onClick={startEdit}
               className="px-4 py-2.5 sm:py-2 rounded-full bg-white text-[#1D1D1F] text-sm font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors"
               style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.10)' }}>수정</button>
-            <button onClick={() => setShowDeleteConfirm(true)}
-              className="px-4 py-2.5 sm:py-2 rounded-full bg-white text-red-500 text-sm font-medium hover:bg-red-50 active:bg-red-100 transition-colors"
-              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.10)' }}>삭제</button>
           </div>
         </div>
 
@@ -623,102 +620,124 @@ export default function BookDetailPage() {
             </Link>
           </div>
         </div>
+
+        {/* 위험 액션은 페이지 맨 아래로 분리해 실수 방지 */}
+        <div className="mt-10 flex justify-center">
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-red-500 text-xs font-medium hover:bg-red-50 active:bg-red-100 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+            </svg>
+            이 책 삭제하기
+          </button>
+        </div>
       </div>
 
-      {/* 나만의 독서 리뷰 카드 모달 */}
+      {/* 나만의 독서 리뷰 카드 모달 — 북베어 스타일 */}
       {showShareCard && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5"
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-md flex items-center justify-center z-50 p-5"
           onClick={(e) => e.target === e.currentTarget && setShowShareCard(false)}>
-          <div className="w-full max-w-xs">
-            {/* Card */}
-            <div ref={shareCardRef} className="rounded-3xl overflow-hidden relative"
-              style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.5)' }}>
+          <div className="w-full max-w-[320px]">
+            {/* Card (capture target) — 따뜻한 크림 톤, 본문 위주 */}
+            <div ref={shareCardRef} className="rounded-[28px] overflow-hidden relative"
+              style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.45)', aspectRatio: '9 / 14' }}>
 
-              {/* Warm background */}
-              <div className="absolute inset-0" style={{ background: '#F4EDE4' }} />
+              {/* Warm cream background */}
+              <div className="absolute inset-0" style={{ background: '#F4ECDD' }} />
 
-              {/* Blurred cover BG */}
+              {/* Blurred cover BG — 아주 은은하게 */}
               {book.coverUrl && (
                 <div className="absolute inset-0 overflow-hidden">
                   <img src={book.coverUrl} alt=""
                     className="w-full h-full object-cover"
-                    style={{ filter: 'blur(48px)', opacity: 0.25, transform: 'scale(1.4)' }} />
+                    style={{ filter: 'blur(56px)', opacity: 0.18, transform: 'scale(1.5)' }} />
                 </div>
               )}
 
-              <div className="relative">
-                {/* Quote / Review text */}
-                <div className="px-7 pt-8 pb-7">
+              <div className="relative h-full flex flex-col">
+                {/* Review / Quote text — 카드의 메인 영역 */}
+                <div className="flex-1 px-7 pt-9 pb-5 overflow-hidden">
                   {book.quotes.length > 0 ? (
-                    <div>
-                      <p className="text-[#2D1B0E]/20 text-4xl leading-none mb-2" style={{ fontFamily: 'Georgia, serif' }}>&ldquo;</p>
-                      <p className="text-[#2D1B0E] text-[13px] leading-[1.9] line-clamp-6"
-                        style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
+                    <>
+                      <p className="text-[#3E2A1B] leading-[2.05]"
+                        style={{
+                          fontFamily: '"Noto Serif KR", Georgia, serif',
+                          fontSize: 14.5,
+                          fontWeight: 400,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 11,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}>
                         {book.quotes[0].text}
                       </p>
                       {book.quotes[0].page && (
-                        <p className="text-[#8C7B6B] text-[10px] mt-2">— p.{book.quotes[0].page}</p>
+                        <p className="text-[#8C7B6B] text-[10px] mt-3 tracking-wide">— p.{book.quotes[0].page}</p>
                       )}
-                    </div>
+                    </>
                   ) : book.review ? (
-                    <div>
-                      <p className="text-[#2D1B0E]/20 text-4xl leading-none mb-2" style={{ fontFamily: 'Georgia, serif' }}>&ldquo;</p>
-                      <p className="text-[#2D1B0E] text-[13px] leading-[1.9] line-clamp-6"
-                        style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
-                        {book.review}
-                      </p>
-                    </div>
+                    <p className="text-[#3E2A1B] leading-[2.05]"
+                      style={{
+                        fontFamily: '"Noto Serif KR", Georgia, serif',
+                        fontSize: 14.5,
+                        fontWeight: 400,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 12,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}>
+                      {book.review}
+                    </p>
                   ) : (
-                    <p className="text-[#8C7B6B] text-sm italic py-4 text-center"
+                    <p className="text-[#8C7B6B] text-sm py-4 text-center"
                       style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
-                      나만의 독서 기록
+                      이 책에 대한 기록이 아직 없어요
                     </p>
                   )}
                 </div>
 
-                {/* Divider */}
-                <div className="mx-6 h-px" style={{ background: 'rgba(45,27,14,0.12)' }} />
-
-                {/* Book info */}
-                <div className="px-5 py-5 flex items-center gap-3.5">
-                  {book.coverUrl
-                    ? <img src={book.coverUrl} alt={book.title}
-                        className="rounded-xl object-cover flex-shrink-0"
-                        style={{ width: 44, height: 62, boxShadow: '0 6px 20px rgba(0,0,0,0.22)' }} />
-                    : <div className="rounded-xl flex-shrink-0 flex items-center justify-center"
-                        style={{ width: 44, height: 62, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
-                        <span className="text-white text-sm font-bold">{book.title.slice(0, 1)}</span>
+                {/* Book info — 하단 정돈된 영역 */}
+                <div className="relative px-6 pb-7 pt-1">
+                  <div className="flex items-center gap-3.5">
+                    {book.coverUrl
+                      ? <img src={book.coverUrl} alt={book.title}
+                          className="rounded-lg object-cover flex-shrink-0"
+                          style={{ width: 42, height: 60, boxShadow: '0 4px 14px rgba(58,38,20,0.22)' }} />
+                      : <div className="rounded-lg flex-shrink-0 flex items-center justify-center"
+                          style={{ width: 42, height: 60, background: 'linear-gradient(135deg,#9b7a55,#6d4a2e)' }}>
+                          <span className="text-white text-base font-bold">{book.title.slice(0, 1)}</span>
+                        </div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[#3E2A1B] text-[13px] leading-snug line-clamp-1">{book.title}</p>
+                      <p className="text-[#8C7B6B] text-[11px] mt-0.5 truncate">{book.author}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {book.rating > 0 && (
+                          <div className="flex gap-[1px]">
+                            {[1,2,3,4,5].map((s) => (
+                              <span key={s} className="text-[10px]" style={{ color: book.rating >= s ? '#C9952E' : '#D8C8B0' }}>★</span>
+                            ))}
+                          </div>
+                        )}
+                        {(book.startDate || book.endDate) && (
+                          <p className="text-[10px] text-[#A8907A] tracking-wide">
+                            {[book.startDate?.replace(/-/g, '.'), book.endDate?.replace(/-/g, '.')].filter(Boolean).join(' – ')}
+                          </p>
+                        )}
                       </div>
-                  }
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#1D1D1F] text-sm leading-snug line-clamp-2">{book.title}</p>
-                    <p className="text-[#8C7B6B] text-xs mt-0.5 truncate">{book.author}</p>
-                    {book.rating > 0 && (
-                      <div className="flex gap-0.5 mt-1.5">
-                        {[1,2,3,4,5].map((s) => (
-                          <span key={s} className={`text-xs ${book.rating >= s ? 'text-amber-500' : 'text-[#D4C4B0]'}`}>★</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {book.endDate && (
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-[9px] text-[#C4B4A4] uppercase tracking-wide">완독일</p>
-                      <p className="text-[11px] text-[#8C7B6B] font-medium">{book.endDate.slice(0, 7)}</p>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* App branding */}
-                <div className="px-5 pb-4 flex items-center justify-end gap-1">
-                  <div className="w-3 h-3 rounded-sm" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }} />
-                  <p className="text-[9px] tracking-widest uppercase" style={{ color: '#C4B4A4' }}>나의 서재</p>
+                  {/* 미세한 브랜딩 — 하단 우측 작게 */}
+                  <p className="text-[9px] tracking-[0.18em] uppercase mt-4 text-right" style={{ color: '#C4B4A0' }}>나의 서재</p>
                 </div>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="grid grid-cols-2 gap-2 mt-4">
               <button
                 onClick={handleSaveShareCard}
                 disabled={savingCard}
@@ -730,7 +749,7 @@ export default function BookDetailPage() {
                 {savingCard ? '저장 중...' : '이미지 저장'}
               </button>
               <button onClick={() => setShowShareCard(false)}
-                className="py-3.5 rounded-2xl bg-white/10 text-white text-sm font-medium border border-white/10 active:opacity-70 transition-opacity">
+                className="py-3.5 rounded-2xl bg-white/10 text-white text-sm font-medium border border-white/15 active:opacity-70 transition-opacity">
                 닫기
               </button>
             </div>

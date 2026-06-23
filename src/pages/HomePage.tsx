@@ -101,7 +101,6 @@ export default function HomePage() {
   };
 
   const readingBooks = books.filter(b => b.status === 'reading');
-  const recentBooks = [...books].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6);
   const filtered = books
     .filter((b) => tab === 'all' || b.status === tab)
     .filter((b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase()));
@@ -110,7 +109,6 @@ export default function HomePage() {
   const canDrag = !search && tab === 'all' && viewMode !== 'shelf';
 
   const showReadingSection = readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search;
-  const showRecentSection = recentBooks.length > 0 && tab === 'all' && !search && readingBooks.length === 0;
 
   if (!loaded) {
     return (
@@ -122,7 +120,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-28 sm:pb-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 page-pt-lg pb-28 sm:pb-16">
 
         {/* Header */}
         <div className="flex items-end justify-between mb-5 sm:mb-7">
@@ -140,7 +138,7 @@ export default function HomePage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden sm:block"><DriveSync /></div>
+            <DriveSync />
             {books.length > 0 && (
               <Link to="/stats" className="hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-white text-[#6E6E73] hover:bg-gray-50 transition-colors" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.08)' }} title="통계">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
@@ -279,34 +277,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* 최근 추가한 책 (읽는 중이 없을 때) */}
-            {showRecentSection && (
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-bold text-[#1D1D1F]">최근 추가한 책</h2>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-                  {recentBooks.map(book => (
-                    <Link key={book.id} to={`/book/${book.id}`} className="flex-shrink-0">
-                      <div
-                        className="relative rounded-2xl overflow-hidden"
-                        style={{ width: 96, height: 140, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
-                      >
-                        {book.coverUrl
-                          ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-lg">{book.title.slice(0, 2)}</span></div>
-                        }
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.75) 100%)' }} />
-                        <div className="absolute bottom-2 left-2 right-2">
-                          <p className="text-white text-[10px] font-semibold line-clamp-2 leading-tight">{book.title}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Main book grid/list/shelf */}
             {filtered.length === 0 ? (
               <div className="text-center py-20 text-[#6E6E73] text-sm">
@@ -345,7 +315,7 @@ export default function HomePage() {
       </div>
 
       {/* Mobile bottom nav */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-white/90 backdrop-blur-md border-t border-black/5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around px-5 py-3 bg-white/90 backdrop-blur-md border-t border-black/5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
         <Link to="/stats" className="flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
           <span className="text-[10px] font-medium">통계</span>
@@ -361,7 +331,6 @@ export default function HomePage() {
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
           <span className="text-[10px] font-medium">기록</span>
         </button>
-        <div className="flex items-center justify-end w-10"><DriveSync /></div>
       </div>
 
       {/* Daily reading modal */}

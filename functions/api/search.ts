@@ -81,6 +81,17 @@ function pickAladinPages(item: Record<string, unknown>): number | undefined {
   return undefined;
 }
 
+/* 책 단행본만 통과. 세트/굿즈/문구류는 제외한다. */
+const EXCLUDE_KEYWORDS = /(세트|박스 ?세트|전집|노트|다이어리|캘린더|문구|굿즈|에코백|책갈피|머그|볼펜|연필|키링|기프트카드|증정|스티커|텀블러|포스터|굿즈팩|보드게임|퍼즐|달력)/;
+function isBookOnly(title: string, categoryName?: string): boolean {
+  if (!title) return false;
+  if (EXCLUDE_KEYWORDS.test(title)) return false;
+  if (categoryName && EXCLUDE_KEYWORDS.test(categoryName)) return false;
+  /* 알라딘은 세트도서를 별도 카테고리로 둠 */
+  if (categoryName && /세트도서|음반|DVD/.test(categoryName)) return false;
+  return true;
+}
+
 function json(data: unknown) {
   return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
 }
@@ -102,14 +113,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
       const data = await res.json() as { item?: Record<string, unknown>[] };
       if (Array.isArray(data.item) && data.item.length > 0) {
-        return json(data.item.map((item) => ({
-          title: cleanAladinTitle(String(item.title || '')),
-          author: cleanAladinAuthor(String(item.author || '')),
-          coverUrl: upgradeAladinCover(String(item.cover || '')),
-          pages: pickAladinPages(item),
-          isbn: String(item.isbn13 || item.isbn || ''),
-          genre: mapGenre(String(item.categoryName || '')),
-        })));
+        const results = data.item
+          .map((item) => ({
+            title: cleanAladinTitle(String(item.title || '')),
+            author: cleanAladinAuthor(String(item.author || '')),
+            coverUrl: upgradeAladinCover(String(item.cover || '')),
+            pages: pickAladinPages(item),
+            isbn: String(item.isbn13 || item.isbn || ''),
+            genre: mapGenre(String(item.categoryName || '')),
+            _categoryName: String(item.categoryName || ''),
+          }))
+          .filter((b) => isBookOnly(b.title, b._categoryName))
+          .map(({ _categoryName: _c, ...rest }) => rest);
+        if (results.length > 0) return json(results);
       }
     } catch {}
   }
@@ -122,12 +138,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       );
       const data = await res.json() as { items?: Record<string, string>[] };
       if (data.items && data.items.length > 0) {
-        return json(data.items.map((item) => ({
-          title: cleanTitle(item.title),
-          author: cleanNaverAuthor(item.author),
-          coverUrl: upgradeNaverCover(item.image || ''),
-          isbn: item.isbn?.split(' ').find((s) => s.length === 13) || item.isbn?.split(' ')[0] || '',
-        })));
+        const results = data.items
+          .map((item) => ({
+            title: cleanTitle(item.title),
+            author: cleanNaverAuthor(item.author),
+            coverUrl: upgradeNaverCover(item.image || ''),
+            isbn: item.isbn?.split(' ').find((s) => s.length === 13) || item.isbn?.split(' ')[0] || '',
+          }))
+          .filter((b) => isBookOnly(b.title));
+        if (results.length > 0) return json(results);
       }
     } catch {}
   }
@@ -157,8 +176,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         coverUrl: cover.replace('http://', 'https://'),
         pages: typeof info?.pageCount === 'number' && (info.pageCount as number) > 0 ? (info.pageCount as number) : undefined,
         genre: mapGenre(categories?.[0] || '') || undefined,
+        _category: categories?.[0] || '',
       };
-    }).filter((b) => b.title);
+    }).filter((b) => b.title && isBookOnly(b.title, b._category))
+      .map(({ _category: _c, ...rest }) => rest);
     return json(results);
   } catch {}
 

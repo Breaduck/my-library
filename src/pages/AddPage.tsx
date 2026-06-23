@@ -92,7 +92,7 @@ export default function AddPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12 pb-32">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 page-pt pb-32">
         <div className="flex items-center gap-3 mb-8">
           <Link to="/" className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors flex-shrink-0" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.10)' }}>
             <svg className="w-5 h-5 sm:w-4 sm:h-4 text-[#1D1D1F]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>

@@ -84,7 +84,7 @@ export default function DiscoverPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12 pb-28 sm:pb-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 page-pt pb-28 sm:pb-16">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
