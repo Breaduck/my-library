@@ -81,14 +81,13 @@ function pickAladinPages(item: Record<string, unknown>): number | undefined {
   return undefined;
 }
 
-/* 책 단행본만 통과. 세트/굿즈/문구류는 제외한다. */
-const EXCLUDE_KEYWORDS = /(세트|박스 ?세트|전집|노트|다이어리|캘린더|문구|굿즈|에코백|책갈피|머그|볼펜|연필|키링|기프트카드|증정|스티커|텀블러|포스터|굿즈팩|보드게임|퍼즐|달력)/;
+/* 책 단행본만 통과. 묶음상품/세트/굿즈/문구류는 모두 제외. */
+const EXCLUDE_TITLE = /(묶음|묶음상품|패키지|콜렉션|컬렉션|세트|박스 ?세트|박스세트|전집|특별판\s*세트|선물\s*세트|양장본\s*세트|합본|에디션\s*세트|전\s*\d+\s*권|\d+\s*권\s*세트|\d+\s*권\s*묶음|노트|다이어리|캘린더|문구|굿즈|에코백|책갈피|머그|볼펜|연필|키링|기프트카드|증정|스티커|텀블러|포스터|굿즈팩|보드게임|퍼즐|달력|키트|스타터팩|샘플러)/;
+const EXCLUDE_CATEGORY = /(세트|묶음|굿즈|문구|음반|DVD|블루레이|영상|음반\/DVD)/;
 function isBookOnly(title: string, categoryName?: string): boolean {
   if (!title) return false;
-  if (EXCLUDE_KEYWORDS.test(title)) return false;
-  if (categoryName && EXCLUDE_KEYWORDS.test(categoryName)) return false;
-  /* 알라딘은 세트도서를 별도 카테고리로 둠 */
-  if (categoryName && /세트도서|음반|DVD/.test(categoryName)) return false;
+  if (EXCLUDE_TITLE.test(title)) return false;
+  if (categoryName && EXCLUDE_CATEGORY.test(categoryName)) return false;
   return true;
 }
 

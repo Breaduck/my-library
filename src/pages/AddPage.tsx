@@ -8,6 +8,11 @@ import { BookSearchResult, ReadingStatus } from '@/types';
 
 interface QuoteDraft { text: string; page: string; }
 
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const STATUS_OPTIONS: { key: ReadingStatus; label: string; emoji: string; active: string }[] = [
   { key: 'want',    label: '읽을 예정', emoji: '🔖', active: 'bg-purple-500 text-white border-purple-500' },
   { key: 'reading', label: '읽는 중',   emoji: '📖', active: 'bg-blue-500 text-white border-blue-500' },
@@ -27,8 +32,8 @@ export default function AddPage() {
   const [author, setAuthor] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [status, setStatus] = useState<ReadingStatus>('done');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(todayStr());
+  const [endDate, setEndDate] = useState(todayStr());
   const [review, setReview] = useState('');
   const [rating, setRating] = useState(0);
   const [quotes, setQuotes] = useState<QuoteDraft[]>([{ text: '', page: '' }]);
@@ -75,9 +80,12 @@ export default function AddPage() {
 
   function handleSave() {
     if (!title.trim()) return;
+    /* 상태별로 의미 없는 날짜는 비워서 저장 */
+    const finalStart = status === 'want' ? '' : startDate;
+    const finalEnd = status === 'done' ? endDate : '';
     addBook({
       title: title.trim(), author: author.trim(), coverUrl, status, oneLiner: '',
-      startDate, endDate, review, rating, totalReadingTime: 0,
+      startDate: finalStart, endDate: finalEnd, review, rating, totalReadingTime: 0,
       pages: pages ? parseInt(pages) : undefined,
       currentPage: currentPage ? parseInt(currentPage) : undefined,
       quotes: quotes.filter((q) => q.text.trim()).map((q) => ({ ...q, id: crypto.randomUUID() })),
@@ -147,66 +155,77 @@ export default function AddPage() {
                 </div>
               )}
 
-              {/* 독후감 — 그라데이션 카드 */}
+              {/* 독후감 — 북베어 크림 톤 */}
               <div className="rounded-2xl overflow-hidden relative"
                 style={{
-                  background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #fff7ed 100%)',
-                  boxShadow: '0 2px 24px rgba(168,85,247,0.08), 0 1px 4px rgba(0,0,0,0.04)',
-                  border: '1px solid rgba(168,85,247,0.08)',
+                  background: 'linear-gradient(135deg, #FBF4E6 0%, #F4ECDD 60%, #ECDFC8 100%)',
+                  boxShadow: '0 2px 24px rgba(120,90,50,0.10), 0 1px 4px rgba(0,0,0,0.03)',
+                  border: '1px solid rgba(140,110,70,0.10)',
                 }}>
-                <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-30 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, #d8b4fe 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-50 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, #F0DDB5 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
                 <div className="relative p-5 sm:p-6">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">✨</span>
-                    <h2 className="text-sm font-bold text-[#1D1D1F]">나의 기록</h2>
+                    <h2 className="text-sm font-bold text-[#3E2A1B]">나의 기록</h2>
                   </div>
-                  <p className="text-[11px] text-[#6E6E73] mb-4 ml-7">읽으면서 떠오른 생각을 기록해보세요</p>
+                  <p className="text-[11px] text-[#8C7B6B] mb-4 ml-7">읽으면서 떠오른 생각을 기록해보세요</p>
                   <textarea value={review} onChange={(e) => setReview(e.target.value)}
                     placeholder={REVIEW_PLACEHOLDER}
                     rows={6}
-                    className="w-full px-4 py-3 rounded-xl bg-white/70 backdrop-blur-sm text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-purple-200 focus:bg-white transition-all resize-none leading-relaxed"
-                    style={{ fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif' }}
+                    className="w-full px-4 py-3 rounded-xl backdrop-blur-sm text-[15px] text-[#3E2A1B] placeholder-[#B5A088] outline-none focus:ring-2 transition-all resize-none"
+                    style={{
+                      fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif',
+                      background: 'rgba(255,250,240,0.72)',
+                      lineHeight: 2,
+                      ['--tw-ring-color' as never]: 'rgba(201,149,46,0.28)',
+                    }}
                   />
-                  <p className="text-right text-[10px] text-[#AEAEB2] mt-1.5">{review.length}자</p>
+                  <p className="text-right text-[10px] text-[#A8907A] mt-1.5">{review.length}자</p>
                 </div>
               </div>
 
-              {/* 인상깊은 구절 — 그라데이션 카드 */}
+              {/* 인상깊은 구절 — 북베어 크림 톤 */}
               <div className="rounded-2xl overflow-hidden relative"
                 style={{
-                  background: 'linear-gradient(135deg, #eff6ff 0%, #ecfeff 50%, #f0fdf4 100%)',
-                  boxShadow: '0 2px 24px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)',
-                  border: '1px solid rgba(59,130,246,0.08)',
+                  background: 'linear-gradient(135deg, #F7F0E4 0%, #F1E8D7 60%, #E8DCC4 100%)',
+                  boxShadow: '0 2px 24px rgba(140,100,50,0.08), 0 1px 4px rgba(0,0,0,0.03)',
+                  border: '1px solid rgba(140,110,70,0.10)',
                 }}>
-                <div className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-20 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, #93c5fd 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
+                <div className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-40 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, #ECD7AC 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
                 <div className="relative p-5 sm:p-6">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">📜</span>
-                    <h2 className="text-sm font-bold text-[#1D1D1F]">인상깊은 구절</h2>
+                    <h2 className="text-sm font-bold text-[#3E2A1B]">인상깊은 구절</h2>
                   </div>
-                  <p className="text-[11px] text-[#6E6E73] mb-4 ml-7">밑줄 긋고 싶은 문장을 모아두세요</p>
+                  <p className="text-[11px] text-[#8C7B6B] mb-4 ml-7">밑줄 긋고 싶은 문장을 모아두세요</p>
                   <div className="space-y-4">
                     {quotes.map((q, i) => (
-                      <div key={i} className="rounded-xl bg-white/70 backdrop-blur-sm p-3 space-y-2 border border-white/60">
+                      <div key={i} className="rounded-xl p-3 space-y-2"
+                        style={{ background: 'rgba(255,250,240,0.7)', border: '1px solid rgba(180,150,100,0.10)' }}>
                         <div className="flex gap-2 items-start">
                           <textarea value={q.text} onChange={(e) => updateQuote(i, 'text', e.target.value)}
                             placeholder='"마음에 닿은 문장을 옮겨 적어보세요"'
                             rows={3}
-                            className="flex-1 px-3 py-2 rounded-lg bg-transparent text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none resize-none italic leading-relaxed"
-                            style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}
+                            className="flex-1 px-3 py-2 rounded-lg bg-transparent text-[15px] text-[#3E2A1B] placeholder-[#B5A088] outline-none resize-none italic"
+                            style={{ fontFamily: '"Noto Serif KR", Georgia, serif', lineHeight: 1.95 }}
                           />
                           {quotes.length > 1 && (
-                            <button type="button" onClick={() => removeQuote(i)} className="mt-1 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-[#AEAEB2] hover:text-red-400 transition-colors flex-shrink-0">
+                            <button type="button" onClick={() => removeQuote(i)} className="mt-1 w-8 h-8 flex items-center justify-center rounded-lg text-[#A8907A] hover:text-red-400 hover:bg-red-50/40 transition-colors flex-shrink-0">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           )}
                         </div>
-                        <input type="text" value={q.page} onChange={(e) => updateQuote(i, 'page', e.target.value)} placeholder="p. 페이지 (선택)" className="w-32 px-2.5 py-1.5 rounded-md bg-white/60 text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-1 focus:ring-blue-300 transition-all" />
+                        <input type="text" value={q.page} onChange={(e) => updateQuote(i, 'page', e.target.value)} placeholder="p. 페이지 (선택)"
+                          className="w-32 px-2.5 py-1.5 rounded-md text-xs text-[#3E2A1B] placeholder-[#B5A088] outline-none focus:ring-1 transition-all"
+                          style={{
+                            background: 'rgba(255,250,240,0.6)',
+                            ['--tw-ring-color' as never]: 'rgba(201,149,46,0.32)',
+                          }} />
                       </div>
                     ))}
-                    <button type="button" onClick={addQuote} className="flex items-center gap-1.5 text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors">
+                    <button type="button" onClick={addQuote} className="flex items-center gap-1.5 text-[#8C6E3A] text-sm font-medium hover:text-[#6B5224] transition-colors">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                       구절 추가
                     </button>

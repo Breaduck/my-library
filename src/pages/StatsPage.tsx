@@ -301,15 +301,15 @@ export default function StatsPage() {
           </div>
 
           <div ref={calRef} className="bg-white rounded-xl">
-            {/* Weekday headers */}
-            <div className="grid grid-cols-7 mb-3">
+            {/* Weekday headers — 바로 아래 첫 줄이 따라붙도록 간격 좁힘 */}
+            <div className="grid grid-cols-7 mb-1">
               {WEEK_DAYS.map((d, i) => (
-                <div key={d} className={`text-center text-[12px] font-medium py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
+                <div key={d} className={`text-center text-[12px] font-medium ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
               ))}
             </div>
 
             {/* Calendar grid — 책 직사각형(2:3) + 일자 아래, 북베어 스타일 */}
-            <div className="grid grid-cols-7 gap-x-1.5 sm:gap-x-2 gap-y-4">
+            <div className="grid grid-cols-7 gap-x-1.5 sm:gap-x-2 gap-y-3">
               {Array.from({ length: calFirstDay }).map((_, i) => <div key={`e${i}`} />)}
               {Array.from({ length: calTotalDays }, (_, i) => i + 1).map((day) => {
                 const dayBooksArr = calDayBooks[day] || [];
