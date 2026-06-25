@@ -271,11 +271,11 @@ export default function StatsPage() {
         </div>
 
         {/* ── 독서 달력 ── */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 mb-4" style={cs}>
+        <div className="bg-white rounded-3xl p-4 sm:p-6 mb-4" style={cs}>
           {/* Header — 큰 월/년 + 좌우 네비 */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-5 px-1">
             <div className="flex items-center gap-2.5">
-              <span className="text-lg font-bold text-[#1D1D1F] tracking-tight">
+              <span className="text-xl font-bold text-[#1D1D1F] tracking-tight">
                 {calDisplayYear}.{String(calDisplayMonth + 1).padStart(2, '0')}
               </span>
               {calMonthDoneCount > 0 && (
@@ -304,12 +304,12 @@ export default function StatsPage() {
             {/* Weekday headers */}
             <div className="grid grid-cols-7 mb-3">
               {WEEK_DAYS.map((d, i) => (
-                <div key={d} className={`text-center text-[11px] font-medium py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
+                <div key={d} className={`text-center text-[12px] font-medium py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
               ))}
             </div>
 
-            {/* Calendar grid — 표지 위 + 일자 아래, 북베어 스타일 */}
-            <div className="grid grid-cols-7 gap-x-1 gap-y-3">
+            {/* Calendar grid — 책 직사각형(2:3) + 일자 아래, 북베어 스타일 */}
+            <div className="grid grid-cols-7 gap-x-1.5 sm:gap-x-2 gap-y-4">
               {Array.from({ length: calFirstDay }).map((_, i) => <div key={`e${i}`} />)}
               {Array.from({ length: calTotalDays }, (_, i) => i + 1).map((day) => {
                 const dayBooksArr = calDayBooks[day] || [];
@@ -321,20 +321,20 @@ export default function StatsPage() {
                   <button
                     key={day}
                     onClick={() => hasBooks && setCalSelectedDay(isSelected ? null : day)}
-                    className="flex flex-col items-center gap-1.5 outline-none"
+                    className="flex flex-col items-center gap-2 outline-none"
                     disabled={!hasBooks}
                   >
-                    {/* Cover thumbnail box — 1:1, 표지 없으면 빈 사각형 (그리드 일관성 유지) */}
+                    {/* Cover thumbnail — 책 직사각형(2:3), 표지 없으면 빈 박스 (그리드 일관성) */}
                     <div
-                      className="w-full rounded-lg overflow-hidden relative"
+                      className="w-full rounded-md overflow-hidden relative"
                       style={{
-                        aspectRatio: '1 / 1',
+                        aspectRatio: '2 / 3',
                         background: hasBooks
                           ? coverBook ? 'transparent' : 'linear-gradient(135deg, #818CF8, #C084FC)'
                           : 'transparent',
-                        boxShadow: hasBooks ? '0 2px 6px rgba(0,0,0,0.10)' : 'none',
+                        boxShadow: hasBooks ? '0 3px 10px rgba(0,0,0,0.14)' : 'none',
                         outline: isSelected ? '2px solid #6366f1' : 'none',
-                        outlineOffset: 1,
+                        outlineOffset: 2,
                       }}
                     >
                       {coverBook && (
@@ -342,21 +342,21 @@ export default function StatsPage() {
                       )}
                       {hasBooks && !coverBook && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-white text-[10px] font-bold">
+                          <span className="text-white text-xs font-bold">
                             {dayBooksArr[0].title.slice(0, 1)}
                           </span>
                         </div>
                       )}
                       {hasBooks && dayBooksArr.length > 1 && (
-                        <div className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#1D1D1F] flex items-center justify-center border-2 border-white">
-                          <span className="text-white text-[8px] font-bold leading-none">+{dayBooksArr.length - 1}</span>
+                        <div className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#1D1D1F] flex items-center justify-center border-2 border-white">
+                          <span className="text-white text-[9px] font-bold leading-none">+{dayBooksArr.length - 1}</span>
                         </div>
                       )}
                     </div>
 
                     {/* Date number below — 메인 정보 */}
                     <span
-                      className="text-[11px] leading-none"
+                      className="text-[12px] leading-none"
                       style={{
                         color: isSelected
                           ? '#6366f1'

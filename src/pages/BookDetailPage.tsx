@@ -635,56 +635,72 @@ export default function BookDetailPage() {
         </div>
       </div>
 
-      {/* 나만의 독서 리뷰 카드 모달 — 북베어 스타일 */}
+      {/* 나만의 독서 리뷰 카드 모달 — 북베어 스타일, 한층 더 감성적으로 */}
       {showShareCard && (
-        <div className="fixed inset-0 bg-black/65 backdrop-blur-md flex items-center justify-center z-50 p-5"
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-5"
           onClick={(e) => e.target === e.currentTarget && setShowShareCard(false)}>
-          <div className="w-full max-w-[320px]">
-            {/* Card (capture target) — 따뜻한 크림 톤, 본문 위주 */}
+          <div className="w-full max-w-[330px] relative">
+            {/* Card (capture target) — 따뜻한 크림 톤, 본문이 카드 */}
             <div ref={shareCardRef} className="rounded-[28px] overflow-hidden relative"
-              style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.45)', aspectRatio: '9 / 14' }}>
+              style={{
+                boxShadow: '0 36px 90px rgba(20,12,4,0.55), inset 0 0 0 1px rgba(255,250,240,0.5)',
+                aspectRatio: '9 / 14',
+              }}>
 
-              {/* Warm cream background */}
+              {/* Warm cream background — 두 톤 layered for depth */}
               <div className="absolute inset-0" style={{ background: '#F4ECDD' }} />
+              <div className="absolute inset-0" style={{
+                background: 'radial-gradient(circle at 30% 20%, rgba(255,245,228,0.7) 0%, transparent 60%)',
+              }} />
 
               {/* Blurred cover BG — 아주 은은하게 */}
               {book.coverUrl && (
                 <div className="absolute inset-0 overflow-hidden">
                   <img src={book.coverUrl} alt=""
                     className="w-full h-full object-cover"
-                    style={{ filter: 'blur(56px)', opacity: 0.18, transform: 'scale(1.5)' }} />
+                    style={{ filter: 'blur(60px)', opacity: 0.14, transform: 'scale(1.5)' }} />
                 </div>
               )}
 
+              {/* Paper grain — 미세한 종이 질감 */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0.24 0 0 0 0 0.16 0 0 0 0 0.08 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+                mixBlendMode: 'multiply',
+              }} />
+
               <div className="relative h-full flex flex-col">
-                {/* Review / Quote text — 카드의 메인 영역 */}
-                <div className="flex-1 px-7 pt-9 pb-5 overflow-hidden">
+                {/* Review / Quote text — 카드의 메인 영역, 한 호흡 더 여유 */}
+                <div className="flex-1 px-8 pt-12 pb-5 overflow-hidden">
                   {book.quotes.length > 0 ? (
                     <>
-                      <p className="text-[#3E2A1B] leading-[2.05]"
+                      <p className="text-[#3E2A1B]"
                         style={{
                           fontFamily: '"Noto Serif KR", Georgia, serif',
-                          fontSize: 14.5,
+                          fontSize: 15.5,
                           fontWeight: 400,
+                          lineHeight: 2.15,
+                          letterSpacing: '-0.005em',
                           display: '-webkit-box',
-                          WebkitLineClamp: 11,
+                          WebkitLineClamp: 10,
                           WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
                         }}>
                         {book.quotes[0].text}
                       </p>
                       {book.quotes[0].page && (
-                        <p className="text-[#8C7B6B] text-[10px] mt-3 tracking-wide">— p.{book.quotes[0].page}</p>
+                        <p className="text-[#8C7B6B] text-[10px] mt-4 tracking-[0.1em]">— p.{book.quotes[0].page}</p>
                       )}
                     </>
                   ) : book.review ? (
-                    <p className="text-[#3E2A1B] leading-[2.05]"
+                    <p className="text-[#3E2A1B]"
                       style={{
                         fontFamily: '"Noto Serif KR", Georgia, serif',
-                        fontSize: 14.5,
+                        fontSize: 15.5,
                         fontWeight: 400,
+                        lineHeight: 2.15,
+                        letterSpacing: '-0.005em',
                         display: '-webkit-box',
-                        WebkitLineClamp: 12,
+                        WebkitLineClamp: 11,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
                       }}>
@@ -692,52 +708,74 @@ export default function BookDetailPage() {
                     </p>
                   ) : (
                     <p className="text-[#8C7B6B] text-sm py-4 text-center"
-                      style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
+                      style={{ fontFamily: '"Noto Serif KR", Georgia, serif', lineHeight: 2 }}>
                       이 책에 대한 기록이 아직 없어요
                     </p>
                   )}
                 </div>
 
-                {/* Book info — 하단 정돈된 영역 */}
-                <div className="relative px-6 pb-7 pt-1">
+                {/* Book info — 하단 정돈된 영역, 더 미니멀 */}
+                <div className="relative px-7 pb-9 pt-2">
+                  {/* 미묘한 디바이더 */}
+                  <div className="h-px mb-5" style={{ background: 'linear-gradient(to right, transparent, rgba(62,42,27,0.18), transparent)' }} />
                   <div className="flex items-center gap-3.5">
                     {book.coverUrl
                       ? <img src={book.coverUrl} alt={book.title}
-                          className="rounded-lg object-cover flex-shrink-0"
-                          style={{ width: 42, height: 60, boxShadow: '0 4px 14px rgba(58,38,20,0.22)' }} />
-                      : <div className="rounded-lg flex-shrink-0 flex items-center justify-center"
-                          style={{ width: 42, height: 60, background: 'linear-gradient(135deg,#9b7a55,#6d4a2e)' }}>
+                          className="rounded-md object-cover flex-shrink-0"
+                          style={{ width: 40, height: 58, boxShadow: '0 6px 18px rgba(58,38,20,0.28)' }} />
+                      : <div className="rounded-md flex-shrink-0 flex items-center justify-center"
+                          style={{ width: 40, height: 58, background: 'linear-gradient(135deg,#9b7a55,#6d4a2e)' }}>
                           <span className="text-white text-base font-bold">{book.title.slice(0, 1)}</span>
                         </div>
                     }
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-[#3E2A1B] text-[13px] leading-snug line-clamp-1">{book.title}</p>
                       <p className="text-[#8C7B6B] text-[11px] mt-0.5 truncate">{book.author}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        {book.rating > 0 && (
-                          <div className="flex gap-[1px]">
-                            {[1,2,3,4,5].map((s) => (
-                              <span key={s} className="text-[10px]" style={{ color: book.rating >= s ? '#C9952E' : '#D8C8B0' }}>★</span>
-                            ))}
-                          </div>
-                        )}
-                        {(book.startDate || book.endDate) && (
-                          <p className="text-[10px] text-[#A8907A] tracking-wide">
-                            {[book.startDate?.replace(/-/g, '.'), book.endDate?.replace(/-/g, '.')].filter(Boolean).join(' – ')}
-                          </p>
-                        )}
-                      </div>
+                      {(book.startDate || book.endDate) && (
+                        <p className="text-[10px] text-[#A8907A] mt-1 tracking-[0.04em]">
+                          {[book.startDate?.replace(/-/g, '.'), book.endDate?.replace(/-/g, '.')].filter(Boolean).join(' – ')}
+                        </p>
+                      )}
                     </div>
+                    {book.rating > 0 && (
+                      <div className="flex gap-[2px] flex-shrink-0 self-start mt-0.5">
+                        {[1,2,3,4,5].map((s) => (
+                          <span key={s} className="text-[11px]" style={{ color: book.rating >= s ? '#C9952E' : '#E0D2BC' }}>★</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* 미세한 브랜딩 — 하단 우측 작게 */}
-                  <p className="text-[9px] tracking-[0.18em] uppercase mt-4 text-right" style={{ color: '#C4B4A0' }}>나의 서재</p>
+                  {/* 미세한 브랜딩 */}
+                  <p className="text-[9px] tracking-[0.22em] uppercase mt-5 text-center" style={{ color: '#C4B4A0' }}>나의 서재</p>
                 </div>
               </div>
             </div>
 
+            {/* 우상단 다운로드 아이콘 — 시각적 오버레이 (캡처 영역 밖) */}
+            <button
+              onClick={handleSaveShareCard}
+              disabled={savingCard}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-50"
+              style={{
+                background: 'rgba(255,250,240,0.72)',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+                color: '#3E2A1B',
+              }}
+              aria-label="이미지로 저장"
+            >
+              {savingCard ? (
+                <div className="w-4 h-4 border-2 border-[#3E2A1B]/30 border-t-[#3E2A1B] rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              )}
+            </button>
+
             {/* Action buttons */}
-            <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="grid grid-cols-2 gap-2 mt-5">
               <button
                 onClick={handleSaveShareCard}
                 disabled={savingCard}
