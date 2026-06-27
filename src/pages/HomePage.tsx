@@ -14,7 +14,7 @@ import EmptyState from '@/components/EmptyState';
 import AccountButton from '@/components/AccountButton';
 import DailyReadingModal from '@/components/DailyReadingModal';
 import { ReadingStatus, Book } from '@/types';
-import { getReadingStreak, hasDoneReadingToday } from '@/lib/storage';
+import { getReadingStreak } from '@/lib/storage';
 
 type Tab = 'all' | ReadingStatus;
 type ViewMode = 'grid' | 'list' | 'shelf';
@@ -27,13 +27,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'stopped', label: '중단' },
 ];
 
-const TAB_ACTIVE: Record<Tab, string> = {
-  all: 'bg-[#1D1D1F] text-white',
-  done: 'bg-emerald-500 text-white',
-  reading: 'bg-blue-500 text-white',
-  want: 'bg-purple-500 text-white',
-  stopped: 'bg-gray-500 text-white',
-};
 
 function SortableGridCard({ book, isDragging }: { book: Book; isDragging: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: book.id });
@@ -62,13 +55,6 @@ export default function HomePage() {
     setStreak(getReadingStreak());
   }, []);
 
-  useEffect(() => {
-    const firstReading = books.find((b) => b.status === 'reading');
-    if (loaded && firstReading && !hasDoneReadingToday()) {
-      const t = setTimeout(() => openDailyFor(firstReading), 1200);
-      return () => clearTimeout(t);
-    }
-  }, [loaded, books]);
 
   function toggleView(mode: ViewMode) {
     setViewMode(mode);
@@ -162,6 +148,36 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Status tabs — Apple segmented control 스타일, 좌측 정렬 */}
+        <div className="mb-3 flex">
+          <div className="inline-flex p-0.5 rounded-xl gap-0.5"
+            style={{
+              background: 'rgba(120,120,128,0.12)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+            }}>
+            {TABS.filter((t) => t.key === 'all' || counts[t.key] > 0).map((t) => {
+              const active = tab === t.key;
+              return (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-[10px] text-[13px] font-medium transition-all ${active ? 'text-[#1D1D1F]' : 'text-[#6E6E73] hover:text-[#1D1D1F]'}`}
+                  style={active ? {
+                    background: 'rgba(255,255,255,0.95)',
+                    boxShadow: '0 3px 8px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                    fontWeight: 600,
+                  } : undefined}>
+                  {t.label}
+                  {counts[t.key] > 0 && (
+                    <span className={`text-[10.5px] ${active ? 'text-[#86848A]' : 'text-[#AEAEB2]'}`}>
+                      {counts[t.key]}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Search + view toggle */}
         <div className="flex gap-2 mb-4">
           <div className="relative flex-1">
@@ -179,18 +195,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Status tabs */}
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {TABS.filter((t) => t.key === 'all' || counts[t.key] > 0).map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${tab === t.key ? TAB_ACTIVE[t.key] : 'bg-white text-[#6E6E73] hover:bg-gray-50'}`}
-              style={tab !== t.key ? { boxShadow: '0 1px 6px rgba(0,0,0,0.06)' } : {}}>
-              {t.label}
-              {counts[t.key] > 0 && <span className={`text-xs ${tab === t.key ? 'opacity-75' : 'text-[#AEAEB2]'}`}>{counts[t.key]}</span>}
-            </button>
-          ))}
-        </div>
-
         {canDrag && books.length > 1 && (
           <p className="text-[#AEAEB2] text-xs mb-3 text-center">꾹 눌러서 순서를 바꿀 수 있어요</p>
         )}
@@ -199,96 +203,78 @@ export default function HomePage() {
           <EmptyState />
         ) : (
           <>
-            {/* 읽는 중 섹션 */}
+            {/* 읽는 중 섹션 — Apple 미니멀 카드 */}
             {showReadingSection && (
-              <div className="mb-7">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-bold text-[#1D1D1F]">읽는 중</h2>
-                  {readingBooks.length > 2 && (
-                    <button onClick={() => setTab('reading')} className="text-xs text-[#AEAEB2] hover:text-[#6E6E73] transition-colors">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <h2 className="text-[13px] font-semibold text-[#86848A] tracking-wide uppercase">Now Reading</h2>
+                  {readingBooks.length > 3 && (
+                    <button onClick={() => setTab('reading')} className="text-[11px] text-[#86848A] hover:text-[#1D1D1F] transition-colors">
                       더 보기
                     </button>
                   )}
                 </div>
-                <div className="space-y-3">
-                  {readingBooks.slice(0, 3).map(book => {
+                <div className="space-y-2">
+                  {readingBooks.slice(0, 3).map((book) => {
                     const pct = book.currentPage && book.pages && book.pages > 0
                       ? Math.round(book.currentPage / book.pages * 100)
                       : null;
                     return (
-                      <div
-                        key={book.id}
-                        className="bg-white rounded-2xl overflow-hidden"
-                        style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}
-                      >
-                        <div className="flex items-center gap-4 p-4">
-                          <button
-                            type="button"
-                            onClick={() => openDailyFor(book)}
-                            title="오늘 기록 추가하기"
-                            className="group relative flex-shrink-0 rounded-xl overflow-hidden active:scale-95 transition-transform"
-                            style={{ width: 52, height: 76, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
-                          >
-                            {book.coverUrl
-                              ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
-                              : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-sm">{book.title.slice(0, 2)}</span></div>
-                            }
-                            <span
-                              className="absolute inset-0 flex flex-col items-center justify-center px-1 text-white text-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
-                              style={{ background: 'rgba(0,0,0,0.66)', backdropFilter: 'blur(2px)' }}
-                            >
-                              {pct !== null ? (
-                                <>
-                                  <span className="text-[15px] font-bold leading-none tracking-tight">{pct}%</span>
-                                  <span className="text-[8px] font-medium mt-1 leading-tight opacity-90">오늘 기록<br />추가</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                  </svg>
-                                  <span className="text-[9px] font-semibold mt-1 leading-tight">오늘 기록<br />추가하기</span>
-                                </>
-                              )}
-                            </span>
-                          </button>
-                          <Link to={`/book/${book.id}`} className="flex-1 min-w-0">
-                            <p className="font-semibold text-[#1D1D1F] text-sm truncate leading-snug">{book.title}</p>
-                            <p className="text-[#6E6E73] text-xs mt-0.5 truncate">{book.author}</p>
-                            {pct !== null && (
-                              <div className="mt-2.5">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[10px] text-[#AEAEB2]">{book.currentPage}p / {book.pages}p</span>
-                                  <span className="text-[10px] font-semibold text-blue-500">{pct}%</span>
-                                </div>
-                                <div className="h-1.5 bg-[#F5F5F7] rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full"
-                                    style={{
-                                      width: `${pct}%`,
-                                      background: 'linear-gradient(90deg, #60a5fa, #3b82f6)',
-                                    }}
-                                  />
-                                </div>
+                      <div key={book.id}
+                        className="bg-white rounded-2xl flex items-center gap-3.5 p-3"
+                        style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)' }}>
+                        {/* 표지 — hover 시 투명 기록 버튼 */}
+                        <button
+                          type="button"
+                          onClick={() => openDailyFor(book)}
+                          title="오늘 기록 추가하기"
+                          className="group relative flex-shrink-0 rounded-lg overflow-hidden active:scale-95 transition-transform"
+                          style={{ width: 50, height: 74, boxShadow: '0 3px 10px rgba(0,0,0,0.14)' }}
+                        >
+                          {book.coverUrl
+                            ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-sm">{book.title.slice(0, 2)}</span></div>
+                          }
+                          <span
+                            className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-0.5 py-1 rounded-md text-white text-[9px] font-semibold opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
+                            style={{
+                              background: 'rgba(0,0,0,0.55)',
+                              backdropFilter: 'blur(8px)',
+                              WebkitBackdropFilter: 'blur(8px)',
+                              border: '1px solid rgba(255,255,255,0.18)',
+                            }}>
+                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                            기록 추가
+                          </span>
+                        </button>
+
+                        {/* 중앙 정보 — 클릭 시 책 상세로 */}
+                        <Link to={`/book/${book.id}`} className="flex-1 min-w-0">
+                          <p className="font-semibold text-[#1D1D1F] text-[14px] truncate leading-tight">{book.title}</p>
+                          <p className="text-[#86848A] text-[11.5px] mt-0.5 truncate">{book.author}</p>
+                          {pct !== null ? (
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="flex-1 h-1 bg-[#F0F0F5] rounded-full overflow-hidden">
+                                <div className="h-full rounded-full"
+                                  style={{ width: `${pct}%`, background: '#1D1D1F' }} />
                               </div>
-                            )}
-                          </Link>
-                        </div>
-                        <div className="px-4 pb-4 flex gap-2">
-                          <Link
-                            to={`/timer/${book.id}`}
-                            className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white text-center"
-                            style={{ background: 'linear-gradient(135deg, #60a5fa, #3b82f6)' }}
-                          >
-                            기록하기
-                          </Link>
-                          <Link
-                            to={`/book/${book.id}`}
-                            className="px-4 py-2.5 rounded-xl text-xs font-medium text-[#6E6E73] bg-[#F5F5F7]"
-                          >
-                            상세보기
-                          </Link>
-                        </div>
+                              <span className="text-[10px] font-semibold text-[#1D1D1F] flex-shrink-0">{pct}%</span>
+                            </div>
+                          ) : (
+                            <p className="text-[10.5px] text-[#AEAEB2] mt-1.5">진행률 미설정</p>
+                          )}
+                        </Link>
+
+                        {/* 우측 타이머 — 작은 원형 아이콘 버튼 */}
+                        <Link to={`/timer/${book.id}`}
+                          title="독서 타이머"
+                          className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#EAEAEC] active:scale-95 transition-all">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </Link>
                       </div>
                     );
                   })}

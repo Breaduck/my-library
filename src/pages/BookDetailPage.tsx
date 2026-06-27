@@ -255,6 +255,12 @@ export default function BookDetailPage() {
               )}
             </div>
 
+            {/* 표지 이미지 변경 */}
+            <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
+              <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">표지 이미지</h2>
+              <CoverInput value={editCoverUrl} onChange={setEditCoverUrl} />
+            </div>
+
             {/* Status */}
             <div className="bg-white rounded-2xl p-5 sm:p-6" style={cardStyle}>
               <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">독서 상태</h2>
