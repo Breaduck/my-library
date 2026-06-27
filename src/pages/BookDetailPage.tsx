@@ -6,6 +6,7 @@ import StarRating from '@/components/StarRating';
 import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
 import DateField from '@/components/DateField';
+import CoverInput from '@/components/CoverInput';
 import { BookSearchResult, Quote, ReadingStatus } from '@/types';
 
 interface QuoteDraft {
@@ -341,8 +342,8 @@ export default function BookDetailPage() {
                   <input type="text" value={editAuthor} onChange={(e) => setEditAuthor(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">표지 URL (선택)</label>
-                  <input type="url" value={editCoverUrl} onChange={(e) => setEditCoverUrl(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" />
+                  <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">표지 (선택)</label>
+                  <CoverInput value={editCoverUrl} onChange={setEditCoverUrl} />
                 </div>
                 <button type="button" onClick={() => setShowManual(false)} className="w-full mt-2 py-3.5 bg-[#1D1D1F] text-white rounded-xl text-sm font-semibold active:scale-[0.98] transition-all">
                   확인
@@ -458,63 +459,75 @@ export default function BookDetailPage() {
           </div>
         )}
 
-        {book.status === 'reading' && (
+        {(book.status === 'reading' || book.status === 'done' || book.status === 'stopped') && (
           <>
-            {/* 독후감 (인라인 편집 — 읽는 중만) — 북베어 크림 톤 */}
+            {/* 독후감 (인라인 편집) — 북베어 크림→캐러멜 톤 */}
             <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
               style={{
-                background: 'linear-gradient(135deg, #FBF4E6 0%, #F4ECDD 60%, #ECDFC8 100%)',
-                boxShadow: '0 2px 24px rgba(120,90,50,0.10), 0 1px 4px rgba(0,0,0,0.03)',
-                border: '1px solid rgba(140,110,70,0.10)',
+                background: 'linear-gradient(135deg, #FFF1D0 0%, #F2CA8A 55%, #D9A45F 100%)',
+                boxShadow: '0 4px 28px rgba(150,100,40,0.18), 0 1px 4px rgba(0,0,0,0.04)',
+                border: '1px solid rgba(180,130,70,0.18)',
               }}>
-              <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-50 pointer-events-none"
-                style={{ background: 'radial-gradient(circle, #F0DDB5 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+              <div className="absolute top-0 right-0 w-44 h-44 rounded-full opacity-60 pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(255,240,200,0.95) 0%, transparent 65%)', transform: 'translate(28%, -28%)' }} />
+              <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full opacity-35 pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(180,120,60,0.6) 0%, transparent 70%)', transform: 'translate(-30%, 30%)' }} />
               <div className="relative p-5 sm:p-6">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-lg">✨</span>
                   <h2 className="text-sm font-bold text-[#3E2A1B]">나의 기록</h2>
                 </div>
-                <p className="text-[11px] text-[#8C7B6B] mb-4 ml-7">읽으면서 떠오른 생각을 자유롭게 기록해보세요</p>
+                <p className="text-[11px] text-[#7A5B3A] mb-4 ml-7">읽으면서 떠오른 생각을 자유롭게 기록해보세요</p>
                 <textarea value={liveReview} onChange={(e) => setLiveReview(e.target.value)} onBlur={commitReview}
                   placeholder={REVIEW_PLACEHOLDER}
                   rows={Math.max(5, liveReview.split('\n').length + 1)}
                   className="w-full px-4 py-3 rounded-xl backdrop-blur-sm text-[15px] text-[#3E2A1B] placeholder-[#B5A088] outline-none focus:ring-2 transition-all resize-none"
                   style={{
                     fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif',
-                    background: 'rgba(255,250,240,0.72)',
-                    boxShadow: 'inset 0 0 0 1px rgba(180,150,100,0.08)',
+                    background: 'rgba(255,250,238,0.92)',
+                    boxShadow: 'inset 0 0 0 1px rgba(180,150,100,0.12)',
                     lineHeight: 2,
-                    ['--tw-ring-color' as never]: 'rgba(201,149,46,0.28)',
+                    ['--tw-ring-color' as never]: 'rgba(201,149,46,0.35)',
                   }}
                 />
                 {liveReview.length > 0 && (
-                  <p className="text-right text-[10px] text-[#A8907A] mt-1.5">{liveReview.length}자 · 자동 저장됨</p>
+                  <p className="text-right text-[10px] text-[#7A5B3A] mt-1.5">{liveReview.length}자 · 자동 저장됨</p>
                 )}
               </div>
             </div>
 
-            {/* 인상깊은 구절 (인라인 편집 — 읽는 중만) — 북베어 크림 톤 */}
+            {/* 인상깊은 구절 (인라인 편집) — 북베어 크림→캐러멜 톤 */}
             <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
               style={{
-                background: 'linear-gradient(135deg, #F7F0E4 0%, #F1E8D7 60%, #E8DCC4 100%)',
-                boxShadow: '0 2px 24px rgba(140,100,50,0.08), 0 1px 4px rgba(0,0,0,0.03)',
-                border: '1px solid rgba(140,110,70,0.10)',
+                background: 'linear-gradient(150deg, #FCE6BD 0%, #ECC086 55%, #C9874C 100%)',
+                boxShadow: '0 4px 28px rgba(150,100,40,0.18), 0 1px 4px rgba(0,0,0,0.04)',
+                border: '1px solid rgba(180,130,70,0.18)',
               }}>
-              <div className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-40 pointer-events-none"
-                style={{ background: 'radial-gradient(circle, #ECD7AC 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
+              <div className="absolute top-0 left-0 w-44 h-44 rounded-full opacity-55 pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(255,240,200,0.9) 0%, transparent 65%)', transform: 'translate(-28%, -28%)' }} />
+              <div className="absolute bottom-0 right-0 w-44 h-44 rounded-full opacity-35 pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(160,100,50,0.55) 0%, transparent 70%)', transform: 'translate(30%, 30%)' }} />
               <div className="relative p-5 sm:p-6">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">📜</span>
-                  <h2 className="text-sm font-bold text-[#3E2A1B]">인상깊은 구절</h2>
-                  {liveQuotes.filter(q => q.text.trim()).length > 0 && (
-                    <span className="text-[10px] text-[#8C7B6B] ml-1">{liveQuotes.filter(q => q.text.trim()).length}개</span>
-                  )}
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-lg">📜</span>
+                    <h2 className="text-sm font-bold text-[#3E2A1B]">인상깊은 구절</h2>
+                    {liveQuotes.filter(q => q.text.trim()).length > 0 && (
+                      <span className="text-[10px] text-[#7A5B3A] ml-1">{liveQuotes.filter(q => q.text.trim()).length}개</span>
+                    )}
+                  </div>
+                  <button type="button" onClick={addLiveQuote}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/70 hover:bg-white text-[#6B4A1F] text-xs font-semibold active:scale-95 transition-all flex-shrink-0"
+                    style={{ boxShadow: '0 1px 6px rgba(140,90,40,0.18)' }}>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                    구절 추가
+                  </button>
                 </div>
-                <p className="text-[11px] text-[#8C7B6B] mb-4 ml-7">밑줄 긋고 싶은 문장을 모아두세요</p>
+                <p className="text-[11px] text-[#7A5B3A] mb-4 ml-7">밑줄 긋고 싶은 문장을 모아두세요</p>
                 <div className="space-y-4">
                   {liveQuotes.map((q, i) => (
                     <div key={q.id} className="rounded-xl p-3 space-y-2"
-                      style={{ background: 'rgba(255,250,240,0.7)', border: '1px solid rgba(180,150,100,0.10)' }}>
+                      style={{ background: 'rgba(255,250,238,0.9)', border: '1px solid rgba(180,150,100,0.14)' }}>
                       <div className="flex gap-2 items-start">
                         <textarea value={q.text} onChange={(e) => updateLiveQuote(i, 'text', e.target.value)} onBlur={commitQuotes}
                           placeholder='"마음에 닿은 문장을 옮겨 적어보세요"'
@@ -532,80 +545,14 @@ export default function BookDetailPage() {
                         placeholder="p. 페이지 (선택)"
                         className="w-32 px-2.5 py-1.5 rounded-md text-xs text-[#3E2A1B] placeholder-[#B5A088] outline-none focus:ring-1 transition-all"
                         style={{
-                          background: 'rgba(255,250,240,0.6)',
-                          ['--tw-ring-color' as never]: 'rgba(201,149,46,0.32)',
+                          background: 'rgba(255,250,238,0.8)',
+                          ['--tw-ring-color' as never]: 'rgba(201,149,46,0.35)',
                         }} />
                     </div>
                   ))}
-                  <button type="button" onClick={addLiveQuote} className="flex items-center gap-1.5 text-[#8C6E3A] text-sm font-medium hover:text-[#6B5224] transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    구절 추가
-                  </button>
                 </div>
               </div>
             </div>
-          </>
-        )}
-
-        {(book.status === 'done' || book.status === 'stopped') && (book.review || book.quotes.length > 0) && (
-          <>
-            {/* 독후감 — 읽기전용, 북베어 크림 톤 */}
-            {book.review && (
-              <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
-                style={{
-                  background: 'linear-gradient(135deg, #FBF4E6 0%, #F4ECDD 60%, #ECDFC8 100%)',
-                  boxShadow: '0 2px 24px rgba(120,90,50,0.10), 0 1px 4px rgba(0,0,0,0.03)',
-                  border: '1px solid rgba(140,110,70,0.10)',
-                }}>
-                <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-50 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, #F0DDB5 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
-                <div className="relative p-5 sm:p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">✨</span>
-                    <h2 className="text-sm font-bold text-[#3E2A1B]">나의 기록</h2>
-                  </div>
-                  <p className="text-[15px] text-[#3E2A1B] whitespace-pre-wrap"
-                    style={{
-                      fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif',
-                      lineHeight: 2.05,
-                    }}>
-                    {book.review}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* 인상깊은 구절 — 읽기전용, 북베어 크림 톤 */}
-            {book.quotes.length > 0 && (
-              <div className="rounded-2xl overflow-hidden relative mb-3 sm:mb-4"
-                style={{
-                  background: 'linear-gradient(135deg, #F7F0E4 0%, #F1E8D7 60%, #E8DCC4 100%)',
-                  boxShadow: '0 2px 24px rgba(140,100,50,0.08), 0 1px 4px rgba(0,0,0,0.03)',
-                  border: '1px solid rgba(140,110,70,0.10)',
-                }}>
-                <div className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-40 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, #ECD7AC 0%, transparent 70%)', transform: 'translate(-30%, -30%)' }} />
-                <div className="relative p-5 sm:p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">📜</span>
-                    <h2 className="text-sm font-bold text-[#3E2A1B]">인상깊은 구절</h2>
-                    <span className="text-[10px] text-[#8C7B6B] ml-1">{book.quotes.length}개</span>
-                  </div>
-                  <div className="space-y-3">
-                    {book.quotes.map((q) => (
-                      <div key={q.id} className="rounded-xl p-3"
-                        style={{ background: 'rgba(255,250,240,0.7)', border: '1px solid rgba(180,150,100,0.10)' }}>
-                        <p className="text-[15px] text-[#3E2A1B] italic whitespace-pre-wrap"
-                          style={{ fontFamily: '"Noto Serif KR", Georgia, serif', lineHeight: 2 }}>
-                          &ldquo;{q.text}&rdquo;
-                        </p>
-                        {q.page && <p className="text-[10px] text-[#A8907A] mt-1.5">p. {q.page}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
 
