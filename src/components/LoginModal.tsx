@@ -31,13 +31,8 @@ export default function LoginModal({ open, onClose, onGoogle }: Props) {
           Google로 계속하기
         </button>
 
-        <p className="mt-5 text-[11px] text-[#AEAEB2] text-center leading-relaxed">
-          로그인 시 책 기록은 본인의 Google Drive 앱 전용 폴더에만 저장됩니다.<br />
-          다른 Drive 파일은 접근하지 않아요.
-        </p>
-
         <button onClick={onClose}
-          className="w-full mt-3 py-3 text-sm font-medium text-[#6E6E73] hover:text-[#1D1D1F] transition-colors">
+          className="w-full mt-4 py-3 text-sm font-medium text-[#6E6E73] hover:text-[#1D1D1F] transition-colors">
           나중에
         </button>
       </div>

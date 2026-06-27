@@ -38,20 +38,10 @@ function presetToIso(p: Preset): string {
 function formatFriendly(iso: string): string {
   if (!iso) return '';
   const d = new Date(iso);
-  const today = new Date(); today.setHours(0,0,0,0);
-  const target = new Date(d); target.setHours(0,0,0,0);
-  const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
-  if (diffDays === 0) return '오늘';
-  if (diffDays === 1) return '어제';
-  if (diffDays > 0 && diffDays <= 6) return `${diffDays}일 전`;
   const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const weekdays = ['일','월','화','수','목','금','토'];
-  const wd = weekdays[d.getDay()];
-  const now = new Date();
-  if (y === now.getFullYear()) return `${m}월 ${day}일 (${wd})`;
-  return `${y}년 ${m}월 ${day}일`;
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}.${m}.${day}`;
 }
 
 export default function DateField({ label, value, onChange, presets = ['today', 'yesterday', 'week-ago'] }: Props) {

@@ -158,7 +158,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="text-[11px] text-[#AEAEB2] leading-relaxed">
-                현재 {books.length}권의 책이 본인 Google Drive의 앱 전용 폴더에 저장돼요. 다른 Drive 파일은 접근하지 않습니다.
+                현재 {books.length}권의 책이 안전하게 백업되어 있어요.
               </p>
             </div>
           )}

@@ -55,6 +55,12 @@ export default function HomePage() {
   const [streak, setStreak] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showDailyModal, setShowDailyModal] = useState(false);
+  const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
+
+  function openDailyFor(book?: Book) {
+    setDailyModalBook(book);
+    setShowDailyModal(true);
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('view-mode') as ViewMode | null;
@@ -63,8 +69,9 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (loaded && books.some((b) => b.status === 'reading') && !hasDoneReadingToday()) {
-      const t = setTimeout(() => setShowDailyModal(true), 1200);
+    const firstReading = books.find((b) => b.status === 'reading');
+    if (loaded && firstReading && !hasDoneReadingToday()) {
+      const t = setTimeout(() => openDailyFor(firstReading), 1200);
       return () => clearTimeout(t);
     }
   }, [loaded, books]);
@@ -220,17 +227,29 @@ export default function HomePage() {
                         className="bg-white rounded-2xl overflow-hidden"
                         style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}
                       >
-                        <Link to={`/book/${book.id}`} className="flex items-center gap-4 p-4">
-                          <div
-                            className="flex-shrink-0 rounded-xl overflow-hidden"
+                        <div className="flex items-center gap-4 p-4">
+                          <button
+                            type="button"
+                            onClick={() => openDailyFor(book)}
+                            title="오늘 기록 추가하기"
+                            className="group relative flex-shrink-0 rounded-xl overflow-hidden active:scale-95 transition-transform"
                             style={{ width: 52, height: 76, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
                           >
                             {book.coverUrl
                               ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
                               : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-sm">{book.title.slice(0, 2)}</span></div>
                             }
-                          </div>
-                          <div className="flex-1 min-w-0">
+                            <span
+                              className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-1 text-white text-[10px] font-semibold text-center leading-tight opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
+                              style={{ background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(2px)' }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              오늘 기록<br />추가하기
+                            </span>
+                          </button>
+                          <Link to={`/book/${book.id}`} className="flex-1 min-w-0">
                             <p className="font-semibold text-[#1D1D1F] text-sm truncate leading-snug">{book.title}</p>
                             <p className="text-[#6E6E73] text-xs mt-0.5 truncate">{book.author}</p>
                             {pct !== null && (
@@ -250,8 +269,8 @@ export default function HomePage() {
                                 </div>
                               </div>
                             )}
-                          </div>
-                        </Link>
+                          </Link>
+                        </div>
                         <div className="px-4 pb-4 flex gap-2">
                           <Link
                             to={`/timer/${book.id}`}
@@ -320,7 +339,7 @@ export default function HomePage() {
         <Link to="/add" className="w-14 h-14 bg-[#1D1D1F] text-white rounded-full flex items-center justify-center active:scale-95 transition-transform" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
           <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
         </Link>
-        <button onClick={() => setShowDailyModal(true)} className="flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
+        <button onClick={() => openDailyFor(readingBooks[0])} className="flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
           <span className="text-[10px] font-medium">기록</span>
         </button>
@@ -329,8 +348,8 @@ export default function HomePage() {
       {/* Daily reading modal */}
       {showDailyModal && (
         <DailyReadingModal
-          readingBook={readingBooks[0]}
-          onClose={() => setShowDailyModal(false)}
+          readingBook={dailyModalBook ?? readingBooks[0]}
+          onClose={() => { setShowDailyModal(false); setDailyModalBook(undefined); }}
         />
       )}
     </div>
