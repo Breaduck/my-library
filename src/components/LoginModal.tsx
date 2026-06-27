@@ -10,9 +10,16 @@ export default function LoginModal({ open, onClose, onGoogle }: Props) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 sm:p-7"
+      <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 sm:p-7 relative"
         style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.18)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden" />
+
+        <button onClick={onClose} aria-label="닫기"
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] hover:bg-gray-200 active:bg-gray-300 transition-colors">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
 
         <div className="text-center mb-6">
           <div className="inline-flex w-12 h-12 rounded-2xl items-center justify-center mb-3"
@@ -29,11 +36,6 @@ export default function LoginModal({ open, onClose, onGoogle }: Props) {
           className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl bg-white text-[#1D1D1F] text-sm font-semibold border border-[#E5E5EA] hover:bg-[#FAFAFB] active:scale-[0.98] transition-all">
           <GoogleIcon />
           Google로 계속하기
-        </button>
-
-        <button onClick={onClose}
-          className="w-full mt-4 py-3 text-sm font-medium text-[#6E6E73] hover:text-[#1D1D1F] transition-colors">
-          나중에
         </button>
       </div>
     </div>

@@ -4,12 +4,12 @@ import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
   useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay,
 } from '@dnd-kit/core';
-import { SortableContext, useSortable, rectSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useBooks } from '@/hooks/useBooks';
 import BookCard from '@/components/BookCard';
-import BookListItem from '@/components/BookListItem';
 import BookShelf from '@/components/BookShelf';
+import BookStack from '@/components/BookStack';
 import EmptyState from '@/components/EmptyState';
 import AccountButton from '@/components/AccountButton';
 import DailyReadingModal from '@/components/DailyReadingModal';
@@ -39,12 +39,6 @@ function SortableGridCard({ book, isDragging }: { book: Book; isDragging: boolea
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: book.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, touchAction: 'none' as const };
   return <div ref={setNodeRef} style={style} {...attributes} {...listeners}><BookCard book={book} /></div>;
-}
-
-function SortableListItem({ book, isDragging }: { book: Book; isDragging: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: book.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, touchAction: 'none' as const };
-  return <div ref={setNodeRef} style={style} {...attributes} {...listeners}><BookListItem book={book} /></div>;
 }
 
 export default function HomePage() {
@@ -113,7 +107,7 @@ export default function HomePage() {
     .filter((b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase()));
 
   const activeBook = activeId ? books.find((b) => b.id === activeId) : null;
-  const canDrag = !search && tab === 'all' && viewMode !== 'shelf';
+  const canDrag = !search && tab === 'all' && viewMode === 'grid';
 
   const showReadingSection = readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search;
 
@@ -178,7 +172,7 @@ export default function HomePage() {
             {(['grid', 'list', 'shelf'] as ViewMode[]).map((mode, i) => (
               <button key={mode} onClick={() => toggleView(mode)} className={`flex items-center justify-center w-11 h-11 transition-colors ${viewMode === mode ? 'bg-[#1D1D1F] text-white' : 'text-[#AEAEB2] hover:text-[#6E6E73]'}`}>
                 {i === 0 && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 012.5 1h3A1.5 1.5 0 017 2.5v3A1.5 1.5 0 015.5 7h-3A1.5 1.5 0 011 5.5v-3zm8 0A1.5 1.5 0 0110.5 1h3A1.5 1.5 0 0115 2.5v3A1.5 1.5 0 0113.5 7h-3A1.5 1.5 0 019 5.5v-3zm-8 8A1.5 1.5 0 012.5 9h3A1.5 1.5 0 017 10.5v3A1.5 1.5 0 015.5 15h-3A1.5 1.5 0 011 13.5v-3zm8 0A1.5 1.5 0 0110.5 9h3a1.5 1.5 0 011.5 1.5v3a1.5 1.5 0 01-1.5 1.5h-3A1.5 1.5 0 019 13.5v-3z" /></svg>}
-                {i === 1 && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>}
+                {i === 1 && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M6 12h12M5 17h14" /></svg>}
                 {i === 2 && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6V4m0 2v8m0 0v2M8 14h8M16 6V4m0 2v8m0 0v2M4 20h16M4 4h2M18 4h2" /></svg>}
               </button>
             ))}
@@ -311,26 +305,18 @@ export default function HomePage() {
               <div className="rounded-3xl overflow-hidden p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
                 <BookShelf books={filtered} />
               </div>
+            ) : viewMode === 'list' ? (
+              <BookStack books={filtered} />
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <SortableContext items={filtered.map((b) => b.id)} strategy={viewMode === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}>
-                  {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
-                      {filtered.map((book) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} />)}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {filtered.map((book) => <SortableListItem key={book.id} book={book} isDragging={activeId === book.id} />)}
-                    </div>
-                  )}
+                <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
+                    {filtered.map((book) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} />)}
+                  </div>
                 </SortableContext>
                 <DragOverlay>
                   {activeBook ? (
-                    viewMode === 'grid' ? (
-                      <div style={{ width: 140, opacity: 0.9, transform: 'rotate(3deg) scale(1.05)', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))' }}><BookCard book={activeBook} /></div>
-                    ) : (
-                      <div style={{ opacity: 0.9, transform: 'scale(1.02)', filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.2))' }}><BookListItem book={activeBook} /></div>
-                    )
+                    <div style={{ width: 140, opacity: 0.9, transform: 'rotate(3deg) scale(1.05)', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))' }}><BookCard book={activeBook} /></div>
                   ) : null}
                 </DragOverlay>
               </DndContext>
