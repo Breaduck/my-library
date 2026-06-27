@@ -240,13 +240,22 @@ export default function HomePage() {
                               : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-sm">{book.title.slice(0, 2)}</span></div>
                             }
                             <span
-                              className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-1 text-white text-[10px] font-semibold text-center leading-tight opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
-                              style={{ background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(2px)' }}
+                              className="absolute inset-0 flex flex-col items-center justify-center px-1 text-white text-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
+                              style={{ background: 'rgba(0,0,0,0.66)', backdropFilter: 'blur(2px)' }}
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              오늘 기록<br />추가하기
+                              {pct !== null ? (
+                                <>
+                                  <span className="text-[15px] font-bold leading-none tracking-tight">{pct}%</span>
+                                  <span className="text-[8px] font-medium mt-1 leading-tight opacity-90">오늘 기록<br />추가</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                  <span className="text-[9px] font-semibold mt-1 leading-tight">오늘 기록<br />추가하기</span>
+                                </>
+                              )}
                             </span>
                           </button>
                           <Link to={`/book/${book.id}`} className="flex-1 min-w-0">

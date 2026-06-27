@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
 import { Book } from '@/types';
-import { getReadingStreak } from '@/lib/storage';
+import { getReadingStreak, getDailyReadings } from '@/lib/storage';
 import MonthlyShareCard from '@/components/MonthlyShareCard';
 
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -135,6 +135,25 @@ export default function StatsPage() {
   const calFirstDay = new Date(calDisplayYear, calDisplayMonth, 1).getDay();
   const calTotalDays = new Date(calDisplayYear, calDisplayMonth + 1, 0).getDate();
   const calMonthDoneCount = Object.values(calDayBooks).flat().length;
+
+  // 일별 페이지 (최근 14일) — 북베어 스타일 막대 차트
+  const dailyReadings = getDailyReadings();
+  const dailyChart = (() => {
+    const out: { date: string; pages: number; label: string; isToday: boolean; book?: Book }[] = [];
+    const todayStr = new Date().toISOString().slice(0, 10);
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const entry = dailyReadings.find((r) => r.date === dateStr);
+      const label = i === 0 ? '오늘' : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`;
+      const book = entry?.bookId ? books.find((b) => b.id === entry.bookId) : undefined;
+      out.push({ date: dateStr, pages: entry?.pages ?? 0, label, isToday: dateStr === todayStr, book });
+    }
+    return out;
+  })();
+  const maxDaily = Math.max(...dailyChart.map((d) => d.pages), 1);
+  const hasDailyData = dailyChart.some((d) => d.pages > 0);
 
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
@@ -271,9 +290,9 @@ export default function StatsPage() {
         </div>
 
         {/* ── 독서 달력 ── */}
-        <div className="bg-white rounded-3xl p-4 sm:p-6 mb-4" style={cs}>
+        <div className="bg-white rounded-3xl p-3.5 sm:p-5 mb-4" style={cs}>
           {/* Header — 큰 월/년 + 좌우 네비 */}
-          <div className="flex items-center justify-between mb-5 px-1">
+          <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2.5">
               <span className="text-xl font-bold text-[#1D1D1F] tracking-tight">
                 {calDisplayYear}.{String(calDisplayMonth + 1).padStart(2, '0')}
@@ -301,15 +320,15 @@ export default function StatsPage() {
           </div>
 
           <div ref={calRef} className="bg-white rounded-xl">
-            {/* Weekday headers — 바로 아래 첫 줄이 따라붙도록 간격 좁힘 */}
-            <div className="grid grid-cols-7 mb-1">
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 mb-1.5">
               {WEEK_DAYS.map((d, i) => (
-                <div key={d} className={`text-center text-[12px] font-medium ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
+                <div key={d} className={`text-center text-[11px] font-medium ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#AEAEB2]'}`}>{d}</div>
               ))}
             </div>
 
-            {/* Calendar grid — 책 직사각형(2:3) + 일자 아래, 북베어 스타일 */}
-            <div className="grid grid-cols-7 gap-x-1.5 sm:gap-x-2 gap-y-3">
+            {/* Calendar grid — 일자 위, 표지 아래 (북베어 스타일) */}
+            <div className="grid grid-cols-7 gap-x-1 sm:gap-x-1.5 gap-y-1.5 pb-1">
               {Array.from({ length: calFirstDay }).map((_, i) => <div key={`e${i}`} />)}
               {Array.from({ length: calTotalDays }, (_, i) => i + 1).map((day) => {
                 const dayBooksArr = calDayBooks[day] || [];
@@ -321,18 +340,32 @@ export default function StatsPage() {
                   <button
                     key={day}
                     onClick={() => hasBooks && setCalSelectedDay(isSelected ? null : day)}
-                    className="flex flex-col items-center gap-2 outline-none"
+                    className="flex flex-col items-center gap-1 outline-none"
                     disabled={!hasBooks}
                   >
-                    {/* Cover thumbnail — 책 직사각형(2:3), 표지 없으면 빈 박스 (그리드 일관성) */}
-                    <div
-                      className="w-full rounded-md overflow-hidden relative"
+                    {/* Date number ABOVE */}
+                    <span
+                      className="text-[11px] leading-none"
                       style={{
+                        color: isSelected
+                          ? '#6366f1'
+                          : dow === 0 ? '#f87171' : dow === 6 ? '#60a5fa' : hasBooks ? '#1D1D1F' : '#AEAEB2',
+                        fontWeight: hasBooks || isSelected ? 700 : 500,
+                      }}
+                    >
+                      {day}
+                    </span>
+
+                    {/* Cover thumbnail — 약간 좁게 */}
+                    <div
+                      className="rounded-md overflow-hidden relative"
+                      style={{
+                        width: '82%',
                         aspectRatio: '2 / 3',
                         background: hasBooks
                           ? coverBook ? 'transparent' : 'linear-gradient(135deg, #818CF8, #C084FC)'
                           : 'transparent',
-                        boxShadow: hasBooks ? '0 3px 10px rgba(0,0,0,0.14)' : 'none',
+                        boxShadow: hasBooks ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
                         outline: isSelected ? '2px solid #6366f1' : 'none',
                         outlineOffset: 2,
                       }}
@@ -348,24 +381,11 @@ export default function StatsPage() {
                         </div>
                       )}
                       {hasBooks && dayBooksArr.length > 1 && (
-                        <div className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#1D1D1F] flex items-center justify-center border-2 border-white">
-                          <span className="text-white text-[9px] font-bold leading-none">+{dayBooksArr.length - 1}</span>
+                        <div className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#1D1D1F] flex items-center justify-center border-2 border-white">
+                          <span className="text-white text-[8px] font-bold leading-none">+{dayBooksArr.length - 1}</span>
                         </div>
                       )}
                     </div>
-
-                    {/* Date number below — 메인 정보 */}
-                    <span
-                      className="text-[12px] leading-none"
-                      style={{
-                        color: isSelected
-                          ? '#6366f1'
-                          : dow === 0 ? '#f87171' : dow === 6 ? '#60a5fa' : hasBooks ? '#1D1D1F' : '#AEAEB2',
-                        fontWeight: hasBooks || isSelected ? 700 : 500,
-                      }}
-                    >
-                      {day}
-                    </span>
                   </button>
                 );
               })}
@@ -423,6 +443,58 @@ export default function StatsPage() {
             <p className="text-center text-[#AEAEB2] text-xs py-4">이 달에 완독한 책이 없어요</p>
           )}
         </div>
+
+        {/* ── 매일 얼마나 읽었는지 (북베어 스타일) ── */}
+        {hasDailyData && (
+          <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
+            <div className="flex items-baseline justify-between mb-1">
+              <h2 className="text-sm font-semibold text-[#1D1D1F]">매일 얼마나 읽었는지</h2>
+              <p className="text-[10px] text-[#AEAEB2]">최근 14일</p>
+            </div>
+            <p className="text-[11px] text-[#AEAEB2] mb-4">막대에 마우스를 올리면 책의 진행률이 보여요</p>
+            <div className="flex items-end justify-between gap-1" style={{ height: 110 }}>
+              {dailyChart.map((d) => {
+                const h = d.pages > 0 ? Math.max((d.pages / maxDaily) * 80 + 10, 14) : 4;
+                const pctOfBook = d.book?.pages && d.book.pages > 0
+                  ? Math.round((d.pages / d.book.pages) * 100)
+                  : null;
+                const tip = d.pages > 0
+                  ? d.book
+                    ? `${d.label} · ${d.pages}p${pctOfBook !== null ? ` (${d.book.title}의 ${pctOfBook}%)` : ` (${d.book.title})`}`
+                    : `${d.label} · ${d.pages}p`
+                  : `${d.label} · 기록 없음`;
+                return (
+                  <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5 group" title={tip}>
+                    <div className="w-full flex flex-col items-center justify-end" style={{ height: 92 }}>
+                      {d.pages > 0 && (
+                        <span className="text-[9px] font-semibold mb-0.5 transition-colors"
+                          style={{ color: d.isToday ? '#3B7DE8' : '#86848A' }}>
+                          {d.pages}p
+                        </span>
+                      )}
+                      <div
+                        className="w-full rounded-lg transition-all duration-500 group-hover:opacity-80"
+                        style={{
+                          height: h,
+                          background: d.isToday
+                            ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)'
+                            : d.pages > 0
+                            ? '#D1E5FF'
+                            : '#F0F0F5',
+                          minHeight: 4,
+                          maxWidth: 24,
+                        }}
+                      />
+                    </div>
+                    <p className="text-[9px] font-medium leading-tight" style={{ color: d.isToday ? '#3B7DE8' : '#AEAEB2' }}>
+                      {d.label}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── 월별 완독 차트 ── */}
         {yearDone.length > 0 && (
