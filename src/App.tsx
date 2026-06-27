@@ -4,6 +4,7 @@ import AddPage from './pages/AddPage';
 import BookDetailPage from './pages/BookDetailPage';
 import StatsPage from './pages/StatsPage';
 import TimerPage from './pages/TimerPage';
+import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/book/:id" element={<BookDetailPage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/timer/:id" element={<TimerPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </BrowserRouter>
   );

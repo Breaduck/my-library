@@ -11,7 +11,7 @@ import BookCard from '@/components/BookCard';
 import BookListItem from '@/components/BookListItem';
 import BookShelf from '@/components/BookShelf';
 import EmptyState from '@/components/EmptyState';
-import DriveSync from '@/components/DriveSync';
+import AccountButton from '@/components/AccountButton';
 import DailyReadingModal from '@/components/DailyReadingModal';
 import { ReadingStatus, Book } from '@/types';
 import { getReadingStreak, hasDoneReadingToday } from '@/lib/storage';
@@ -138,7 +138,6 @@ export default function HomePage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <DriveSync />
             {books.length > 0 && (
               <Link to="/stats" className="hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-white text-[#6E6E73] hover:bg-gray-50 transition-colors" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.08)' }} title="통계">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
@@ -147,6 +146,7 @@ export default function HomePage() {
             <Link to="/add" className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-[#1D1D1F] text-white rounded-full text-sm font-medium hover:bg-[#3A3A3C] transition-colors select-none">
               <span className="text-base leading-none">+</span>책 추가
             </Link>
+            <AccountButton />
           </div>
         </div>
 

@@ -1,6 +1,51 @@
 const FILE_NAME = 'my-library-books.json';
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.appdata',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'openid',
+].join(' ');
 const WAS_SIGNED_IN_KEY = 'gd-was-signed-in';
+const PROFILE_KEY = 'gd-profile';
+
+export interface UserProfile {
+  email: string;
+  name: string;
+  picture: string;
+}
+
+export function getCachedProfile(): UserProfile | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? JSON.parse(raw) as UserProfile : null;
+  } catch { return null; }
+}
+
+function setCachedProfile(p: UserProfile | null) {
+  if (typeof window === 'undefined') return;
+  if (p) localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  else localStorage.removeItem(PROFILE_KEY);
+}
+
+export async function fetchUserProfile(): Promise<UserProfile | null> {
+  if (!_token) return null;
+  try {
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${_token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { email?: string; name?: string; picture?: string };
+    if (!data.email) return null;
+    const profile: UserProfile = {
+      email: data.email,
+      name: data.name ?? data.email,
+      picture: data.picture ?? '',
+    };
+    setCachedProfile(profile);
+    return profile;
+  } catch { return null; }
+}
 
 let _token: string | null = null;
 let _tokenClient: unknown = null;
@@ -50,6 +95,7 @@ export function signOut() {
     g?.accounts?.oauth2?.revoke(_token);
   }
   setToken(null);
+  setCachedProfile(null);
 }
 
 // ─── Drive REST API ───────────────────────────────────────────────────────────
