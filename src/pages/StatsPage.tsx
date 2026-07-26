@@ -116,16 +116,19 @@ export default function StatsPage() {
   const stopped = books.filter((b) => b.status === 'stopped');
   const streak = getReadingStreak();
 
-  const years = Array.from(new Set(done.map((b) => getYearMonth(b.endDate)?.year).filter(Boolean) as number[])).sort((a, b) => b - a);
+  // 완독일(endDate)이 없으면 추가일(createdAt)을 기준으로 연/월을 판단 → 읽음 처리가 목표에 반영됨
+  const doneYM = (b: Book) => getYearMonth(b.endDate) ?? getYearMonth(b.createdAt);
+
+  const years = Array.from(new Set(done.map((b) => doneYM(b)?.year).filter(Boolean) as number[])).sort((a, b) => b - a);
   if (!years.includes(currentYear)) years.unshift(currentYear);
 
-  const yearDone = done.filter((b) => getYearMonth(b.endDate)?.year === selectedYear);
+  const yearDone = done.filter((b) => doneYM(b)?.year === selectedYear);
   const totalPagesThisYear = yearDone.filter(b => b.pages).reduce((acc, b) => acc + (b.pages ?? 0), 0);
 
   const monthlyCounts = Array(12).fill(0);
   const monthlyPages = Array(12).fill(0);
   yearDone.forEach((b) => {
-    const ym = getYearMonth(b.endDate);
+    const ym = doneYM(b);
     if (ym) {
       monthlyCounts[ym.month]++;
       if (b.pages) monthlyPages[ym.month] += b.pages;

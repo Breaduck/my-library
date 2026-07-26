@@ -146,13 +146,17 @@ export default function BookDetailPage() {
 
   function saveEdit() {
     if (!editTitle.trim() || !id) return;
+    // 읽음으로 표시했는데 완독일이 비어 있으면 오늘로 자동 채운다 (독서 목표 반영용)
+    const resolvedEndDate = editStatus === 'done' && !editEndDate
+      ? new Date().toISOString().slice(0, 10)
+      : editEndDate;
     updateBook(id, {
       title: editTitle.trim(),
       author: editAuthor.trim(),
       coverUrl: editCoverUrl,
       status: editStatus,
       startDate: editStartDate,
-      endDate: editEndDate,
+      endDate: resolvedEndDate,
       rating: editRating,
       pages: editPages ? parseInt(editPages) : undefined,
       currentPage: editCurrentPage ? parseInt(editCurrentPage) : undefined,
@@ -475,8 +479,13 @@ export default function BookDetailPage() {
                 border: '1px solid rgba(0,0,0,0.05)',
               }}>
               <div className="relative p-5 sm:p-7">
-                <h2 className="text-[16px] font-semibold text-[#1D1D1F] tracking-tight">나의 기록</h2>
-                <p className="text-[12px] text-[#86848A] mt-0.5 mb-5">읽으면서 떠오른 생각을 자유롭게 기록해보세요</p>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#1D1D1F] flex items-center justify-center flex-shrink-0" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18)' }}>
+                    <svg className="w-4.5 h-4.5 text-white" width={18} height={18} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  </div>
+                  <h2 className="text-[20px] font-extrabold text-[#1D1D1F] tracking-tight">나의 기록</h2>
+                </div>
+                <p className="text-[12.5px] text-[#86848A] mt-1.5 mb-5 ml-0.5">읽으면서 떠오른 생각을 자유롭게 기록해보세요</p>
                 <textarea value={liveReview} onChange={(e) => setLiveReview(e.target.value)} onBlur={commitReview}
                   placeholder={REVIEW_PLACEHOLDER}
                   rows={Math.max(5, liveReview.split('\n').length + 1)}
@@ -506,13 +515,18 @@ export default function BookDetailPage() {
               <div className="relative p-5 sm:p-7">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-[16px] font-semibold text-[#1D1D1F] tracking-tight">
-                      인상깊은 구절
-                      {liveQuotes.filter(q => q.text.trim()).length > 0 && (
-                        <span className="ml-2 text-[11px] font-medium text-[#86848A]">{liveQuotes.filter(q => q.text.trim()).length}</span>
-                      )}
-                    </h2>
-                    <p className="text-[12px] text-[#86848A] mt-0.5">밑줄 긋고 싶은 문장을 모아두세요</p>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-2xl bg-[#1D1D1F] flex items-center justify-center flex-shrink-0" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18)' }}>
+                        <svg className="w-4.5 h-4.5 text-white" width={18} height={18} fill="currentColor" viewBox="0 0 24 24"><path d="M6.5 10c0-2.5 1.6-4.4 4-5.2l.5 1.3c-1.3.5-2.2 1.4-2.4 2.6.2 0 .4-.1.6-.1 1.4 0 2.5 1.1 2.5 2.6S10.9 14 9.5 14 6.5 12.5 6.5 10zm7.5 0c0-2.5 1.6-4.4 4-5.2l.5 1.3c-1.3.5-2.2 1.4-2.4 2.6.2 0 .4-.1.6-.1 1.4 0 2.5 1.1 2.5 2.6S17.9 14 16.5 14 14 12.5 14 10z" /></svg>
+                      </div>
+                      <h2 className="text-[20px] font-extrabold text-[#1D1D1F] tracking-tight">
+                        인상깊은 구절
+                        {liveQuotes.filter(q => q.text.trim()).length > 0 && (
+                          <span className="ml-2 text-[12px] font-bold text-white bg-[#1D1D1F] px-2 py-0.5 rounded-full align-middle">{liveQuotes.filter(q => q.text.trim()).length}</span>
+                        )}
+                      </h2>
+                    </div>
+                    <p className="text-[12.5px] text-[#86848A] mt-1.5 ml-0.5">밑줄 긋고 싶은 문장을 모아두세요</p>
                   </div>
                   <button type="button" onClick={addLiveQuote}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1D1D1F] hover:bg-[#3A3A3C] text-white text-[12px] font-semibold active:scale-95 transition-all flex-shrink-0"
@@ -523,17 +537,21 @@ export default function BookDetailPage() {
                 </div>
                 <div className="mt-5 space-y-3">
                   {liveQuotes.map((q, i) => (
-                    <div key={q.id} className="rounded-2xl p-3.5 space-y-2"
+                    <div key={q.id} className="relative rounded-2xl p-3.5 pl-5 space-y-2 overflow-hidden"
                       style={{
                         background: '#FFFFFF',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)',
                         border: '1px solid rgba(0,0,0,0.04)',
                       }}>
-                      <div className="flex gap-2 items-start">
+                      {/* 좌측 강조 바 */}
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#1D1D1F] rounded-full" />
+                      {/* 큰 따옴표 워터마크 */}
+                      <span className="absolute top-0 right-3 text-[52px] leading-none font-serif text-[#F0F0F2] select-none pointer-events-none">”</span>
+                      <div className="relative flex gap-2 items-start">
                         <textarea value={q.text} onChange={(e) => updateLiveQuote(i, 'text', e.target.value)} onBlur={commitQuotes}
                           placeholder='"마음에 닿은 문장을 옮겨 적어보세요"'
                           rows={Math.max(2, q.text.split('\n').length + 1)}
-                          className="flex-1 px-2 py-1 rounded-lg bg-transparent text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none resize-none italic"
+                          className="flex-1 px-2 py-1 rounded-lg bg-transparent text-[15.5px] font-medium text-[#1D1D1F] placeholder-[#AEAEB2] placeholder:font-normal outline-none resize-none italic"
                           style={{ fontFamily: '"Noto Serif KR", Georgia, serif', lineHeight: 1.85 }}
                         />
                         {liveQuotes.length > 1 && (
