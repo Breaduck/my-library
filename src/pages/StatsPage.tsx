@@ -26,16 +26,39 @@ function fmtTime(s: number): string | null {
   return `${m}분`;
 }
 
-function buildDayBooks(books: Book[], year: number, month: number): Record<number, Book[]> {
-  const map: Record<number, Book[]> = {};
-  books.forEach((b) => {
-    if (!b.endDate) return;
-    const d = new Date(b.endDate);
-    if (d.getFullYear() === year && d.getMonth() === month) {
-      const day = d.getDate();
-      (map[day] = map[day] || []).push(b);
+export interface DayEntry { book: Book; done: boolean }
+
+// 그날의 독서 활동: 그날 읽은 책(일별 기록) + 그날 완독한 책을 모두 모은다.
+function buildDayActivity(
+  books: Book[],
+  dailyReadings: { date: string; bookId?: string }[],
+  year: number,
+  month: number,
+): Record<number, DayEntry[]> {
+  const map: Record<number, DayEntry[]> = {};
+  const add = (day: number, book: Book, done: boolean) => {
+    const arr = (map[day] = map[day] || []);
+    const found = arr.find((e) => e.book.id === book.id);
+    if (found) { if (done) found.done = true; }
+    else arr.push({ book, done });
+  };
+  // 읽는중 등 — 그날 읽은 책 (일별 기록 기준)
+  dailyReadings.forEach((r) => {
+    if (!r.bookId) return;
+    const [y, m, dd] = r.date.split('-').map(Number);
+    if (y === year && m - 1 === month) {
+      const book = books.find((b) => b.id === r.bookId);
+      if (book) add(dd, book, false);
     }
   });
+  // 완독한 책 (완독일 기준)
+  books.forEach((b) => {
+    if (b.status !== 'done' || !b.endDate) return;
+    const d = new Date(b.endDate);
+    if (d.getFullYear() === year && d.getMonth() === month) add(d.getDate(), b, true);
+  });
+  // 완독을 앞에 오도록 정렬 (대표 표지)
+  Object.values(map).forEach((arr) => arr.sort((a, b) => Number(b.done) - Number(a.done)));
   return map;
 }
 
@@ -50,6 +73,8 @@ export default function StatsPage() {
   const [calDisplayYear, setCalDisplayYear] = useState(currentYear);
   const [calDisplayMonth, setCalDisplayMonth] = useState(currentMonth);
   const [calSelectedDay, setCalSelectedDay] = useState<number | null>(null);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [pickerYear, setPickerYear] = useState(currentYear);
   const [showShareCard, setShowShareCard] = useState(false);
   const [savingCal, setSavingCal] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
@@ -78,6 +103,16 @@ export default function StatsPage() {
     setCalSelectedDay(null);
     if (calDisplayMonth === 11) { setCalDisplayMonth(0); setCalDisplayYear((y) => y + 1); }
     else setCalDisplayMonth((m) => m + 1);
+  }
+  function openMonthPicker() {
+    setPickerYear(calDisplayYear);
+    setShowMonthPicker((v) => !v);
+  }
+  function goToMonth(y: number, m: number) {
+    setCalDisplayYear(y);
+    setCalDisplayMonth(m);
+    setCalSelectedDay(null);
+    setShowMonthPicker(false);
   }
 
   function saveDayEdit() {
@@ -145,13 +180,15 @@ export default function StatsPage() {
   const recent = [...done].sort((a, b) => (b.endDate || b.createdAt).localeCompare(a.endDate || a.createdAt)).slice(0, 5);
   const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
-  const calDayBooks = buildDayBooks(done, calDisplayYear, calDisplayMonth);
+  const dailyReadings = getDailyReadings();
+  const calDayBooks = buildDayActivity(books, dailyReadings, calDisplayYear, calDisplayMonth);
   const calFirstDay = new Date(calDisplayYear, calDisplayMonth, 1).getDay();
   const calTotalDays = new Date(calDisplayYear, calDisplayMonth + 1, 0).getDate();
-  const calMonthDoneCount = Object.values(calDayBooks).flat().length;
+  // 헤더 배지: 이 달 완독 권수 / 활동한 날 수
+  const calMonthDoneCount = Object.values(calDayBooks).flat().filter((e) => e.done).length;
+  const calMonthActiveDays = Object.keys(calDayBooks).length;
 
   // 일별 페이지 (최근 14일) — 북베어 스타일 막대 차트
-  const dailyReadings = getDailyReadings();
   const dailyChart = (() => {
     const out: { date: string; pages: number; label: string; isToday: boolean; book?: Book }[] = [];
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -424,32 +461,81 @@ export default function StatsPage() {
 
         {/* ── 독서 달력 ── */}
         <div className="bg-white rounded-3xl p-3.5 sm:p-5 mb-4" style={cs}>
-          {/* Header — 큰 월/년 + 좌우 네비 */}
-          <div className="flex items-center justify-between mb-3 px-1">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl font-bold text-[#1D1D1F] tracking-tight">
-                {calDisplayYear}.{String(calDisplayMonth + 1).padStart(2, '0')}
-              </span>
-              {calMonthDoneCount > 0 && (
-                <span className="text-[11px] font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
-                  {calMonthDoneCount}권
+          {/* Header — 큰 월/년(탭하면 년/월 선택) + 좌우 네비 */}
+          <div className="relative mb-3 px-1">
+            <div className="flex items-center justify-between">
+              <button onClick={openMonthPicker}
+                className="flex items-center gap-2 -ml-1 pl-1 pr-2 py-1 rounded-xl hover:bg-[#F5F5F7] active:bg-gray-100 transition-colors">
+                <span className="text-xl font-bold text-[#1D1D1F] tracking-tight">
+                  {calDisplayYear}.{String(calDisplayMonth + 1).padStart(2, '0')}
                 </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <button onClick={prevCalMonth}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] active:bg-gray-100 transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg className={`w-4 h-4 text-[#AEAEB2] transition-transform ${showMonthPicker ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
+                {calMonthDoneCount > 0 && (
+                  <span className="text-[11px] font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">{calMonthDoneCount}권 완독</span>
+                )}
+                {calMonthDoneCount === 0 && calMonthActiveDays > 0 && (
+                  <span className="text-[11px] font-semibold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">{calMonthActiveDays}일 독서</span>
+                )}
               </button>
-              <button onClick={nextCalMonth}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] active:bg-gray-100 transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={prevCalMonth}
+                  className="w-9 h-9 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] active:bg-gray-100 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button onClick={nextCalMonth}
+                  className="w-9 h-9 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] active:bg-gray-100 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             </div>
+
+            {/* 년/월 선택 패널 */}
+            {showMonthPicker && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMonthPicker(false)} />
+                <div className="absolute left-0 top-full mt-1 z-20 w-[280px] max-w-[calc(100vw-40px)] bg-white rounded-2xl p-3"
+                  style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.16)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                  {/* 연도 선택 */}
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <button onClick={() => setPickerYear((y) => y - 1)}
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <span className="text-base font-bold text-[#1D1D1F]">{pickerYear}년</span>
+                    <button onClick={() => setPickerYear((y) => y + 1)}
+                      disabled={pickerYear >= currentYear}
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-[#6E6E73] hover:bg-[#F5F5F7] transition-colors disabled:opacity-30">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                  </div>
+                  {/* 월 그리드 */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {MONTHS.map((label, m) => {
+                      const isCur = pickerYear === calDisplayYear && m === calDisplayMonth;
+                      const isFuture = pickerYear > currentYear || (pickerYear === currentYear && m > currentMonth);
+                      return (
+                        <button key={m} onClick={() => goToMonth(pickerYear, m)} disabled={isFuture}
+                          className={`py-2 rounded-xl text-[13px] font-semibold transition-colors ${
+                            isCur ? 'bg-[#1D1D1F] text-white' : isFuture ? 'text-[#D1D1D6]' : 'text-[#1D1D1F] hover:bg-[#F5F5F7]'
+                          }`}>
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button onClick={() => goToMonth(currentYear, currentMonth)}
+                    className="w-full mt-2 py-2 rounded-xl text-[12px] font-semibold text-indigo-500 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                    오늘로 이동
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           <div ref={calRef} className="bg-white rounded-xl">
@@ -468,7 +554,14 @@ export default function StatsPage() {
                 const hasBooks = dayBooksArr.length > 0;
                 const isSelected = calSelectedDay === day;
                 const dow = (calFirstDay + day - 1) % 7;
-                const coverBook = dayBooksArr.find((b) => b.coverUrl);
+                // 겹쳐 보여줄 표지 (최대 3장) — 앞쪽(index 0)이 대표
+                const stack = dayBooksArr.slice(0, 3);
+                // 뒤→앞 순서로 그리기 위한 위치별 변형값
+                const POS = [
+                  { rotate: 0, tx: 0, z: 30 },
+                  { rotate: -9, tx: -18, z: 20 },
+                  { rotate: 9, tx: 18, z: 10 },
+                ];
                 return (
                   <button
                     key={day}
@@ -489,33 +582,46 @@ export default function StatsPage() {
                       {day}
                     </span>
 
-                    {/* Cover thumbnail — 약간 좁게 */}
-                    <div
-                      className="rounded-md overflow-hidden relative"
-                      style={{
-                        width: '82%',
-                        aspectRatio: '2 / 3',
-                        background: hasBooks
-                          ? coverBook ? 'transparent' : 'linear-gradient(135deg, #818CF8, #C084FC)'
-                          : 'transparent',
-                        boxShadow: hasBooks ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
-                        outline: isSelected ? '2px solid #6366f1' : 'none',
-                        outlineOffset: 2,
-                      }}
-                    >
-                      {coverBook && (
-                        <img src={coverBook.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      )}
-                      {hasBooks && !coverBook && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">
-                            {dayBooksArr[0].title.slice(0, 1)}
-                          </span>
-                        </div>
-                      )}
-                      {hasBooks && dayBooksArr.length > 1 && (
-                        <div className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#1D1D1F] flex items-center justify-center border-2 border-white">
-                          <span className="text-white text-[8px] font-bold leading-none">+{dayBooksArr.length - 1}</span>
+                    {/* 표지 스택 — 여러 권이면 겹쳐서 */}
+                    <div className="relative w-full flex items-center justify-center" style={{ aspectRatio: '2 / 3' }}>
+                      {!hasBooks && <div className="w-[82%] h-full rounded-md" />}
+                      {stack.map((entry, i) => {
+                        const p = POS[i];
+                        return (
+                          <div
+                            key={entry.book.id}
+                            className="absolute rounded-md overflow-hidden"
+                            style={{
+                              width: '82%',
+                              aspectRatio: '2 / 3',
+                              transform: `translateX(${p.tx}%) rotate(${p.rotate}deg)`,
+                              zIndex: p.z,
+                              background: entry.book.coverUrl ? '#fff' : 'linear-gradient(135deg, #818CF8, #C084FC)',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.16)',
+                              border: '1.5px solid #fff',
+                              outline: isSelected && i === 0 ? '2px solid #6366f1' : 'none',
+                              outlineOffset: 2,
+                            }}
+                          >
+                            {entry.book.coverUrl ? (
+                              <img src={entry.book.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">{entry.book.title.slice(0, 1)}</span>
+                              </div>
+                            )}
+                            {/* 완독 체크 배지 (대표 표지에만) */}
+                            {i === 0 && entry.done && (
+                              <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 flex items-center justify-center border border-white">
+                                <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" /></svg>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {dayBooksArr.length > 1 && (
+                        <div className="absolute -top-1 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-[#1D1D1F] flex items-center justify-center border-2 border-white" style={{ zIndex: 40 }}>
+                          <span className="text-white text-[8px] font-bold leading-none">{dayBooksArr.length}</span>
                         </div>
                       )}
                     </div>
@@ -552,8 +658,8 @@ export default function StatsPage() {
           {/* Selected day books */}
           {calSelectedDay !== null && calDayBooks[calSelectedDay] && (
             <div className="mt-4 pt-4 border-t border-[#F5F5F7] space-y-2">
-              <p className="text-xs font-semibold text-[#6E6E73]">{calDisplayMonth + 1}월 {calSelectedDay}일 완독</p>
-              {calDayBooks[calSelectedDay].map((book) => (
+              <p className="text-xs font-semibold text-[#6E6E73]">{calDisplayMonth + 1}월 {calSelectedDay}일 · 이 날 읽은 책 {calDayBooks[calSelectedDay].length}권</p>
+              {calDayBooks[calSelectedDay].map(({ book, done }) => (
                 <Link key={book.id} to={`/book/${book.id}`}
                   className="flex items-center gap-3 bg-[#F5F5F7] rounded-xl p-3 active:opacity-70 transition-opacity">
                   <div className="w-9 rounded-lg overflow-hidden flex-shrink-0" style={{ height: 48 }}>
@@ -566,14 +672,16 @@ export default function StatsPage() {
                     <p className="text-sm font-medium text-[#1D1D1F] truncate">{book.title}</p>
                     <p className="text-xs text-[#6E6E73] truncate">{book.author}</p>
                   </div>
-                  {book.rating > 0 && <span className="text-amber-400 text-sm flex-shrink-0">{'★'.repeat(book.rating)}</span>}
+                  <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${done ? 'text-emerald-600 bg-emerald-100' : 'text-blue-600 bg-blue-100'}`}>
+                    {done ? '완독' : '읽음'}
+                  </span>
                 </Link>
               ))}
             </div>
           )}
 
-          {calMonthDoneCount === 0 && (
-            <p className="text-center text-[#AEAEB2] text-xs py-4">이 달에 완독한 책이 없어요</p>
+          {calMonthActiveDays === 0 && (
+            <p className="text-center text-[#AEAEB2] text-xs py-4">이 달에 읽은 기록이 없어요</p>
           )}
         </div>
 
