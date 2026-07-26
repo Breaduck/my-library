@@ -271,11 +271,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Drag hint */}
-        {canDrag && books.length > 1 && (
-          <p className="text-[#AEAEB2] text-xs mb-3 text-center">꾹 눌러서 순서를 바꿀 수 있어요</p>
-        )}
-
         {/* Content */}
         {books.length === 0 ? (
           <EmptyState />

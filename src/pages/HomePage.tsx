@@ -22,7 +22,7 @@ type ViewMode = 'grid' | 'list' | 'shelf';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'done', label: '완독' },
-  { key: 'reading', label: '읽는 중' },
+  { key: 'reading', label: '읽는중' },
   { key: 'want', label: '읽을 예정' },
   { key: 'stopped', label: '중단' },
 ];
@@ -43,15 +43,25 @@ export default function HomePage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
+  const [readingHidden, setReadingHidden] = useState(false);
 
   function openDailyFor(book?: Book) {
     setDailyModalBook(book);
     setShowDailyModal(true);
   }
 
+  function toggleReadingHidden() {
+    setReadingHidden((prev) => {
+      const next = !prev;
+      localStorage.setItem('reading-section-hidden', next ? '1' : '0');
+      return next;
+    });
+  }
+
   useEffect(() => {
     const saved = localStorage.getItem('view-mode') as ViewMode | null;
     if (saved) setViewMode(saved);
+    setReadingHidden(localStorage.getItem('reading-section-hidden') === '1');
     setStreak(getReadingStreak());
   }, []);
 
@@ -118,7 +128,7 @@ export default function HomePage() {
               <p className="text-[#AEAEB2] mt-1.5 text-sm">
                 {[
                   counts.done > 0 && `${counts.done}권 읽음`,
-                  counts.reading > 0 && `${counts.reading}권 읽는 중`,
+                  counts.reading > 0 && `${counts.reading}권 읽는중`,
                   counts.want > 0 && `${counts.want}권 읽을 예정`,
                 ].filter(Boolean).join('  ·  ')}
               </p>
@@ -195,90 +205,120 @@ export default function HomePage() {
           </div>
         </div>
 
-        {canDrag && books.length > 1 && (
-          <p className="text-[#AEAEB2] text-xs mb-3 text-center">꾹 눌러서 순서를 바꿀 수 있어요</p>
-        )}
 
         {books.length === 0 ? (
           <EmptyState />
         ) : (
           <>
-            {/* 읽는 중 섹션 — Apple 미니멀 카드 */}
+            {/* 읽는중 섹션 — Apple 미니멀 카드 */}
             {showReadingSection && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <h2 className="text-[13px] font-semibold text-[#86848A] tracking-wide uppercase">Now Reading</h2>
-                  {readingBooks.length > 3 && (
-                    <button onClick={() => setTab('reading')} className="text-[11px] text-[#86848A] hover:text-[#1D1D1F] transition-colors">
-                      더 보기
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {readingBooks.slice(0, 3).map((book) => {
-                    const pct = book.currentPage && book.pages && book.pages > 0
-                      ? Math.round(book.currentPage / book.pages * 100)
-                      : null;
-                    return (
-                      <div key={book.id}
-                        className="bg-white rounded-2xl flex items-center gap-3.5 p-3"
-                        style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)' }}>
-                        {/* 표지 — hover 시 투명 기록 버튼 */}
-                        <button
-                          type="button"
-                          onClick={() => openDailyFor(book)}
-                          title="오늘 기록 추가하기"
-                          className="group relative flex-shrink-0 rounded-lg overflow-hidden active:scale-95 transition-transform"
-                          style={{ width: 50, height: 74, boxShadow: '0 3px 10px rgba(0,0,0,0.14)' }}
-                        >
-                          {book.coverUrl
-                            ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-sm">{book.title.slice(0, 2)}</span></div>
-                          }
-                          <span
-                            className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-0.5 py-1 rounded-md text-white text-[9px] font-semibold opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
-                            style={{
-                              background: 'rgba(0,0,0,0.55)',
-                              backdropFilter: 'blur(8px)',
-                              WebkitBackdropFilter: 'blur(8px)',
-                              border: '1px solid rgba(255,255,255,0.18)',
-                            }}>
-                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
-                            기록 추가
-                          </span>
-                        </button>
-
-                        {/* 중앙 정보 — 클릭 시 책 상세로 */}
-                        <Link to={`/book/${book.id}`} className="flex-1 min-w-0">
-                          <p className="font-semibold text-[#1D1D1F] text-[14px] truncate leading-tight">{book.title}</p>
-                          <p className="text-[#86848A] text-[11.5px] mt-0.5 truncate">{book.author}</p>
-                          {pct !== null ? (
-                            <div className="mt-2 flex items-center gap-2">
-                              <div className="flex-1 h-1 bg-[#F0F0F5] rounded-full overflow-hidden">
-                                <div className="h-full rounded-full"
-                                  style={{ width: `${pct}%`, background: '#1D1D1F' }} />
-                              </div>
-                              <span className="text-[10px] font-semibold text-[#1D1D1F] flex-shrink-0">{pct}%</span>
-                            </div>
-                          ) : (
-                            <p className="text-[10.5px] text-[#AEAEB2] mt-1.5">진행률 미설정</p>
-                          )}
-                        </Link>
-
-                        {/* 우측 타이머 — 작은 원형 아이콘 버튼 */}
-                        <Link to={`/timer/${book.id}`}
-                          title="독서 타이머"
-                          className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#EAEAEC] active:scale-95 transition-all">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-[13px] font-semibold text-[#86848A] tracking-wide uppercase">읽는중</h2>
+                    <span className="text-[11px] text-[#AEAEB2]">{readingBooks.length}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {!readingHidden && readingBooks.length > 3 && (
+                      <button onClick={() => setTab('reading')} className="text-[11px] text-[#86848A] hover:text-[#1D1D1F] transition-colors">
+                        더 보기
+                      </button>
+                    )}
+                    <button onClick={toggleReadingHidden}
+                      title={readingHidden ? '읽는중 펼치기' : '읽는중 숨기기'}
+                      className="flex items-center gap-1 text-[11px] text-[#86848A] hover:text-[#1D1D1F] transition-colors">
+                      {readingHidden ? (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
-                        </Link>
-                      </div>
-                    );
-                  })}
+                          펼치기
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
+                          </svg>
+                          숨기기
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
+                {!readingHidden && (
+                  <div className="space-y-2">
+                    {readingBooks.slice(0, 3).map((book) => {
+                      const pct = book.pages && book.pages > 0
+                        ? Math.min(100, Math.round((book.currentPage ?? 0) / book.pages * 100))
+                        : null;
+                      return (
+                        <div key={book.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openDailyFor(book)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDailyFor(book); } }}
+                          title="눌러서 오늘 기록 추가하기"
+                          className="bg-white rounded-2xl flex items-center gap-3 p-3 cursor-pointer active:scale-[0.99] transition-transform"
+                          style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)' }}>
+                          {/* 표지 */}
+                          <div
+                            className="flex-shrink-0 rounded-lg overflow-hidden"
+                            style={{ width: 50, height: 74, boxShadow: '0 3px 10px rgba(0,0,0,0.14)' }}
+                          >
+                            {book.coverUrl
+                              ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center"><span className="text-white font-bold text-sm">{book.title.slice(0, 2)}</span></div>
+                            }
+                          </div>
+
+                          {/* 중앙 정보 */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-[#1D1D1F] text-[14px] truncate leading-tight">{book.title}</p>
+                            <p className="text-[#86848A] text-[11.5px] mt-0.5 truncate">{book.author}</p>
+                            {pct !== null ? (
+                              <div className="mt-2">
+                                <div className="relative h-[18px] bg-[#F0F0F5] rounded-full overflow-hidden">
+                                  <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                                    style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #4F8EF7, #3B7DE8)' }} />
+                                  <div className="absolute inset-0 flex items-center px-2">
+                                    <span className={`text-[10px] font-bold ${pct >= 35 ? 'text-white' : 'text-[#1D1D1F]'} transition-colors`}>
+                                      {pct}%
+                                    </span>
+                                    <span className={`ml-auto text-[9.5px] font-medium ${pct >= 90 ? 'text-white/90' : 'text-[#86848A]'} transition-colors`}>
+                                      {book.currentPage}/{book.pages}p
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="mt-1.5 text-[11px] text-[#AEAEB2]">총 페이지를 입력하면 진행률이 표시돼요</p>
+                            )}
+                          </div>
+
+                          {/* 우측 액션 — 상세 + 타이머 (박스 클릭과 분리) */}
+                          <div className="flex-shrink-0 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <Link to={`/book/${book.id}`}
+                              title="상세 보기"
+                              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#EAEAEC] active:scale-95 transition-all">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                              </svg>
+                            </Link>
+                            <Link to={`/timer/${book.id}`}
+                              title="독서 타이머"
+                              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#EAEAEC] active:scale-95 transition-all">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

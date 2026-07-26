@@ -60,7 +60,7 @@ export default function PlaylistTimer({ book, elapsed, running, accumulated }: P
       `}</style>
 
       <div className="relative flex flex-col items-center px-6 mt-4">
-        <p className="text-white/40 text-[10px] uppercase tracking-[0.3em] mb-1">Now Reading</p>
+        <p className="text-white/40 text-[10px] uppercase tracking-[0.3em] mb-1">읽는중</p>
 
         {/* 비닐/표지 */}
         <div className="relative my-6" style={{ width: 240, height: 240 }}>

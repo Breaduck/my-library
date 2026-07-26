@@ -62,23 +62,54 @@ export function getDailyReadings(): DailyReading[] {
   }
 }
 
+// pages: replaces today's value for that (book or general) entry.
 export function logDailyPages(pages: number, bookId?: string): void {
   if (typeof window === 'undefined') return;
   const date = new Date().toISOString().slice(0, 10);
   const existing = getDailyReadings();
-  const idx = existing.findIndex((d) => d.date === date);
+  const idx = existing.findIndex((d) => d.date === date && d.bookId === bookId);
   if (idx >= 0) {
-    existing[idx] = { date, pages, bookId };
-  } else {
+    if (pages > 0) existing[idx] = { date, pages, bookId };
+    else existing.splice(idx, 1);
+  } else if (pages > 0) {
     existing.push({ date, pages, bookId });
   }
+  localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
+  if (pages > 0) logReadingDate();
+}
+
+// Add `delta` pages to today's entry for the given (or unscoped) bookId.
+export function addDailyPages(delta: number, bookId?: string): void {
+  if (delta <= 0) return;
+  const date = new Date().toISOString().slice(0, 10);
+  const existing = getDailyReadings();
+  const idx = existing.findIndex((d) => d.date === date && d.bookId === bookId);
+  if (idx >= 0) existing[idx].pages += delta;
+  else existing.push({ date, pages: delta, bookId });
   localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
   logReadingDate();
 }
 
-export function getTodayPages(): number {
+export function getTodayPages(bookId?: string): number {
   const today = new Date().toISOString().slice(0, 10);
-  return getDailyReadings().find((d) => d.date === today)?.pages ?? 0;
+  const all = getDailyReadings().filter((d) => d.date === today);
+  if (bookId === undefined) return all.reduce((s, d) => s + d.pages, 0);
+  return all.find((d) => d.bookId === bookId)?.pages ?? 0;
+}
+
+export function setDailyPages(date: string, pages: number): void {
+  if (typeof window === 'undefined') return;
+  const existing = getDailyReadings();
+  const filtered = existing.filter((d) => d.date !== date);
+  if (pages > 0) filtered.push({ date, pages });
+  localStorage.setItem(DAILY_KEY, JSON.stringify(filtered));
+  if (pages > 0) {
+    const dates: string[] = JSON.parse(localStorage.getItem(DATES_KEY) || '[]');
+    if (!dates.includes(date)) {
+      dates.push(date);
+      localStorage.setItem(DATES_KEY, JSON.stringify(dates));
+    }
+  }
 }
 
 export function getWeeklyPages(): { date: string; pages: number; label: string }[] {
@@ -87,7 +118,7 @@ export function getWeeklyPages(): { date: string; pages: number; label: string }
   for (let i = 6; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
     const date = d.toISOString().slice(0, 10);
-    const pages = readings.find((r) => r.date === date)?.pages ?? 0;
+    const pages = readings.filter((r) => r.date === date).reduce((s, r) => s + r.pages, 0);
     const label = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
     result.push({ date, pages, label });
   }

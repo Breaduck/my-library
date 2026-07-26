@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Book } from '@/types';
-import { logDailyPages, getWeeklyPages, getTodayPages, markDailyPopupShown } from '@/lib/storage';
+import { useBooks } from '@/hooks/useBooks';
+import { addDailyPages, logDailyPages, getWeeklyPages, getTodayPages, markDailyPopupShown } from '@/lib/storage';
 
 interface Props {
   readingBook?: Book;
@@ -8,15 +9,35 @@ interface Props {
 }
 
 export default function DailyReadingModal({ readingBook, onClose }: Props) {
+  const { updateBook } = useBooks();
   const weekly = getWeeklyPages();
   const maxPages = Math.max(...weekly.map((w) => w.pages), 1);
   const today = new Date().toISOString().slice(0, 10);
-  const [pages, setPages] = useState(String(getTodayPages() || ''));
+
+  const hasBookPages = !!(readingBook && readingBook.pages && readingBook.pages > 0);
+  const totalPages = readingBook?.pages ?? 0;
+  const currentPage = readingBook?.currentPage ?? 0;
+
+  // When the book has a known page count, input is cumulative "current page".
+  // Otherwise it's a free-form "today's pages" number.
+  const [input, setInput] = useState<string>(() => {
+    if (hasBookPages) return String(currentPage || '');
+    return String(getTodayPages() || '');
+  });
+
+  const parsedInput = parseInt(input || '0', 10) || 0;
+  const previewPct = hasBookPages
+    ? Math.max(0, Math.min(100, Math.round((parsedInput / totalPages) * 100)))
+    : null;
 
   function handleConfirm() {
-    const n = parseInt(pages);
-    if (n > 0) {
-      logDailyPages(n, readingBook?.id);
+    if (hasBookPages && readingBook) {
+      const newCurrent = Math.max(0, Math.min(parsedInput, totalPages));
+      const delta = newCurrent - currentPage;
+      if (delta > 0) addDailyPages(delta, readingBook.id);
+      if (newCurrent !== currentPage) updateBook(readingBook.id, { currentPage: newCurrent });
+    } else if (parsedInput > 0) {
+      logDailyPages(parsedInput, readingBook?.id);
     }
     markDailyPopupShown();
     onClose();
@@ -83,28 +104,55 @@ export default function DailyReadingModal({ readingBook, onClose }: Props) {
         )}
 
         <div className="px-6 pt-5">
-          <h2 className="text-base font-bold text-[#1D1D1F] mb-1">오늘도 즐거운 독서하셨나요?</h2>
-          <p className="text-[#6E6E73] text-sm mb-5">오늘 읽은 페이지 수를 기록해보세요</p>
+          <h2 className="text-base font-bold text-[#1D1D1F] mb-1">
+            {hasBookPages ? '어디까지 읽으셨나요?' : '오늘도 즐거운 독서하셨나요?'}
+          </h2>
+          <p className="text-[#6E6E73] text-sm mb-5">
+            {hasBookPages
+              ? `현재 페이지를 입력하면 진행률이 갱신돼요 · 총 ${totalPages}쪽`
+              : '오늘 읽은 페이지 수를 기록해보세요'}
+          </p>
 
           {/* Page input */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-3">
             <div className="flex-1 flex items-center gap-2 px-4 py-3 bg-[#F5F5F7] rounded-2xl">
               <svg className="w-4 h-4 text-[#AEAEB2] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
               <input
                 type="number"
-                value={pages}
-                onChange={(e) => setPages(e.target.value)}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
                 placeholder="0"
                 min="0"
+                max={hasBookPages ? totalPages : undefined}
                 className="flex-1 bg-transparent text-lg font-bold text-[#1D1D1F] outline-none w-full"
                 style={{ fontSize: 20 }}
                 autoFocus
               />
-              <span className="text-[#AEAEB2] text-sm flex-shrink-0">p</span>
+              <span className="text-[#AEAEB2] text-sm flex-shrink-0">
+                {hasBookPages ? `/ ${totalPages}p` : 'p'}
+              </span>
             </div>
           </div>
+
+          {/* Live progress preview */}
+          {previewPct !== null && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-[#86848A]">
+                  {parsedInput > currentPage
+                    ? <>오늘 <span className="font-semibold text-[#1D1D1F]">+{Math.max(0, parsedInput - currentPage)}쪽</span> 더 읽었어요</>
+                    : <>현재 진행률</>}
+                </span>
+                <span className="text-[12px] font-bold text-[#1D1D1F]">{previewPct}%</span>
+              </div>
+              <div className="h-2 bg-[#F0F0F5] rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${previewPct}%`, background: 'linear-gradient(90deg, #4F8EF7, #3B7DE8)' }} />
+              </div>
+            </div>
+          )}
 
           {/* Weekly bar chart */}
           <div className="mb-6">

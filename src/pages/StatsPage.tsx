@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
 import { Book } from '@/types';
-import { getReadingStreak, getDailyReadings } from '@/lib/storage';
+import { getReadingStreak, getDailyReadings, setDailyPages } from '@/lib/storage';
 import MonthlyShareCard from '@/components/MonthlyShareCard';
 
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -53,6 +53,9 @@ export default function StatsPage() {
   const [showShareCard, setShowShareCard] = useState(false);
   const [savingCal, setSavingCal] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
+  const [isDailyEditing, setIsDailyEditing] = useState(false);
+  const [editingDayDate, setEditingDayDate] = useState<string | null>(null);
+  const [editDayInput, setEditDayInput] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem('reading-goal');
@@ -75,6 +78,14 @@ export default function StatsPage() {
     setCalSelectedDay(null);
     if (calDisplayMonth === 11) { setCalDisplayMonth(0); setCalDisplayYear((y) => y + 1); }
     else setCalDisplayMonth((m) => m + 1);
+  }
+
+  function saveDayEdit() {
+    if (!editingDayDate) return;
+    const pages = Math.max(0, parseInt(editDayInput) || 0);
+    setDailyPages(editingDayDate, pages);
+    setEditingDayDate(null);
+    setEditDayInput('');
   }
 
   async function handleSaveCalImage() {
@@ -145,10 +156,12 @@ export default function StatsPage() {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
-      const entry = dailyReadings.find((r) => r.date === dateStr);
+      const dayReadings = dailyReadings.filter((r) => r.date === dateStr);
+      const dayPages = dayReadings.reduce((s, r) => s + r.pages, 0);
       const label = i === 0 ? '오늘' : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`;
+      const entry = dayReadings[0];
       const book = entry?.bookId ? books.find((b) => b.id === entry.bookId) : undefined;
-      out.push({ date: dateStr, pages: entry?.pages ?? 0, label, isToday: dateStr === todayStr, book });
+      out.push({ date: dateStr, pages: dayPages, label, isToday: dateStr === todayStr, book });
     }
     return out;
   })();
@@ -236,7 +249,7 @@ export default function StatsPage() {
         <div className="grid grid-cols-4 gap-2 mb-4">
           {[
             { label: '완독',      count: done.length,    color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: '읽는 중',   count: reading.length, color: 'text-blue-600',    bg: 'bg-blue-50' },
+            { label: '읽는중',   count: reading.length, color: 'text-blue-600',    bg: 'bg-blue-50' },
             { label: '읽을 예정', count: want.length,    color: 'text-purple-600',  bg: 'bg-purple-50' },
             { label: '중단',      count: stopped.length, color: 'text-gray-500',    bg: 'bg-gray-100' },
           ].map((item) => (
@@ -285,6 +298,123 @@ export default function StatsPage() {
                 <p className="text-xs text-white/50">총 독서 시간</p>
               </div>
               <p className="text-xl font-bold text-white leading-tight">{fmtTime(totalReadingTime)}</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── 매일 얼마나 읽었는지 ── */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-sm font-semibold text-[#1D1D1F]">매일 얼마나 읽었는지</h2>
+            <div className="flex items-center gap-2">
+              {!isDailyEditing && <p className="text-[10px] text-[#AEAEB2]">최근 14일</p>}
+              <button
+                onClick={() => { setIsDailyEditing((v) => !v); setEditingDayDate(null); }}
+                className={`flex items-center justify-center transition-colors ${
+                  isDailyEditing
+                    ? 'px-2.5 py-1 text-[10px] font-semibold text-indigo-500 bg-indigo-50 rounded-full'
+                    : 'w-7 h-7 text-[#AEAEB2] hover:bg-[#F5F5F7] rounded-full'
+                }`}
+              >
+                {isDailyEditing ? '완료' : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+          <p className="text-[11px] mb-5" style={{ color: isDailyEditing ? '#818CF8' : '#AEAEB2' }}>
+            {isDailyEditing ? '날짜를 탭해서 기록을 수정할 수 있어요' : '하루하루 읽은 페이지를 한눈에 볼 수 있어요'}
+          </p>
+          {hasDailyData || isDailyEditing ? (
+            <div className="flex items-end justify-between gap-1.5" style={{ height: 140 }}>
+              {dailyChart.map((d) => {
+                const h = d.pages > 0 ? Math.max((d.pages / maxDaily) * 96 + 14, 18) : 4;
+                const pctOfBook = d.book?.pages && d.book.pages > 0
+                  ? Math.round((d.pages / d.book.pages) * 100)
+                  : null;
+                const tip = d.pages > 0
+                  ? d.book
+                    ? `${d.label} · ${d.pages}p${pctOfBook !== null ? ` (${d.book.title}의 ${pctOfBook}%)` : ` (${d.book.title})`}`
+                    : `${d.label} · ${d.pages}p`
+                  : `${d.label} · 기록 없음`;
+                const isMax = d.pages === maxDaily && d.pages > 0;
+                const isEditSelected = isDailyEditing && editingDayDate === d.date;
+                return (
+                  <button
+                    key={d.date}
+                    className={`flex-1 flex flex-col items-center gap-2 outline-none ${isDailyEditing ? 'cursor-pointer' : 'cursor-default'}`}
+                    title={tip}
+                    disabled={!isDailyEditing}
+                    onClick={() => {
+                      setEditingDayDate(d.date);
+                      setEditDayInput(String(d.pages || ''));
+                    }}
+                  >
+                    <div className="w-full flex flex-col items-center justify-end" style={{ height: 118 }}>
+                      {d.pages > 0 && (
+                        <span className="text-[11px] font-bold mb-1 leading-none transition-colors"
+                          style={{ color: isEditSelected ? '#6366F1' : d.isToday ? '#3B7DE8' : isMax ? '#1D1D1F' : '#6E6E73' }}>
+                          {d.pages}p
+                        </span>
+                      )}
+                      <div
+                        className="w-full rounded-lg transition-all duration-500"
+                        style={{
+                          height: h,
+                          background: isEditSelected
+                            ? 'linear-gradient(180deg, #818CF8, #6366F1)'
+                            : d.isToday
+                            ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)'
+                            : d.pages > 0
+                            ? '#C9DFFB'
+                            : '#F0F0F5',
+                          minHeight: 4,
+                          maxWidth: 26,
+                          boxShadow: isEditSelected
+                            ? '0 4px 12px rgba(99,102,241,0.3)'
+                            : d.isToday ? '0 4px 12px rgba(59,125,232,0.25)' : 'none',
+                        }}
+                      />
+                    </div>
+                    <p className="text-[9.5px] font-semibold leading-tight"
+                      style={{ color: isEditSelected ? '#6366F1' : d.isToday ? '#3B7DE8' : '#AEAEB2' }}>
+                      {d.label}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-center text-[#AEAEB2] text-xs py-8">아직 기록된 독서 데이터가 없어요</p>
+          )}
+          {isDailyEditing && editingDayDate && (
+            <div className="mt-4 pt-4 border-t border-[#F5F5F7]">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-medium text-[#6E6E73] flex-shrink-0 w-12 text-center">
+                  {dailyChart.find((d) => d.date === editingDayDate)?.label}
+                </p>
+                <div className="flex-1 flex items-center gap-1.5 px-3 py-2 bg-[#F5F5F7] rounded-xl">
+                  <input
+                    type="number"
+                    value={editDayInput}
+                    onChange={(e) => setEditDayInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && saveDayEdit()}
+                    placeholder="0"
+                    min="0"
+                    className="flex-1 bg-transparent text-sm font-bold text-[#1D1D1F] outline-none"
+                    autoFocus
+                  />
+                  <span className="text-[#AEAEB2] text-xs flex-shrink-0">p</span>
+                </div>
+                <button
+                  onClick={saveDayEdit}
+                  className="px-3 py-2 bg-[#1D1D1F] text-white text-xs font-semibold rounded-xl flex-shrink-0"
+                >
+                  저장
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -444,57 +574,6 @@ export default function StatsPage() {
           )}
         </div>
 
-        {/* ── 매일 얼마나 읽었는지 (북베어 스타일) ── */}
-        {hasDailyData && (
-          <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
-            <div className="flex items-baseline justify-between mb-1">
-              <h2 className="text-sm font-semibold text-[#1D1D1F]">매일 얼마나 읽었는지</h2>
-              <p className="text-[10px] text-[#AEAEB2]">최근 14일</p>
-            </div>
-            <p className="text-[11px] text-[#AEAEB2] mb-4">막대에 마우스를 올리면 책의 진행률이 보여요</p>
-            <div className="flex items-end justify-between gap-1" style={{ height: 110 }}>
-              {dailyChart.map((d) => {
-                const h = d.pages > 0 ? Math.max((d.pages / maxDaily) * 80 + 10, 14) : 4;
-                const pctOfBook = d.book?.pages && d.book.pages > 0
-                  ? Math.round((d.pages / d.book.pages) * 100)
-                  : null;
-                const tip = d.pages > 0
-                  ? d.book
-                    ? `${d.label} · ${d.pages}p${pctOfBook !== null ? ` (${d.book.title}의 ${pctOfBook}%)` : ` (${d.book.title})`}`
-                    : `${d.label} · ${d.pages}p`
-                  : `${d.label} · 기록 없음`;
-                return (
-                  <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5 group" title={tip}>
-                    <div className="w-full flex flex-col items-center justify-end" style={{ height: 92 }}>
-                      {d.pages > 0 && (
-                        <span className="text-[9px] font-semibold mb-0.5 transition-colors"
-                          style={{ color: d.isToday ? '#3B7DE8' : '#86848A' }}>
-                          {d.pages}p
-                        </span>
-                      )}
-                      <div
-                        className="w-full rounded-lg transition-all duration-500 group-hover:opacity-80"
-                        style={{
-                          height: h,
-                          background: d.isToday
-                            ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)'
-                            : d.pages > 0
-                            ? '#D1E5FF'
-                            : '#F0F0F5',
-                          minHeight: 4,
-                          maxWidth: 24,
-                        }}
-                      />
-                    </div>
-                    <p className="text-[9px] font-medium leading-tight" style={{ color: d.isToday ? '#3B7DE8' : '#AEAEB2' }}>
-                      {d.label}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ── 월별 완독 차트 ── */}
         {yearDone.length > 0 && (
@@ -508,7 +587,7 @@ export default function StatsPage() {
                     <div className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
                       style={{
                         width: `${Math.max((count / maxMonthly) * 100, 12)}%`,
-                        background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                        background: 'linear-gradient(90deg, #5B8BF2, #3B7DE8)',
                       }}>
                       <span className="text-white text-xs font-semibold">{count}</span>
                     </div>
@@ -531,7 +610,7 @@ export default function StatsPage() {
                     <div className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
                       style={{
                         width: `${Math.max((pages / maxPages) * 100, 12)}%`,
-                        background: 'linear-gradient(90deg, #f59e0b, #ef4444)',
+                        background: 'linear-gradient(90deg, #1D1D1F, #3A3A3C)',
                       }}>
                       <span className="text-white text-xs font-semibold">{pages}p</span>
                     </div>
