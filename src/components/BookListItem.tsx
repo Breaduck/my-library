@@ -55,9 +55,9 @@ export default function BookListItem({ book }: { book: Book }) {
             <div className="mt-1.5">
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-1.5 bg-[#F5F5F7] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(Math.round(book.currentPage/book.pages*100),100)}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)' }} />
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(Math.round(book.currentPage/book.pages*100),100)}%`, background: 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' }} />
                 </div>
-                <span className="text-[10px] text-indigo-500 font-medium">{Math.min(Math.round(book.currentPage/book.pages*100),100)}%</span>
+                <span className="text-[10px] text-[#3B7DE8] font-medium">{Math.min(Math.round(book.currentPage/book.pages*100),100)}%</span>
               </div>
             </div>
           )}

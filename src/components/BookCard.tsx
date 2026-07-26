@@ -68,12 +68,12 @@ export default function BookCard({ book }: { book: Book }) {
           return (
             <>
               <div className="absolute right-2.5" style={{ bottom: 52 }}>
-                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-500/80 text-white backdrop-blur-sm">
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white backdrop-blur-sm" style={{ background: 'rgba(59,125,232,0.85)' }}>
                   {pct}%
                 </span>
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-                <div className="h-full bg-indigo-400" style={{ width: `${pct}%` }} />
+                <div className="h-full" style={{ width: `${pct}%`, background: '#3B7DE8' }} />
               </div>
             </>
           );

@@ -27,36 +27,36 @@ function fmtTime(s: number): string | null {
   return `${m}분`;
 }
 
-export interface DayEntry { book: Book; done: boolean }
+export interface DayEntry { book: Book; done: boolean; pages: number }
 
 // 그날의 독서 활동: 그날 읽은 책(일별 기록) + 그날 완독한 책을 모두 모은다.
 function buildDayActivity(
   books: Book[],
-  dailyReadings: { date: string; bookId?: string }[],
+  dailyReadings: { date: string; bookId?: string; pages: number }[],
   year: number,
   month: number,
 ): Record<number, DayEntry[]> {
   const map: Record<number, DayEntry[]> = {};
-  const add = (day: number, book: Book, done: boolean) => {
+  const add = (day: number, book: Book, done: boolean, pages: number) => {
     const arr = (map[day] = map[day] || []);
     const found = arr.find((e) => e.book.id === book.id);
-    if (found) { if (done) found.done = true; }
-    else arr.push({ book, done });
+    if (found) { if (done) found.done = true; found.pages += pages; }
+    else arr.push({ book, done, pages });
   };
-  // 읽는중 등 — 그날 읽은 책 (일별 기록 기준)
+  // 읽는중 등 — 그날 읽은 책 (일별 기록 기준, 페이지 포함)
   dailyReadings.forEach((r) => {
     if (!r.bookId) return;
     const [y, m, dd] = r.date.split('-').map(Number);
     if (y === year && m - 1 === month) {
       const book = books.find((b) => b.id === r.bookId);
-      if (book) add(dd, book, false);
+      if (book) add(dd, book, false, r.pages);
     }
   });
   // 완독한 책 (완독일 기준)
   books.forEach((b) => {
     if (b.status !== 'done' || !b.endDate) return;
     const d = new Date(b.endDate);
-    if (d.getFullYear() === year && d.getMonth() === month) add(d.getDate(), b, true);
+    if (d.getFullYear() === year && d.getMonth() === month) add(d.getDate(), b, true, 0);
   });
   // 완독을 앞에 오도록 정렬 (대표 표지)
   Object.values(map).forEach((arr) => arr.sort((a, b) => Number(b.done) - Number(a.done)));
@@ -74,6 +74,7 @@ export default function StatsPage() {
   const [monthlyGoal, setMonthlyGoal] = useState(2);
   const [editingMonthlyGoal, setEditingMonthlyGoal] = useState(false);
   const [monthlyGoalInput, setMonthlyGoalInput] = useState('2');
+  const [goalView, setGoalView] = useState<'year' | 'month'>('year');
   const [calDisplayYear, setCalDisplayYear] = useState(currentYear);
   const [calDisplayMonth, setCalDisplayMonth] = useState(currentMonth);
   const [calSelectedDay, setCalSelectedDay] = useState<number | null>(null);
@@ -253,73 +254,105 @@ export default function StatsPage() {
 
         {/* 연도 요약 카드 */}
         <div className="bg-[#1D1D1F] rounded-3xl p-6 mb-4 text-white" style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.14)' }}>
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <p className="text-sm text-white/60 mb-1">{selectedYear}년 완독</p>
-              <p className="text-5xl font-bold tracking-tight">{yearDone.length}</p>
-              <p className="text-white/60 text-sm mt-0.5">권</p>
-            </div>
-            {selectedYear === currentYear && (
-              <div className="text-right">
-                {editingGoal ? (
-                  <div className="flex items-center gap-2">
-                    <input type="number" value={goalInput} onChange={(e) => setGoalInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && saveGoal()}
-                      className="w-20 px-3 py-1.5 rounded-xl bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30"
-                      autoFocus />
-                    <button onClick={saveGoal} className="px-3 py-1.5 bg-white text-[#1D1D1F] rounded-xl text-xs font-semibold">저장</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setEditingGoal(true)} className="text-right active:opacity-60 transition-opacity">
-                    <p className="text-white/50 text-xs">목표</p>
-                    <p className="text-white font-bold text-xl">{goal}권</p>
-                    <p className="text-white/40 text-xs mt-0.5">탭해서 수정</p>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          {goalProgress !== null && (
-            <div>
-              <div className="flex justify-between text-xs text-white/50 mb-1.5">
-                <span>{yearDone.length}권 완료</span>
-                <span>{Math.round(goalProgress * 100)}%</span>
-              </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-white rounded-full transition-all duration-700" style={{ width: `${goalProgress * 100}%` }} />
-              </div>
-              <p className="text-white/40 text-xs mt-1.5">
-                {goal - yearDone.length > 0 ? `연 목표까지 ${goal - yearDone.length}권 남았어요` : '🎉 연 목표 달성!'}
-              </p>
+          {/* 연간 / 월별 전환 */}
+          {selectedYear === currentYear && (
+            <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/10 mb-5">
+              {([['year', '연간'], ['month', '월별']] as const).map(([v, label]) => (
+                <button key={v} onClick={() => setGoalView(v)}
+                  className="px-5 py-1.5 rounded-full text-xs font-bold transition-all"
+                  style={{ background: goalView === v ? '#fff' : 'transparent', color: goalView === v ? '#1D1D1F' : 'rgba(255,255,255,0.55)' }}>
+                  {label}
+                </button>
+              ))}
             </div>
           )}
-          {/* 월 목표 */}
-          {monthlyProgress !== null && (
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-white/60">{currentMonth + 1}월 목표</span>
-                {editingMonthlyGoal ? (
-                  <div className="flex items-center gap-1.5">
-                    <input type="number" value={monthlyGoalInput} onChange={(e) => setMonthlyGoalInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && saveMonthlyGoal()}
-                      className="w-14 px-2 py-1 rounded-lg bg-white/10 text-white text-xs text-center outline-none focus:ring-2 focus:ring-white/30"
-                      autoFocus />
-                    <button onClick={saveMonthlyGoal} className="px-2 py-1 bg-white text-[#1D1D1F] rounded-lg text-[11px] font-semibold">저장</button>
+
+          {selectedYear === currentYear && goalView === 'month' ? (
+            /* ── 월별 목표 ── */
+            <>
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <p className="text-sm text-white/60 mb-1">{currentMonth + 1}월 완독</p>
+                  <p className="text-5xl font-bold tracking-tight">{thisMonthDone}</p>
+                  <p className="text-white/60 text-sm mt-0.5">권</p>
+                </div>
+                <div className="text-right">
+                  {editingMonthlyGoal ? (
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={monthlyGoalInput} onChange={(e) => setMonthlyGoalInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && saveMonthlyGoal()}
+                        className="w-20 px-3 py-1.5 rounded-xl bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30"
+                        autoFocus />
+                      <button onClick={saveMonthlyGoal} className="px-3 py-1.5 bg-white text-[#1D1D1F] rounded-xl text-xs font-semibold">저장</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setEditingMonthlyGoal(true)} className="text-right active:opacity-60 transition-opacity">
+                      <p className="text-white/50 text-xs">이 달 목표</p>
+                      <p className="text-white font-bold text-xl">{monthlyGoal}권</p>
+                      <p className="text-white/40 text-xs mt-0.5">탭해서 수정</p>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                  <span>{thisMonthDone}권 완료</span>
+                  <span>{Math.round((monthlyProgress ?? 0) * 100)}%</span>
+                </div>
+                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${(monthlyProgress ?? 0) * 100}%`, background: (monthlyProgress ?? 0) >= 1 ? 'linear-gradient(90deg,#34D399,#10B981)' : 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' }} />
+                </div>
+                <p className="text-white/40 text-xs mt-1.5">
+                  {monthlyGoal - thisMonthDone > 0 ? `이번 달 ${monthlyGoal - thisMonthDone}권 더 읽으면 달성` : '🎉 이번 달 목표 달성!'}
+                </p>
+              </div>
+            </>
+          ) : (
+            /* ── 연간 목표 ── */
+            <>
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <p className="text-sm text-white/60 mb-1">{selectedYear}년 완독</p>
+                  <p className="text-5xl font-bold tracking-tight">{yearDone.length}</p>
+                  <p className="text-white/60 text-sm mt-0.5">권</p>
+                </div>
+                {selectedYear === currentYear && (
+                  <div className="text-right">
+                    {editingGoal ? (
+                      <div className="flex items-center gap-2">
+                        <input type="number" value={goalInput} onChange={(e) => setGoalInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && saveGoal()}
+                          className="w-20 px-3 py-1.5 rounded-xl bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30"
+                          autoFocus />
+                        <button onClick={saveGoal} className="px-3 py-1.5 bg-white text-[#1D1D1F] rounded-xl text-xs font-semibold">저장</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setEditingGoal(true)} className="text-right active:opacity-60 transition-opacity">
+                        <p className="text-white/50 text-xs">올해 목표</p>
+                        <p className="text-white font-bold text-xl">{goal}권</p>
+                        <p className="text-white/40 text-xs mt-0.5">탭해서 수정</p>
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <button onClick={() => setEditingMonthlyGoal(true)} className="text-xs text-white/80 font-semibold active:opacity-60">
-                    {thisMonthDone} / {monthlyGoal}권 <span className="text-white/40 font-normal">· 수정</span>
-                  </button>
                 )}
               </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${monthlyProgress * 100}%`, background: monthlyProgress >= 1 ? 'linear-gradient(90deg,#34D399,#10B981)' : 'linear-gradient(90deg,#818CF8,#C084FC)' }} />
-              </div>
-              <p className="text-white/40 text-xs mt-1.5">
-                {monthlyGoal - thisMonthDone > 0 ? `이번 달 ${monthlyGoal - thisMonthDone}권 더 읽으면 달성` : '🎉 이번 달 목표 달성!'}
-              </p>
-            </div>
+              {goalProgress !== null && (
+                <div>
+                  <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                    <span>{yearDone.length}권 완료</span>
+                    <span>{Math.round(goalProgress * 100)}%</span>
+                  </div>
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${goalProgress * 100}%`, background: goalProgress >= 1 ? 'linear-gradient(90deg,#34D399,#10B981)' : 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' }} />
+                  </div>
+                  <p className="text-white/40 text-xs mt-1.5">
+                    {goal - yearDone.length > 0 ? `연 목표까지 ${goal - yearDone.length}권 남았어요` : '🎉 연 목표 달성!'}
+                  </p>
+                </div>
+              )}
+            </>
           )}
           {streak >= 1 && (
             <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2">
@@ -705,10 +738,17 @@ export default function StatsPage() {
           </div>
 
           {/* Selected day books */}
-          {calSelectedDay !== null && calDayBooks[calSelectedDay] && (
+          {calSelectedDay !== null && calDayBooks[calSelectedDay] && (() => {
+            const dayTotalPages = calDayBooks[calSelectedDay].reduce((s, e) => s + e.pages, 0);
+            return (
             <div className="mt-4 pt-4 border-t border-[#F5F5F7] space-y-2">
-              <p className="text-xs font-semibold text-[#6E6E73]">{calDisplayMonth + 1}월 {calSelectedDay}일 · 이 날 읽은 책 {calDayBooks[calSelectedDay].length}권</p>
-              {calDayBooks[calSelectedDay].map(({ book, done }) => (
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-[#6E6E73]">{calDisplayMonth + 1}월 {calSelectedDay}일 · 책 {calDayBooks[calSelectedDay].length}권</p>
+                {dayTotalPages > 0 && (
+                  <p className="text-xs font-bold text-[#3B7DE8]">이 날 {dayTotalPages}쪽 읽음</p>
+                )}
+              </div>
+              {calDayBooks[calSelectedDay].map(({ book, done, pages }) => (
                 <Link key={book.id} to={`/book/${book.id}`}
                   className="flex items-center gap-3 bg-[#F5F5F7] rounded-xl p-3 active:opacity-70 transition-opacity">
                   <div className="w-9 rounded-lg overflow-hidden flex-shrink-0" style={{ height: 48 }}>
@@ -719,7 +759,9 @@ export default function StatsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[#1D1D1F] truncate">{book.title}</p>
-                    <p className="text-xs text-[#6E6E73] truncate">{book.author}</p>
+                    <p className="text-xs text-[#6E6E73] truncate">
+                      {pages > 0 ? <span className="text-[#3B7DE8] font-semibold">{pages}쪽 읽음</span> : book.author}
+                    </p>
                   </div>
                   <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${done ? 'text-emerald-600 bg-emerald-100' : 'text-blue-600 bg-blue-100'}`}>
                     {done ? '완독' : '읽음'}
@@ -727,7 +769,8 @@ export default function StatsPage() {
                 </Link>
               ))}
             </div>
-          )}
+            );
+          })()}
 
           {calMonthActiveDays === 0 && (
             <p className="text-center text-[#AEAEB2] text-xs py-4">이 달에 읽은 기록이 없어요</p>
