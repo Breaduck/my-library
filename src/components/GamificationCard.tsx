@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Book } from '@/types';
 import { DailyReading } from '@/lib/storage';
 
@@ -37,16 +38,18 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
 
   // 업적 배지
   const badges = [
-    { emoji: '🎬', label: '첫 걸음',   desc: '첫 책 완독',       earned: done.length >= 1 },
-    { emoji: '🔥', label: '3일 연속',  desc: '3일 연속 독서',     earned: streak >= 3 },
-    { emoji: '⚡', label: '일주일',    desc: '7일 연속 독서',     earned: streak >= 7 },
-    { emoji: '📗', label: '책장 채우기', desc: '10권 완독',        earned: done.length >= 10 },
-    { emoji: '📜', label: '천 페이지',  desc: '누적 1,000쪽',     earned: totalPages >= 1000 },
-    { emoji: '⭐', label: '평론가',    desc: '별점 5권 이상',     earned: rated.length >= 5 },
-    { emoji: '🏆', label: '다독가',    desc: '25권 완독',        earned: done.length >= 25 },
-    { emoji: '🌙', label: '만 페이지',  desc: '누적 10,000쪽',    earned: totalPages >= 10000 },
+    { emoji: '🎬', label: '첫 걸음',   desc: '첫 책 완독',       blurb: '첫 책을 끝까지 읽어냈어요. 모든 여정의 시작!',        earned: done.length >= 1 },
+    { emoji: '🔥', label: '3일 연속',  desc: '3일 연속 독서',     blurb: '3일 내리 책을 펼쳤어요. 습관이 붙는 중이에요.',        earned: streak >= 3 },
+    { emoji: '⚡', label: '일주일',    desc: '7일 연속 독서',     blurb: '일주일 내내 독서! 이제 멈출 수 없는 흐름이에요.',       earned: streak >= 7 },
+    { emoji: '📗', label: '책장 채우기', desc: '10권 완독',        blurb: '10권을 완독했어요. 책장이 차곡차곡 채워지는 중.',      earned: done.length >= 10 },
+    { emoji: '📜', label: '천 페이지',  desc: '누적 1,000쪽',     blurb: '누적 1,000쪽 돌파! 종이의 무게가 느껴지나요?',        earned: totalPages >= 1000 },
+    { emoji: '⭐', label: '평론가',    desc: '별점 5권 이상',     blurb: '5권에 별점을 남긴 진정한 리뷰어가 되었어요.',          earned: rated.length >= 5 },
+    { emoji: '🏆', label: '다독가',    desc: '25권 완독',        blurb: '25권 완독! 당신은 이미 소문난 다독가예요.',          earned: done.length >= 25 },
+    { emoji: '🌙', label: '만 페이지',  desc: '누적 10,000쪽',    blurb: '누적 10,000쪽. 밤을 잊고 읽어 내려간 독서가.',        earned: totalPages >= 10000 },
   ];
+  type Badge = typeof badges[number];
   const earnedCount = badges.filter((b) => b.earned).length;
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
   return (
     <div className="rounded-3xl p-5 sm:p-6 mb-4 text-white relative overflow-hidden"
@@ -104,7 +107,7 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
           <p className="text-white/60 text-[10px] mt-1">완독</p>
         </div>
         <div className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          <p className="text-[19px] font-extrabold leading-none tabular-nums">{(totalPages / 1000).toFixed(1)}k</p>
+          <p className="text-[17px] font-extrabold leading-none tabular-nums">{totalPages.toLocaleString()}</p>
           <p className="text-white/60 text-[10px] mt-1">읽은 쪽</p>
         </div>
       </div>
@@ -117,18 +120,65 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
         </div>
         <div className="grid grid-cols-4 gap-2">
           {badges.map((b) => (
-            <div key={b.label} title={b.desc}
-              className="rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1 transition-all"
+            <button key={b.label} onClick={() => setSelectedBadge(b)}
+              className="rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1 transition-all active:scale-95"
               style={{
                 background: b.earned ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.14)',
                 boxShadow: b.earned ? 'inset 0 0 0 1px rgba(255,255,255,0.25)' : 'none',
               }}>
               <span className="text-2xl leading-none" style={{ filter: b.earned ? 'none' : 'grayscale(1)', opacity: b.earned ? 1 : 0.35 }}>{b.emoji}</span>
               <span className={`text-[9.5px] font-semibold leading-tight text-center ${b.earned ? 'text-white' : 'text-white/40'}`}>{b.label}</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {/* 배지 상세 팝업 카드 */}
+      {selectedBadge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+          onClick={() => setSelectedBadge(null)}>
+          <div className="w-full max-w-[300px] rounded-3xl p-7 text-center relative animate-[pop_0.18s_ease-out]"
+            style={{ background: '#fff', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}
+            onClick={(e) => e.stopPropagation()}>
+            <style>{`@keyframes pop{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
+            {/* 닫기 */}
+            <button onClick={() => setSelectedBadge(null)}
+              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-[#AEAEB2] hover:bg-[#F5F5F7] transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            {/* 엠블럼 */}
+            <div className="mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-4"
+              style={{
+                background: selectedBadge.earned
+                  ? 'radial-gradient(circle at 30% 25%, #FDE68A 0%, #F59E0B 55%, #B45309 100%)'
+                  : 'linear-gradient(135deg, #E5E5EA, #C7C7CC)',
+                boxShadow: selectedBadge.earned ? '0 10px 28px rgba(245,158,11,0.4)' : '0 6px 18px rgba(0,0,0,0.12)',
+              }}>
+              <span className="text-5xl leading-none" style={{ filter: selectedBadge.earned ? 'none' : 'grayscale(1)', opacity: selectedBadge.earned ? 1 : 0.5 }}>
+                {selectedBadge.emoji}
+              </span>
+            </div>
+            <h3 className="text-[20px] font-extrabold text-[#1D1D1F] tracking-tight">{selectedBadge.label}</h3>
+            <p className="text-[13.5px] text-[#6E6E73] mt-2 leading-relaxed">{selectedBadge.blurb}</p>
+            {/* 상태 */}
+            <div className="mt-5">
+              {selectedBadge.earned ? (
+                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg,#34D399,#10B981)' }}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                  획득 완료!
+                </span>
+              ) : (
+                <div className="inline-flex flex-col items-center gap-1 px-4 py-2 rounded-2xl bg-[#F5F5F7]">
+                  <span className="text-[11px] font-semibold text-[#AEAEB2]">🔒 아직 잠김</span>
+                  <span className="text-[12.5px] font-bold text-[#1D1D1F]">조건 · {selectedBadge.desc}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

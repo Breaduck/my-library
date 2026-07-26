@@ -538,14 +538,12 @@ export default function BookDetailPage() {
                 </div>
                 <div className="mt-5 space-y-3">
                   {liveQuotes.map((q, i) => (
-                    <div key={q.id} className="relative rounded-2xl p-3.5 pl-5 space-y-2 overflow-hidden"
+                    <div key={q.id} className="relative rounded-2xl p-3.5 space-y-2 overflow-hidden"
                       style={{
                         background: '#FFFFFF',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)',
                         border: '1px solid rgba(0,0,0,0.04)',
                       }}>
-                      {/* 좌측 강조 바 */}
-                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#1D1D1F] rounded-full" />
                       {/* 큰 따옴표 워터마크 */}
                       <span className="absolute top-0 right-3 text-[52px] leading-none font-serif text-[#F0F0F2] select-none pointer-events-none">”</span>
                       <div className="relative flex gap-2 items-start">

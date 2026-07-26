@@ -244,7 +244,7 @@ export default function StatsPage() {
         {/* 연도 선택 */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {years.map((y) => (
-            <button key={y} onClick={() => { setSelectedYear(y); setCalSelectedDay(null); }}
+            <button key={y} onClick={() => { setSelectedYear(y); setCalDisplayYear(y); setCalSelectedDay(null); }}
               className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedYear === y ? 'bg-[#1D1D1F] text-white' : 'bg-white text-[#6E6E73] hover:bg-gray-50'}`}
               style={selectedYear !== y ? { boxShadow: '0 1px 6px rgba(0,0,0,0.06)' } : {}}>
               {y}년
