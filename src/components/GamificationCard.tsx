@@ -50,10 +50,21 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
 
   return (
     <div className="rounded-3xl p-5 sm:p-6 mb-4 text-white relative overflow-hidden"
-      style={{ background: 'linear-gradient(140deg, #4F46E5 0%, #7C3AED 55%, #DB2777 100%)', boxShadow: '0 8px 32px rgba(99,70,229,0.28)' }}>
-      {/* 배경 장식 */}
-      <div className="absolute -top-14 -right-10 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)' }} />
+      style={{
+        background: 'rgba(17, 22, 38, 0.66)',
+        backdropFilter: 'blur(24px) saturate(1.6)',
+        WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
+        border: '1px solid rgba(255,255,255,0.14)',
+        boxShadow: '0 10px 40px rgba(15,20,40,0.28), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.05)',
+      }}>
+      {/* 유리 안쪽 컬러 글로우 (리퀴드 글래스) */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(120% 80% at 8% 0%, rgba(99,102,241,0.55) 0%, transparent 42%), radial-gradient(110% 80% at 100% 0%, rgba(34,211,238,0.40) 0%, transparent 42%), radial-gradient(130% 90% at 60% 120%, rgba(139,92,246,0.45) 0%, transparent 48%)',
+      }} />
+      {/* 상단 광택 하이라이트 */}
+      <div className="absolute -top-16 left-0 right-0 h-40 pointer-events-none" style={{
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.20) 0%, transparent 100%)',
+      }} />
 
       {/* 레벨 헤더 */}
       <div className="relative flex items-center gap-3.5">
@@ -84,15 +95,15 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
 
       {/* 스트릭 + 페이지 요약 */}
       <div className="relative mt-4 grid grid-cols-3 gap-2">
-        <div className="bg-white/10 rounded-2xl py-2.5 text-center">
+        <div className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.12)' }}>
           <p className="text-[19px] font-extrabold leading-none">🔥 {streak}</p>
           <p className="text-white/60 text-[10px] mt-1">연속 독서</p>
         </div>
-        <div className="bg-white/10 rounded-2xl py-2.5 text-center">
+        <div className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.12)' }}>
           <p className="text-[19px] font-extrabold leading-none">{done.length}</p>
           <p className="text-white/60 text-[10px] mt-1">완독</p>
         </div>
-        <div className="bg-white/10 rounded-2xl py-2.5 text-center">
+        <div className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.12)' }}>
           <p className="text-[19px] font-extrabold leading-none tabular-nums">{(totalPages / 1000).toFixed(1)}k</p>
           <p className="text-white/60 text-[10px] mt-1">읽은 쪽</p>
         </div>

@@ -396,12 +396,13 @@ export default function BookDetailPage() {
         {/* Hero */}
         <div className="rounded-3xl overflow-hidden mb-3 sm:mb-4" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.14)' }}>
           <div className="relative flex flex-col items-center pt-8 pb-6 px-6"
-            style={{ background: 'linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', minHeight: 200 }}>
+            style={{ background: book.coverUrl ? '#0C0C18' : 'linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', minHeight: 200 }}>
             {book.coverUrl && (
               <div className="absolute inset-0 overflow-hidden">
-                <img src={book.coverUrl} alt="" className="w-full h-full object-cover opacity-20 scale-110"
-                  style={{ filter: 'blur(24px)' }} />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(15,20,40,0.6) 0%, rgba(15,20,40,0.85) 100%)' }} />
+                {/* 책 표지에서 뽑아낸 그라데이션 배경 (블러) */}
+                <img src={book.coverUrl} alt="" className="w-full h-full object-cover scale-150"
+                  style={{ filter: 'blur(60px) saturate(1.5)', opacity: 0.7 }} />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(12,12,24,0.30) 0%, rgba(12,12,24,0.55) 55%, rgba(12,12,24,0.72) 100%)' }} />
               </div>
             )}
             <div className="relative flex-shrink-0 rounded-xl overflow-hidden"

@@ -71,6 +71,9 @@ export default function StatsPage() {
   const [goal, setGoal] = useState(12);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState('12');
+  const [monthlyGoal, setMonthlyGoal] = useState(2);
+  const [editingMonthlyGoal, setEditingMonthlyGoal] = useState(false);
+  const [monthlyGoalInput, setMonthlyGoalInput] = useState('2');
   const [calDisplayYear, setCalDisplayYear] = useState(currentYear);
   const [calDisplayMonth, setCalDisplayMonth] = useState(currentMonth);
   const [calSelectedDay, setCalSelectedDay] = useState<number | null>(null);
@@ -86,6 +89,8 @@ export default function StatsPage() {
   useEffect(() => {
     const saved = localStorage.getItem('reading-goal');
     if (saved) { setGoal(parseInt(saved)); setGoalInput(saved); }
+    const savedM = localStorage.getItem('reading-goal-monthly');
+    if (savedM) { setMonthlyGoal(parseInt(savedM)); setMonthlyGoalInput(savedM); }
   }, []);
 
   function saveGoal() {
@@ -93,6 +98,13 @@ export default function StatsPage() {
     setGoal(n); setGoalInput(String(n));
     localStorage.setItem('reading-goal', String(n));
     setEditingGoal(false);
+  }
+
+  function saveMonthlyGoal() {
+    const n = Math.max(1, Math.min(99, parseInt(monthlyGoalInput) || 2));
+    setMonthlyGoal(n); setMonthlyGoalInput(String(n));
+    localStorage.setItem('reading-goal-monthly', String(n));
+    setEditingMonthlyGoal(false);
   }
 
   function prevCalMonth() {
@@ -175,6 +187,9 @@ export default function StatsPage() {
   const hasPageData = monthlyPages.some((p) => p > 0);
 
   const goalProgress = selectedYear === currentYear ? Math.min(yearDone.length / goal, 1) : null;
+  // 이번 달 완독 권수 + 월 목표 진행률 (올해 볼 때만)
+  const thisMonthDone = yearDone.filter((b) => doneYM(b)?.month === currentMonth).length;
+  const monthlyProgress = selectedYear === currentYear ? Math.min(thisMonthDone / monthlyGoal, 1) : null;
   const rated = done.filter((b) => b.rating > 0);
   const avgRating = rated.length > 0 ? (rated.reduce((s, b) => s + b.rating, 0) / rated.length).toFixed(1) : null;
   const totalReadingTime = books.reduce((acc, b) => acc + (b.totalReadingTime ?? 0), 0);
@@ -274,7 +289,35 @@ export default function StatsPage() {
                 <div className="h-full bg-white rounded-full transition-all duration-700" style={{ width: `${goalProgress * 100}%` }} />
               </div>
               <p className="text-white/40 text-xs mt-1.5">
-                {goal - yearDone.length > 0 ? `목표까지 ${goal - yearDone.length}권 남았어요` : '🎉 목표 달성!'}
+                {goal - yearDone.length > 0 ? `연 목표까지 ${goal - yearDone.length}권 남았어요` : '🎉 연 목표 달성!'}
+              </p>
+            </div>
+          )}
+          {/* 월 목표 */}
+          {monthlyProgress !== null && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-white/60">{currentMonth + 1}월 목표</span>
+                {editingMonthlyGoal ? (
+                  <div className="flex items-center gap-1.5">
+                    <input type="number" value={monthlyGoalInput} onChange={(e) => setMonthlyGoalInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveMonthlyGoal()}
+                      className="w-14 px-2 py-1 rounded-lg bg-white/10 text-white text-xs text-center outline-none focus:ring-2 focus:ring-white/30"
+                      autoFocus />
+                    <button onClick={saveMonthlyGoal} className="px-2 py-1 bg-white text-[#1D1D1F] rounded-lg text-[11px] font-semibold">저장</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingMonthlyGoal(true)} className="text-xs text-white/80 font-semibold active:opacity-60">
+                    {thisMonthDone} / {monthlyGoal}권 <span className="text-white/40 font-normal">· 수정</span>
+                  </button>
+                )}
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${monthlyProgress * 100}%`, background: monthlyProgress >= 1 ? 'linear-gradient(90deg,#34D399,#10B981)' : 'linear-gradient(90deg,#818CF8,#C084FC)' }} />
+              </div>
+              <p className="text-white/40 text-xs mt-1.5">
+                {monthlyGoal - thisMonthDone > 0 ? `이번 달 ${monthlyGoal - thisMonthDone}권 더 읽으면 달성` : '🎉 이번 달 목표 달성!'}
               </p>
             </div>
           )}
