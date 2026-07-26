@@ -5,10 +5,10 @@ interface Props {
   elapsed: number;
   running: boolean;
   accumulated: number;
+  sessionTarget?: number; // 한 트랙(세션) 길이(초)
 }
 
 const HOUR = 3600;
-const SESSION_TARGET = 1800; // 30분 한 세션
 
 function fmt(s: number) {
   const m = Math.floor(s / 60);
@@ -26,9 +26,10 @@ function fmtTotal(s: number): string {
   return `${m}분`;
 }
 
-export default function PlaylistTimer({ book, elapsed, running, accumulated }: Props) {
-  // 한 세션 진행률 (30분 기준)
-  const sessionProgress = Math.min(elapsed / SESSION_TARGET, 1);
+export default function PlaylistTimer({ book, elapsed, running, accumulated, sessionTarget = 1800 }: Props) {
+  const SESSION_TARGET = sessionTarget;
+  // 현재 트랙 진행률 — 트랙 길이마다 리셋 (선택한 길이 기준)
+  const sessionProgress = (elapsed % SESSION_TARGET) / SESSION_TARGET;
   const sessionRemaining = Math.max(SESSION_TARGET - (elapsed % SESSION_TARGET), 0);
   const completedSessions = Math.floor(elapsed / SESSION_TARGET);
 

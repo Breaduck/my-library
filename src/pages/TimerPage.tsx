@@ -7,6 +7,7 @@ import AirplaneTimer from '@/components/timer/AirplaneTimer';
 import PlaylistTimer from '@/components/timer/PlaylistTimer';
 
 const HOUR = 3600;
+const SESSION_OPTIONS = [25, 30, 45, 60]; // 트랙(세션) 길이(분)
 type Mode = 'classic' | 'airplane' | 'playlist';
 
 const MODES: { key: Mode; label: string; desc: string }[] = [
@@ -34,13 +35,21 @@ export default function TimerPage() {
   const [savedElapsed, setSavedElapsed] = useState(0);
   const [mode, setMode] = useState<Mode>('classic');
   const [showModeSheet, setShowModeSheet] = useState(false);
+  const [sessionMin, setSessionMin] = useState(30);
 
   const book = books.find((b) => b.id === id);
 
   useEffect(() => {
     const saved = localStorage.getItem('timer-mode') as Mode | null;
     if (saved && MODES.some((m) => m.key === saved)) setMode(saved);
+    const savedMin = parseInt(localStorage.getItem('playlist-session-min') || '');
+    if (SESSION_OPTIONS.includes(savedMin)) setSessionMin(savedMin);
   }, []);
+
+  function changeSessionMin(min: number) {
+    setSessionMin(min);
+    localStorage.setItem('playlist-session-min', String(min));
+  }
 
   function changeMode(m: Mode) {
     setMode(m);
@@ -177,8 +186,29 @@ export default function TimerPage() {
       <div className="relative flex-1 flex flex-col">
         {mode === 'classic'  && <ClassicTimer  book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
         {mode === 'airplane' && <AirplaneTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
-        {mode === 'playlist' && <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
+        {mode === 'playlist' && <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60} />}
       </div>
+
+      {/* 플레이리스트 트랙 길이 선택 */}
+      {mode === 'playlist' && (
+        <div className="relative z-10 flex justify-center px-6 pt-2">
+          <div className="flex items-center gap-0.5 p-1 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {SESSION_OPTIONS.map((min) => {
+              const active = sessionMin === min;
+              return (
+                <button key={min} onClick={() => changeSessionMin(min)}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                  style={{
+                    background: active ? 'linear-gradient(135deg, #1DB954, #22d3ee)' : 'transparent',
+                    color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)',
+                  }}>
+                  {min}분
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="relative flex items-center justify-center pt-4 pb-2 z-10">
         <button
