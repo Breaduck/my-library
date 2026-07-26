@@ -5,6 +5,7 @@ import { useBooks } from '@/hooks/useBooks';
 import { Book } from '@/types';
 import { getReadingStreak, getDailyReadings, setDailyPages } from '@/lib/storage';
 import MonthlyShareCard from '@/components/MonthlyShareCard';
+import GamificationCard from '@/components/GamificationCard';
 
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const WEEK_DAYS = ['일','월','화','수','목','금','토'];
@@ -284,6 +285,11 @@ export default function StatsPage() {
             </div>
           )}
         </div>
+
+        {/* 게이미피케이션 — 레벨·XP·스트릭·업적 */}
+        {books.length > 0 && (
+          <GamificationCard books={books} dailyReadings={dailyReadings} streak={streak} />
+        )}
 
         {/* 상태별 현황 */}
         <div className="grid grid-cols-4 gap-2 mb-4">
