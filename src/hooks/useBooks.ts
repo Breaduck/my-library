@@ -59,13 +59,15 @@ export function useBooks() {
   const books = loadStore();
 
   const addBook = useCallback((data: Omit<Book, 'id' | 'createdAt'>) => {
-    const book: Book = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const book: Book = { ...data, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
     commitStore([book, ...loadStore()]);
     return book;
   }, []);
 
   const updateBook = useCallback((id: string, data: Partial<Omit<Book, 'id' | 'createdAt'>>) => {
-    commitStore(loadStore().map((b) => (b.id === id ? { ...b, ...data } : b)));
+    const now = new Date().toISOString();
+    commitStore(loadStore().map((b) => (b.id === id ? { ...b, ...data, updatedAt: now } : b)));
   }, []);
 
   const deleteBook = useCallback((id: string) => {

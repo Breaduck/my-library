@@ -52,10 +52,16 @@ let _tokenClient: unknown = null;
 
 export function getToken() { return _token; }
 
+// 액세스 토큰(수명 ~1시간, 휘발성)과 "로그인 기억" 플래그를 분리한다.
+// 토큰이 만료돼도 remembered는 유지 → 다음 로드에서 조용히 재연결(로그아웃처럼 보이지 않음).
 function setToken(t: string | null) {
   _token = t;
   if (t) localStorage.setItem(WAS_SIGNED_IN_KEY, '1');
-  else localStorage.removeItem(WAS_SIGNED_IN_KEY);
+  // t === null 일 때는 기억 플래그를 지우지 않는다 (만료일 뿐 로그아웃 아님).
+}
+
+export function clearRemembered() {
+  if (typeof window !== 'undefined') localStorage.removeItem(WAS_SIGNED_IN_KEY);
 }
 
 export function wasSignedIn() {
@@ -95,6 +101,7 @@ export function signOut() {
     g?.accounts?.oauth2?.revoke(_token);
   }
   setToken(null);
+  clearRemembered(); // 명시적 로그아웃일 때만 기억 해제
   setCachedProfile(null);
 }
 

@@ -19,6 +19,7 @@ export interface Book {
   quotes: Quote[];
   rating: number;
   createdAt: string;
+  updatedAt?: string; // 동기화 충돌 해소용 — 변경 시 갱신
   totalReadingTime: number; // seconds
   pages?: number;
   currentPage?: number;
