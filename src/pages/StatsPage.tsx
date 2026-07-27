@@ -75,6 +75,8 @@ export default function StatsPage() {
   const [editingMonthlyGoal, setEditingMonthlyGoal] = useState(false);
   const [monthlyGoalInput, setMonthlyGoalInput] = useState('2');
   const [goalView, setGoalView] = useState<'year' | 'month'>('year');
+  const [pageView, setPageView] = useState<'year' | 'month'>('year');
+  const [pagesExpanded, setPagesExpanded] = useState(false);
   const [calDisplayYear, setCalDisplayYear] = useState(currentYear);
   const [calDisplayMonth, setCalDisplayMonth] = useState(currentMonth);
   const [calSelectedDay, setCalSelectedDay] = useState<number | null>(null);
@@ -173,6 +175,13 @@ export default function StatsPage() {
 
   const yearDone = done.filter((b) => doneYM(b)?.year === selectedYear);
   const totalPagesThisYear = yearDone.filter(b => b.pages).reduce((acc, b) => acc + (b.pages ?? 0), 0);
+  // 읽은 페이지 — 연간/월별 스코프별 책 분해
+  const pageScopeBooks = ((pageView === 'month' && selectedYear === currentYear)
+    ? yearDone.filter((b) => doneYM(b)?.month === currentMonth)
+    : yearDone
+  ).filter((b) => b.pages).sort((a, b) => (b.pages ?? 0) - (a.pages ?? 0));
+  const pageScopeTotal = pageScopeBooks.reduce((s, b) => s + (b.pages ?? 0), 0);
+  const pageScopeMax = Math.max(...pageScopeBooks.map((b) => b.pages ?? 0), 1);
 
   const monthlyCounts = Array(12).fill(0);
   const monthlyPages = Array(12).fill(0);
@@ -267,93 +276,58 @@ export default function StatsPage() {
             </div>
           )}
 
-          {selectedYear === currentYear && goalView === 'month' ? (
-            /* ── 월별 목표 ── */
-            <>
-              <div className="flex items-end justify-between mb-4">
-                <div>
-                  <p className="text-sm text-white/60 mb-1">{currentMonth + 1}월 완독</p>
-                  <p className="text-5xl font-bold tracking-tight">{thisMonthDone}</p>
-                  <p className="text-white/60 text-sm mt-0.5">권</p>
-                </div>
-                <div className="text-right">
-                  {editingMonthlyGoal ? (
-                    <div className="flex items-center gap-2">
-                      <input type="number" value={monthlyGoalInput} onChange={(e) => setMonthlyGoalInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && saveMonthlyGoal()}
-                        className="w-20 px-3 py-1.5 rounded-xl bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30"
-                        autoFocus />
-                      <button onClick={saveMonthlyGoal} className="px-3 py-1.5 bg-white text-[#1D1D1F] rounded-xl text-xs font-semibold">저장</button>
+          {(() => {
+            const isMonthGoal = selectedYear === currentYear && goalView === 'month';
+            const showGoal = selectedYear === currentYear;
+            const gCount = isMonthGoal ? thisMonthDone : yearDone.length;
+            const gGoal = isMonthGoal ? monthlyGoal : goal;
+            const gProgress = isMonthGoal ? (monthlyProgress ?? 0) : (goalProgress ?? 0);
+            const gRemaining = gGoal - gCount;
+            const editing = isMonthGoal ? editingMonthlyGoal : editingGoal;
+            const pct = Math.round(gProgress * 100);
+            const R = 34, C = 2 * Math.PI * R;
+            return (
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm text-white/60 mb-1.5">{isMonthGoal ? `${currentMonth + 1}월 완독` : `${selectedYear}년 완독`}</p>
+                  <p className="text-[44px] font-bold tracking-tight leading-none">
+                    {gCount}
+                    {showGoal && <span className="text-2xl text-white/45 font-semibold"> / {gGoal}권</span>}
+                    {!showGoal && <span className="text-2xl text-white/45 font-semibold"> 권</span>}
+                  </p>
+                  {showGoal && (editing ? (
+                    <div className="flex items-center gap-2 mt-3.5">
+                      <input type="number" value={isMonthGoal ? monthlyGoalInput : goalInput}
+                        onChange={(e) => isMonthGoal ? setMonthlyGoalInput(e.target.value) : setGoalInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (isMonthGoal ? saveMonthlyGoal() : saveGoal())}
+                        className="w-16 px-2 py-1 rounded-lg bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30" autoFocus />
+                      <button onClick={() => isMonthGoal ? saveMonthlyGoal() : saveGoal()} className="px-3 py-1 bg-white text-[#1D1D1F] rounded-lg text-xs font-semibold">저장</button>
                     </div>
                   ) : (
-                    <button onClick={() => setEditingMonthlyGoal(true)} className="text-right active:opacity-60 transition-opacity">
-                      <p className="text-white/50 text-xs">이 달 목표</p>
-                      <p className="text-white font-bold text-xl">{monthlyGoal}권</p>
-                      <p className="text-white/40 text-xs mt-0.5">탭해서 수정</p>
-                    </button>
-                  )}
+                    <p className="text-white/45 text-xs mt-3 leading-relaxed">
+                      {gRemaining > 0 ? `${gRemaining}권 더 읽으면 달성` : '🎉 목표 달성!'}
+                      <button onClick={() => isMonthGoal ? setEditingMonthlyGoal(true) : setEditingGoal(true)}
+                        className="ml-2 text-white/70 font-semibold hover:text-white transition-colors">목표 수정</button>
+                    </p>
+                  ))}
                 </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs text-white/50 mb-1.5">
-                  <span>{thisMonthDone}권 완료</span>
-                  <span>{Math.round((monthlyProgress ?? 0) * 100)}%</span>
-                </div>
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${(monthlyProgress ?? 0) * 100}%`, background: (monthlyProgress ?? 0) >= 1 ? 'linear-gradient(90deg,#34D399,#10B981)' : 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' }} />
-                </div>
-                <p className="text-white/40 text-xs mt-1.5">
-                  {monthlyGoal - thisMonthDone > 0 ? `이번 달 ${monthlyGoal - thisMonthDone}권 더 읽으면 달성` : '🎉 이번 달 목표 달성!'}
-                </p>
-              </div>
-            </>
-          ) : (
-            /* ── 연간 목표 ── */
-            <>
-              <div className="flex items-end justify-between mb-4">
-                <div>
-                  <p className="text-sm text-white/60 mb-1">{selectedYear}년 완독</p>
-                  <p className="text-5xl font-bold tracking-tight">{yearDone.length}</p>
-                  <p className="text-white/60 text-sm mt-0.5">권</p>
-                </div>
-                {selectedYear === currentYear && (
-                  <div className="text-right">
-                    {editingGoal ? (
-                      <div className="flex items-center gap-2">
-                        <input type="number" value={goalInput} onChange={(e) => setGoalInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && saveGoal()}
-                          className="w-20 px-3 py-1.5 rounded-xl bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30"
-                          autoFocus />
-                        <button onClick={saveGoal} className="px-3 py-1.5 bg-white text-[#1D1D1F] rounded-xl text-xs font-semibold">저장</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setEditingGoal(true)} className="text-right active:opacity-60 transition-opacity">
-                        <p className="text-white/50 text-xs">올해 목표</p>
-                        <p className="text-white font-bold text-xl">{goal}권</p>
-                        <p className="text-white/40 text-xs mt-0.5">탭해서 수정</p>
-                      </button>
-                    )}
+                {/* 원형 진행 링 */}
+                {showGoal && (
+                  <div className="relative flex-shrink-0" style={{ width: 84, height: 84 }}>
+                    <svg width={84} height={84}>
+                      <circle cx={42} cy={42} r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={7} />
+                      <circle cx={42} cy={42} r={R} fill="none" stroke={gProgress >= 1 ? '#34D399' : '#4F8EF7'} strokeWidth={7} strokeLinecap="round"
+                        strokeDasharray={C} strokeDashoffset={C * (1 - Math.min(gProgress, 1))} transform="rotate(-90 42 42)"
+                        style={{ transition: 'stroke-dashoffset 0.7s ease' }} />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-lg font-bold tabular-nums">{pct}%</span>
+                    </div>
                   </div>
                 )}
               </div>
-              {goalProgress !== null && (
-                <div>
-                  <div className="flex justify-between text-xs text-white/50 mb-1.5">
-                    <span>{yearDone.length}권 완료</span>
-                    <span>{Math.round(goalProgress * 100)}%</span>
-                  </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${goalProgress * 100}%`, background: goalProgress >= 1 ? 'linear-gradient(90deg,#34D399,#10B981)' : 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' }} />
-                  </div>
-                  <p className="text-white/40 text-xs mt-1.5">
-                    {goal - yearDone.length > 0 ? `연 목표까지 ${goal - yearDone.length}권 남았어요` : '🎉 연 목표 달성!'}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
+            );
+          })()}
           {streak >= 1 && (
             <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2">
               <span className="text-lg">🔥</span>
@@ -382,18 +356,60 @@ export default function StatsPage() {
           ))}
         </div>
 
-        {/* 올해 읽은 페이지 */}
+        {/* 읽은 페이지 — 연간/월별 + 책별 분해 */}
         {totalPagesThisYear > 0 && (
-          <div className="bg-white rounded-2xl p-4 mb-4 flex items-center justify-between" style={cs}>
-            <div>
-              <p className="text-xs text-[#6E6E73]">{selectedYear}년 읽은 페이지</p>
-              <p className="text-2xl font-bold text-[#1D1D1F] mt-0.5">{totalPagesThisYear.toLocaleString()}<span className="text-sm font-normal text-[#6E6E73] ml-1">쪽</span></p>
+          <div className="bg-white rounded-2xl p-4 sm:p-5 mb-4" style={cs}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-[#6E6E73]">읽은 페이지</p>
+              {selectedYear === currentYear && (
+                <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-[#F5F5F7]">
+                  {([['year', '연간'], ['month', '월별']] as const).map(([v, l]) => (
+                    <button key={v} onClick={() => setPageView(v)}
+                      className="px-3 py-1 rounded-full text-[11px] font-bold transition-all"
+                      style={{ background: pageView === v ? '#fff' : 'transparent', color: pageView === v ? '#1D1D1F' : '#AEAEB2', boxShadow: pageView === v ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-              <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+            <div className="flex items-end justify-between">
+              <p className="text-3xl font-bold text-[#1D1D1F] tracking-tight tabular-nums">
+                {pageScopeTotal.toLocaleString()}<span className="text-sm font-normal text-[#6E6E73] ml-1">쪽</span>
+              </p>
+              <div className="w-10 h-10 rounded-full bg-[#EAF2FE] flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-[#3B7DE8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
             </div>
+
+            {pageScopeBooks.length > 0 ? (
+              <>
+                <button onClick={() => setPagesExpanded((v) => !v)}
+                  className="mt-3 w-full flex items-center justify-center gap-1 text-[12px] text-[#3B7DE8] font-semibold py-1.5 active:opacity-60 transition-opacity">
+                  {pagesExpanded ? '접기' : `어떤 책을 읽었는지 보기 (${pageScopeBooks.length}권)`}
+                  <svg className={`w-3.5 h-3.5 transition-transform ${pagesExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {pagesExpanded && (
+                  <div className="mt-1 pt-3 border-t border-[#F5F5F7] space-y-3">
+                    {pageScopeBooks.map((b) => (
+                      <Link key={b.id} to={`/book/${b.id}`} className="block active:opacity-70 transition-opacity">
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <span className="text-[12.5px] font-medium text-[#1D1D1F] truncate">{b.title}</span>
+                          <span className="text-[12px] font-bold text-[#3B7DE8] flex-shrink-0 tabular-nums">{(b.pages ?? 0).toLocaleString()}쪽</span>
+                        </div>
+                        <div className="h-2 bg-[#F0F0F5] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.max(((b.pages ?? 0) / pageScopeMax) * 100, 4)}%`, background: 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' }} />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="mt-3 text-center text-[11px] text-[#AEAEB2]">이 달에 완독한 책이 없어요</p>
+            )}
           </div>
         )}
 
