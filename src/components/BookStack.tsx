@@ -43,8 +43,8 @@ export default function BookStack({ books }: { books: Book[] }) {
                   className="block group"
                   title={`${book.title} — ${book.author}`}
                 >
-                  {/* 표지 래퍼 — 칸보다 작게, 가운데 정렬 */}
-                  <div className="relative mx-auto" style={{ width: '70%' }}>
+                  {/* 표지 래퍼 — 가운데 정렬 */}
+                  <div className="relative mx-auto" style={{ width: '84%' }}>
                     {/* 책갈피 탭 */}
                     <span
                       className="absolute z-10"

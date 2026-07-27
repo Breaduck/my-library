@@ -7,13 +7,23 @@ import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
 import DateField from '@/components/DateField';
 import CoverInput from '@/components/CoverInput';
-import { BookSearchResult, Quote, ReadingStatus } from '@/types';
+import { BookSearchResult, Quote, Postit, ReadingStatus } from '@/types';
 
 interface QuoteDraft {
   id: string;
   text: string;
   page: string;
 }
+
+// 포스트잇 색상 팔레트
+const POSTIT_COLORS: Record<string, { bg: string; text: string }> = {
+  yellow: { bg: '#FEF3C7', text: '#7C5E10' },
+  pink:   { bg: '#FCE7F3', text: '#9D174D' },
+  blue:   { bg: '#DBEAFE', text: '#1E40AF' },
+  green:  { bg: '#DCFCE7', text: '#166534' },
+  purple: { bg: '#EDE9FE', text: '#5B21B6' },
+};
+const POSTIT_ORDER = ['yellow', 'pink', 'blue', 'green', 'purple'];
 
 const REVIEW_PLACEHOLDER = `이 책을 읽으며 어떤 감정이 스쳐갔나요?
 가장 기억에 남는 장면, 마음을 두드린 문장,
@@ -81,6 +91,7 @@ export default function BookDetailPage() {
   /* ── inline review / quotes (view mode, auto-save on blur) ── */
   const [liveReview, setLiveReview] = useState('');
   const [liveQuotes, setLiveQuotes] = useState<QuoteDraft[]>([]);
+  const [livePostits, setLivePostits] = useState<Postit[]>([]);
 
   useEffect(() => {
     if (!book) return;
@@ -90,7 +101,30 @@ export default function BookDetailPage() {
         ? book.quotes.map((q) => ({ id: q.id, text: q.text, page: q.page || '' }))
         : [{ id: crypto.randomUUID(), text: '', page: '' }]
     );
-  }, [book?.id, book?.review, book?.quotes]);
+    setLivePostits(book.postits ?? []);
+  }, [book?.id, book?.review, book?.quotes, book?.postits]);
+
+  function commitPostits(list: Postit[]) {
+    if (!book || !id) return;
+    const cleaned = list.filter((p) => p.text.trim());
+    updateBook(id, { postits: cleaned });
+  }
+  function addPostit() {
+    setLivePostits((p) => {
+      const color = POSTIT_ORDER[p.length % POSTIT_ORDER.length];
+      return [...p, { id: crypto.randomUUID(), text: '', color }];
+    });
+  }
+  function updatePostit(i: number, text: string) {
+    setLivePostits((p) => p.map((n, idx) => (idx === i ? { ...n, text } : n)));
+  }
+  function removePostit(i: number) {
+    setLivePostits((p) => {
+      const next = p.filter((_, idx) => idx !== i);
+      commitPostits(next);
+      return next;
+    });
+  }
 
   function commitReview() {
     if (!book || !id) return;
@@ -503,6 +537,47 @@ export default function BookDetailPage() {
                 {liveReview.length > 0 && (
                   <p className="text-right text-[10px] text-[#AEAEB2] mt-2 tracking-wide">{liveReview.length}자 · 자동 저장됨</p>
                 )}
+
+                {/* 포스트잇 메모 */}
+                <div className="mt-5 pt-5 border-t border-black/5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[13px] font-bold text-[#1D1D1F]">
+                      포스트잇
+                      {livePostits.filter((n) => n.text.trim()).length > 0 && (
+                        <span className="ml-2 text-[11px] font-bold text-white bg-[#1D1D1F] px-2 py-0.5 rounded-full align-middle">{livePostits.filter((n) => n.text.trim()).length}</span>
+                      )}
+                    </p>
+                    <button type="button" onClick={addPostit}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1D1D1F] hover:bg-[#3A3A3C] text-white text-[12px] font-semibold active:scale-95 transition-all"
+                      style={{ boxShadow: '0 3px 10px rgba(0,0,0,0.18)' }}>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                      포스트잇 추가
+                    </button>
+                  </div>
+                  {livePostits.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {livePostits.map((n, i) => {
+                        const c = POSTIT_COLORS[n.color] ?? POSTIT_COLORS.yellow;
+                        const tilt = i % 2 === 0 ? '-1.2deg' : '1.4deg';
+                        return (
+                          <div key={n.id} className="relative rounded-xl p-3 pt-3.5"
+                            style={{ background: c.bg, boxShadow: '0 4px 12px rgba(0,0,0,0.10)', transform: `rotate(${tilt})` }}>
+                            <button type="button" onClick={() => removePostit(i)}
+                              className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full text-black/25 hover:text-black/50 hover:bg-black/5 transition-colors">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                            <textarea value={n.text} onChange={(e) => updatePostit(i, e.target.value)} onBlur={() => commitPostits(livePostits)}
+                              placeholder="메모를 적어보세요"
+                              rows={Math.max(3, n.text.split('\n').length + 1)}
+                              className="w-full bg-transparent text-[13.5px] font-medium outline-none resize-none placeholder-black/25 pr-4"
+                              style={{ color: c.text, fontFamily: '"Noto Sans KR", sans-serif', lineHeight: 1.6 }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -6,6 +6,12 @@ export interface Quote {
   page?: string;
 }
 
+export interface Postit {
+  id: string;
+  text: string;
+  color: string; // 포스트잇 배경색 키 (yellow/pink/blue/green/purple)
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -17,6 +23,7 @@ export interface Book {
   endDate: string;
   review: string;
   quotes: Quote[];
+  postits?: Postit[];
   rating: number;
   createdAt: string;
   updatedAt?: string; // 동기화 충돌 해소용 — 변경 시 갱신

@@ -44,6 +44,9 @@ export default function HomePage() {
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
   const [readingHidden, setReadingHidden] = useState(false);
+  const [showStreakBanner, setShowStreakBanner] = useState(() => {
+    try { return sessionStorage.getItem('streak-banner-hidden') !== '1'; } catch { return true; }
+  });
 
   function openDailyFor(book?: Book) {
     setDailyModalBook(book);
@@ -64,6 +67,17 @@ export default function HomePage() {
     setReadingHidden(localStorage.getItem('reading-section-hidden') === '1');
     setStreak(getReadingStreak());
   }, []);
+
+  // 스트릭 배너: 약 1분 뒤 자동으로 사라짐 (세션 동안 다시 안 뜸)
+  function hideStreakBanner() {
+    setShowStreakBanner(false);
+    try { sessionStorage.setItem('streak-banner-hidden', '1'); } catch { /* noop */ }
+  }
+  useEffect(() => {
+    if (!showStreakBanner) return;
+    const t = setTimeout(hideStreakBanner, 60000);
+    return () => clearTimeout(t);
+  }, [showStreakBanner]);
 
 
   function toggleView(mode: ViewMode) {
@@ -147,14 +161,18 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Reading streak banner */}
-        {streak >= 2 && (
+        {/* Reading streak banner — 약 1분 후 자동 사라짐 + 닫기 */}
+        {streak >= 2 && showStreakBanner && (
           <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-2xl" style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)', boxShadow: '0 4px 16px rgba(245,158,11,0.3)' }}>
             <span className="text-2xl">🔥</span>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-white font-bold text-sm">{streak}일 연속 독서 중!</p>
               <p className="text-white/80 text-xs">오늘도 독서해서 스트릭을 이어가세요</p>
             </div>
+            <button onClick={hideStreakBanner} title="숨기기"
+              className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:bg-white/20 active:scale-90 transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
         )}
 

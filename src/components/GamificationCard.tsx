@@ -92,57 +92,53 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
   const DR = 26, DC = 2 * Math.PI * DR;
 
   return (
-    <div className="rounded-3xl p-5 sm:p-6 mb-4 text-white relative overflow-hidden"
+    <div className="rounded-3xl p-5 sm:p-6 mb-4 text-[#1D1D1F] relative overflow-hidden"
       style={{
-        background: 'rgba(17, 22, 38, 0.66)',
-        backdropFilter: 'blur(24px) saturate(1.6)',
-        WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
-        border: '1px solid rgba(255,255,255,0.14)',
-        boxShadow: '0 10px 40px rgba(15,20,40,0.28), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.05)',
+        background: 'radial-gradient(120% 90% at 0% 0%, rgba(129,140,248,0.20), transparent 46%), radial-gradient(110% 85% at 100% 0%, rgba(56,189,248,0.18), transparent 46%), radial-gradient(120% 100% at 55% 120%, rgba(236,72,153,0.12), transparent 52%), rgba(255,255,255,0.72)',
+        backdropFilter: 'blur(22px) saturate(1.7)',
+        WebkitBackdropFilter: 'blur(22px) saturate(1.7)',
+        border: '1px solid rgba(255,255,255,0.85)',
+        boxShadow: '0 8px 32px rgba(80,90,130,0.14), inset 0 1px 0 rgba(255,255,255,0.9)',
       }}>
-      {/* 유리 안쪽 컬러 글로우 (리퀴드 글래스) */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(120% 80% at 8% 0%, rgba(99,102,241,0.55) 0%, transparent 42%), radial-gradient(110% 80% at 100% 0%, rgba(34,211,238,0.40) 0%, transparent 42%), radial-gradient(130% 90% at 60% 120%, rgba(139,92,246,0.45) 0%, transparent 48%)',
-      }} />
       {/* 상단 광택 하이라이트 */}
       <div className="absolute -top-16 left-0 right-0 h-40 pointer-events-none" style={{
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.20) 0%, transparent 100%)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, transparent 100%)',
       }} />
 
       {/* 레벨 헤더 */}
       <div className="relative flex items-center gap-3.5">
-        <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0"
-          style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2)' }}>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 4px 12px rgba(80,90,130,0.12)' }}>
           <span className="text-3xl leading-none">{level.emoji}</span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-[11px] font-bold text-white/60 tracking-wide">LV.{levelIdx + 1}</span>
-            <h2 className="text-[19px] font-extrabold tracking-tight truncate">{level.title}</h2>
+            <span className="text-[11px] font-bold text-[#8E8E93] tracking-wide">LV.{levelIdx + 1}</span>
+            <h2 className="text-[19px] font-extrabold tracking-tight truncate text-[#1D1D1F]">{level.title}</h2>
           </div>
-          <p className="text-white/60 text-[12px] mt-0.5 tabular-nums">{xp.toLocaleString()} XP</p>
+          <p className="text-[#6E6E73] text-[12px] mt-0.5 tabular-nums font-medium">{xp.toLocaleString()} XP</p>
         </div>
       </div>
 
       {/* 다음 레벨 진행 바 */}
       <div className="relative mt-4">
-        <div className="flex justify-between text-[11px] text-white/60 mb-1.5">
+        <div className="flex justify-between text-[11px] text-[#6E6E73] mb-1.5">
           <span>{next ? `${next.emoji} ${next.title}까지` : '최고 레벨 달성 🎉'}</span>
-          {next && <span className="tabular-nums font-semibold text-white/80">{(next.xp - xp).toLocaleString()} XP</span>}
+          {next && <span className="tabular-nums font-semibold text-[#1D1D1F]">{(next.xp - xp).toLocaleString()} XP</span>}
         </div>
-        <div className="h-2.5 bg-black/20 rounded-full overflow-hidden">
+        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.06)' }}>
           <div className="h-full rounded-full transition-all duration-700"
-            style={{ width: `${levelProgress * 100}%`, background: 'linear-gradient(90deg, #FDE68A, #FBBF24)' }} />
+            style={{ width: `${levelProgress * 100}%`, background: 'linear-gradient(90deg, #FBBF24, #F59E0B)' }} />
         </div>
       </div>
 
       {/* 오늘의 목표 링 */}
       <div className="relative mt-4 rounded-2xl p-3.5 flex items-center gap-4"
-        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+        style={{ background: 'rgba(255,255,255,0.62)', border: '1px solid rgba(0,0,0,0.05)' }}>
         <div className="relative flex-shrink-0" style={{ width: 60, height: 60 }}>
           <svg width={60} height={60}>
-            <circle cx={30} cy={30} r={DR} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth={6} />
-            <circle cx={30} cy={30} r={DR} fill="none" stroke={dailyProgress >= 1 ? '#34D399' : '#38BDF8'} strokeWidth={6} strokeLinecap="round"
+            <circle cx={30} cy={30} r={DR} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={6} />
+            <circle cx={30} cy={30} r={DR} fill="none" stroke={dailyProgress >= 1 ? '#10B981' : '#3B7DE8'} strokeWidth={6} strokeLinecap="round"
               strokeDasharray={DC} strokeDashoffset={DC * (1 - dailyProgress)} transform="rotate(-90 30 30)"
               style={{ transition: 'stroke-dashoffset 0.7s ease' }} />
           </svg>
@@ -151,23 +147,23 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
           </div>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-white/55">오늘의 목표</p>
+          <p className="text-[11px] text-[#8E8E93] font-medium">오늘의 목표</p>
           {editingDaily ? (
             <div className="flex items-center gap-2 mt-1">
               <input type="number" value={dailyInput} onChange={(e) => setDailyInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && saveDaily()}
-                className="w-16 px-2 py-1 rounded-lg bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30" autoFocus />
-              <span className="text-white/50 text-xs">쪽</span>
-              <button onClick={saveDaily} className="px-2.5 py-1 bg-white text-[#111626] rounded-lg text-xs font-bold">저장</button>
+                className="w-16 px-2 py-1 rounded-lg bg-[#F0F0F5] text-[#1D1D1F] text-sm text-center outline-none focus:ring-2 focus:ring-[#3B7DE8]/40" autoFocus />
+              <span className="text-[#8E8E93] text-xs">쪽</span>
+              <button onClick={saveDaily} className="px-2.5 py-1 bg-[#1D1D1F] text-white rounded-lg text-xs font-bold">저장</button>
             </div>
           ) : (
             <>
-              <p className="text-[17px] font-extrabold tabular-nums leading-tight">
-                {todayPages.toLocaleString()}<span className="text-white/45 text-[13px] font-semibold"> / {dailyGoal}쪽</span>
+              <p className="text-[17px] font-extrabold tabular-nums leading-tight text-[#1D1D1F]">
+                {todayPages.toLocaleString()}<span className="text-[#AEAEB2] text-[13px] font-semibold"> / {dailyGoal}쪽</span>
               </p>
-              <p className="text-[11px] text-white/50 mt-0.5">
+              <p className="text-[11px] text-[#6E6E73] mt-0.5">
                 {dailyProgress >= 1 ? '🎉 오늘 목표 달성!' : `${dailyGoal - todayPages}쪽 더 읽으면 달성`}
-                <button onClick={() => setEditingDaily(true)} className="ml-2 text-white/70 font-semibold hover:text-white transition-colors">수정</button>
+                <button onClick={() => setEditingDaily(true)} className="ml-2 text-[#3B7DE8] font-semibold">수정</button>
               </p>
             </>
           )}
@@ -177,25 +173,25 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
       {/* 이번 주 독서 */}
       <div className="relative mt-4">
         <div className="flex items-center justify-between mb-2.5">
-          <p className="text-[13px] font-bold text-white/90">이번 주 독서</p>
-          <p className="text-[11px] font-semibold text-white/60">{weekReadCount}/7일</p>
+          <p className="text-[13px] font-bold text-[#1D1D1F]">이번 주 독서</p>
+          <p className="text-[11px] font-semibold text-[#6E6E73]">{weekReadCount}/7일</p>
         </div>
         <div className="flex items-center justify-between">
           {weekDays.map((d, i) => (
             <div key={i} className="flex flex-col items-center gap-1.5">
               <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
                 style={{
-                  background: d.read ? 'linear-gradient(135deg,#38BDF8,#3B7DE8)' : 'rgba(255,255,255,0.07)',
-                  border: d.isToday ? '2px solid rgba(255,255,255,0.55)' : '1px solid rgba(255,255,255,0.1)',
-                  boxShadow: d.read ? '0 3px 10px rgba(59,125,232,0.35)' : 'none',
+                  background: d.read ? 'linear-gradient(135deg,#38BDF8,#3B7DE8)' : 'rgba(0,0,0,0.05)',
+                  border: d.isToday ? '2px solid rgba(59,125,232,0.6)' : '1px solid rgba(0,0,0,0.06)',
+                  boxShadow: d.read ? '0 3px 10px rgba(59,125,232,0.28)' : 'none',
                 }}>
                 {d.read ? (
                   <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 ) : (
-                  <span className="text-white/25 text-[13px] font-bold leading-none">·</span>
+                  <span className="text-[#C7C7CC] text-[13px] font-bold leading-none">·</span>
                 )}
               </div>
-              <span className="text-[10px] font-semibold" style={{ color: d.isToday ? '#fff' : 'rgba(255,255,255,0.42)' }}>{d.label}</span>
+              <span className="text-[10px] font-semibold" style={{ color: d.isToday ? '#3B7DE8' : '#AEAEB2' }}>{d.label}</span>
             </div>
           ))}
         </div>
@@ -203,36 +199,35 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
 
       {/* 스트릭 + 페이지 요약 */}
       <div className="relative mt-4 grid grid-cols-3 gap-2">
-        <div className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          <p className="text-[19px] font-extrabold leading-none">🔥 {streak}</p>
-          <p className="text-white/60 text-[10px] mt-1">연속 독서</p>
-        </div>
-        <div className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          <p className="text-[19px] font-extrabold leading-none">{done.length}</p>
-          <p className="text-white/60 text-[10px] mt-1">완독</p>
-        </div>
-        <div className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          <p className="text-[17px] font-extrabold leading-none tabular-nums">{totalPages.toLocaleString()}</p>
-          <p className="text-white/60 text-[10px] mt-1">읽은 쪽</p>
-        </div>
+        {[
+          { v: `🔥 ${streak}`, l: '연속 독서' },
+          { v: `${done.length}`, l: '완독' },
+          { v: totalPages.toLocaleString(), l: '읽은 쪽' },
+        ].map((t) => (
+          <div key={t.l} className="rounded-2xl py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.62)', border: '1px solid rgba(0,0,0,0.05)' }}>
+            <p className="text-[18px] font-extrabold leading-none tabular-nums text-[#1D1D1F]">{t.v}</p>
+            <p className="text-[#8E8E93] text-[10px] mt-1 font-medium">{t.l}</p>
+          </div>
+        ))}
       </div>
 
       {/* 업적 배지 */}
       <div className="relative mt-5">
         <div className="flex items-center justify-between mb-2.5">
-          <p className="text-[13px] font-bold text-white/90">업적</p>
-          <p className="text-[11px] font-semibold text-white/60">{earnedCount}/{badges.length}</p>
+          <p className="text-[13px] font-bold text-[#1D1D1F]">업적</p>
+          <p className="text-[11px] font-semibold text-[#6E6E73]">{earnedCount}/{badges.length}</p>
         </div>
         <div className="grid grid-cols-4 gap-2">
           {badges.map((b) => (
             <button key={b.label} onClick={() => setSelectedBadge(b)}
               className="rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1 transition-all active:scale-95"
               style={{
-                background: b.earned ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.14)',
-                boxShadow: b.earned ? 'inset 0 0 0 1px rgba(255,255,255,0.25)' : 'none',
+                background: b.earned ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.035)',
+                border: b.earned ? '1px solid rgba(0,0,0,0.05)' : '1px solid transparent',
+                boxShadow: b.earned ? '0 3px 10px rgba(80,90,130,0.10)' : 'none',
               }}>
-              <span className="text-2xl leading-none" style={{ filter: b.earned ? 'none' : 'grayscale(1)', opacity: b.earned ? 1 : 0.35 }}>{b.emoji}</span>
-              <span className={`text-[9.5px] font-semibold leading-tight text-center ${b.earned ? 'text-white' : 'text-white/40'}`}>{b.label}</span>
+              <span className="text-2xl leading-none" style={{ filter: b.earned ? 'none' : 'grayscale(1)', opacity: b.earned ? 1 : 0.4 }}>{b.emoji}</span>
+              <span className={`text-[9.5px] font-semibold leading-tight text-center ${b.earned ? 'text-[#1D1D1F]' : 'text-[#C7C7CC]'}`}>{b.label}</span>
             </button>
           ))}
         </div>

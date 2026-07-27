@@ -77,6 +77,17 @@ export default function StatsPage() {
   const [goalView, setGoalView] = useState<'year' | 'month'>('year');
   const [pageView, setPageView] = useState<'year' | 'month'>('year');
   const [pagesExpanded, setPagesExpanded] = useState(false);
+  const [monthlyMetric, setMonthlyMetric] = useState<'count' | 'pages'>('count');
+  const [gameMode, setGameMode] = useState(() => {
+    try { return localStorage.getItem('game-mode') !== '0'; } catch { return true; }
+  });
+  function toggleGameMode() {
+    setGameMode((v) => {
+      const n = !v;
+      try { localStorage.setItem('game-mode', n ? '1' : '0'); } catch { /* noop */ }
+      return n;
+    });
+  }
   const [calDisplayYear, setCalDisplayYear] = useState(currentYear);
   const [calDisplayMonth, setCalDisplayMonth] = useState(currentMonth);
   const [calSelectedDay, setCalSelectedDay] = useState<number | null>(null);
@@ -336,8 +347,26 @@ export default function StatsPage() {
           )}
         </div>
 
-        {/* 게이미피케이션 — 레벨·XP·스트릭·업적 */}
+        {/* 게임 모드 토글 */}
         {books.length > 0 && (
+          <div className="bg-white rounded-2xl px-4 py-3 mb-4 flex items-center justify-between" style={cs}>
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">🎮</span>
+              <div>
+                <p className="text-sm font-semibold text-[#1D1D1F]">게임 모드</p>
+                <p className="text-[11px] text-[#AEAEB2]">레벨 · 스트릭 · 업적으로 더 재미있게</p>
+              </div>
+            </div>
+            <button onClick={toggleGameMode} role="switch" aria-checked={gameMode} title="게임 모드"
+              className="relative w-[52px] h-8 rounded-full transition-colors flex-shrink-0"
+              style={{ background: gameMode ? '#34C759' : '#E5E5EA' }}>
+              <span className="absolute top-1 w-6 h-6 rounded-full bg-white transition-all" style={{ left: gameMode ? 24 : 4, boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
+            </button>
+          </div>
+        )}
+
+        {/* 게이미피케이션 — 게임 모드 ON일 때만 */}
+        {books.length > 0 && gameMode && (
           <GamificationCard books={books} dailyReadings={dailyReadings} streak={streak} />
         )}
 
@@ -794,51 +823,46 @@ export default function StatsPage() {
         </div>
 
 
-        {/* ── 월별 완독 차트 ── */}
-        {yearDone.length > 0 && (
-          <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
-            <h2 className="text-sm font-semibold text-[#1D1D1F] mb-5">월별 완독 권수</h2>
-            <div className="space-y-2.5">
-              {monthlyCounts.map((count, i) => count > 0 && (
-                <div key={i} className="flex items-center gap-3">
-                  <p className="text-xs text-[#6E6E73] w-8 flex-shrink-0 text-right">{i + 1}월</p>
-                  <div className="flex-1 bg-[#F5F5F7] rounded-full h-6 overflow-hidden">
-                    <div className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
-                      style={{
-                        width: `${Math.max((count / maxMonthly) * 100, 12)}%`,
-                        background: 'linear-gradient(90deg, #5B8BF2, #3B7DE8)',
-                      }}>
-                      <span className="text-white text-xs font-semibold">{count}</span>
-                    </div>
-                  </div>
+        {/* ── 월별 독서 차트 (완독 권수 / 읽은 페이지 토글) ── */}
+        {(yearDone.length > 0 || hasPageData) && (() => {
+          const data = monthlyMetric === 'pages' ? monthlyPages : monthlyCounts;
+          const maxM = Math.max(...data, 1);
+          const barBg = monthlyMetric === 'pages'
+            ? 'linear-gradient(180deg, #1D1D1F, #3A3A3C)'
+            : 'linear-gradient(180deg, #5B8BF2, #3B7DE8)';
+          return (
+            <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-sm font-semibold text-[#1D1D1F]">월별 독서</h2>
+                <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-[#F5F5F7]">
+                  {([['count', '완독 권수'], ['pages', '읽은 페이지']] as const).map(([v, l]) => (
+                    <button key={v} onClick={() => setMonthlyMetric(v)}
+                      className="px-3 py-1 rounded-full text-[11px] font-bold transition-all"
+                      style={{ background: monthlyMetric === v ? '#fff' : 'transparent', color: monthlyMetric === v ? '#1D1D1F' : '#AEAEB2', boxShadow: monthlyMetric === v ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+                      {l}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── 월별 페이지 차트 ── */}
-        {hasPageData && (
-          <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4" style={cs}>
-            <h2 className="text-sm font-semibold text-[#1D1D1F] mb-5">월별 독서 페이지</h2>
-            <div className="space-y-2.5">
-              {monthlyPages.map((pages, i) => pages > 0 && (
-                <div key={i} className="flex items-center gap-3">
-                  <p className="text-xs text-[#6E6E73] w-8 flex-shrink-0 text-right">{i + 1}월</p>
-                  <div className="flex-1 bg-[#F5F5F7] rounded-full h-6 overflow-hidden">
-                    <div className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
-                      style={{
-                        width: `${Math.max((pages / maxPages) * 100, 12)}%`,
-                        background: 'linear-gradient(90deg, #1D1D1F, #3A3A3C)',
-                      }}>
-                      <span className="text-white text-xs font-semibold">{pages}p</span>
+              </div>
+              <div className="flex items-end justify-between gap-1" style={{ height: 130 }}>
+                {data.map((v, i) => {
+                  const h = v > 0 ? Math.max((v / maxM) * 88 + 10, 14) : 3;
+                  const isCur = i === currentMonth && selectedYear === currentYear;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                      <div className="w-full flex flex-col items-center justify-end" style={{ height: 104 }}>
+                        {v > 0 && <span className="text-[9px] font-bold mb-0.5 leading-none" style={{ color: isCur ? '#3B7DE8' : '#6E6E73' }}>{v}</span>}
+                        <div className="w-full rounded-md transition-all duration-500"
+                          style={{ height: h, maxWidth: 22, background: v > 0 ? barBg : '#F0F0F5', opacity: v > 0 ? 1 : 1 }} />
+                      </div>
+                      <span className="text-[9px] font-medium" style={{ color: isCur ? '#3B7DE8' : '#AEAEB2' }}>{i + 1}</span>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── 최근 읽은 책 ── */}
         {recent.length > 0 && (

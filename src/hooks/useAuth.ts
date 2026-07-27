@@ -61,7 +61,8 @@ function ensureGis(): Promise<void> {
 }
 
 export function useAuth(): AuthApi {
-  const [state, setState] = useState<SyncState>('idle');
+  // 이미 이 세션에 토큰이 있으면(SPA 네비게이션) 곧바로 로그인 상태로 시작 → 화면 이동마다 로그인 요구 안 함
+  const [state, setState] = useState<SyncState>(() => (gd.getToken() ? 'synced' : 'idle'));
   const [profile, setProfile] = useState<gd.UserProfile | null>(() => gd.getCachedProfile());
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const tokenClientReady = useRef(false);
@@ -109,7 +110,10 @@ export function useAuth(): AuthApi {
         setState(gd.wasSignedIn() ? 'error' : 'idle');
       });
       tokenClientReady.current = true;
-      if (gd.wasSignedIn()) {
+      // 이미 토큰이 있으면(세션 내 재마운트) 재요청하지 않음 — 매번 로그인 팝업/깜빡임 방지
+      if (gd.getToken()) {
+        setState('synced');
+      } else if (gd.wasSignedIn()) {
         setState('connecting');
         gd.requestAccess('');
       }
