@@ -129,28 +129,36 @@ export default function BookShelf({ books }: Props) {
                     </div>
                   </div>
 
-                  {/* Tooltip on hover */}
-                  <div
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ transitionDelay: '0.2s' }}
-                  >
-                    <div
-                      className="bg-[#1D1D1F] text-white rounded-lg px-2 py-1.5 whitespace-nowrap"
-                      style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)', fontSize: 10 }}
-                    >
-                      <p className="font-semibold leading-tight max-w-[120px] truncate">{book.title}</p>
-                      <p className="opacity-60 leading-tight max-w-[120px] truncate">{book.author}</p>
-                    </div>
-                    {/* Arrow */}
-                    <div
-                      className="w-0 h-0 mx-auto"
-                      style={{
-                        borderLeft: '4px solid transparent',
-                        borderRight: '4px solid transparent',
-                        borderTop: '4px solid #1D1D1F',
-                      }}
-                    />
-                  </div>
+                  {/* Tooltip on hover — 화면 밖으로 잘리지 않게 가장자리 책은 정렬 방향 조정 */}
+                  {(() => {
+                    const isFirst = bookIdx === 0;
+                    const isLast = bookIdx === shelf.length - 1;
+                    const posClass = isLast ? 'right-0' : isFirst ? 'left-0' : 'left-1/2 -translate-x-1/2';
+                    const arrowClass = isLast ? 'ml-auto mr-2.5' : isFirst ? 'ml-2.5' : 'mx-auto';
+                    return (
+                      <div
+                        className={`absolute bottom-full ${posClass} mb-2 z-30 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity`}
+                        style={{ transitionDelay: '0.2s' }}
+                      >
+                        <div
+                          className="bg-[#1D1D1F] text-white rounded-lg px-2 py-1.5 whitespace-nowrap"
+                          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)', fontSize: 10 }}
+                        >
+                          <p className="font-semibold leading-tight max-w-[120px] truncate">{book.title}</p>
+                          <p className="opacity-60 leading-tight max-w-[120px] truncate">{book.author}</p>
+                        </div>
+                        {/* Arrow */}
+                        <div
+                          className={`w-0 h-0 ${arrowClass}`}
+                          style={{
+                            borderLeft: '4px solid transparent',
+                            borderRight: '4px solid transparent',
+                            borderTop: '4px solid #1D1D1F',
+                          }}
+                        />
+                      </div>
+                    );
+                  })()}
                 </Link>
               );
             })}

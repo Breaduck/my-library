@@ -328,7 +328,7 @@ export default function HomePage() {
                 {search ? `"${search}"에 해당하는 책이 없어요` : '이 탭에 책이 없어요'}
               </div>
             ) : viewMode === 'shelf' ? (
-              <div className="rounded-3xl overflow-hidden p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
+              <div className="rounded-3xl p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
                 <BookShelf books={filtered} />
               </div>
             ) : viewMode === 'list' ? (

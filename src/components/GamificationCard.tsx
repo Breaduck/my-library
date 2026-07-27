@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Book } from '@/types';
 import { DailyReading } from '@/lib/storage';
+
+const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 interface Props {
   books: Book[];
@@ -36,20 +38,58 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
     : 1;
   const rated = done.filter((b) => b.rating > 0);
 
-  // 업적 배지
+  // 오늘 / 이번 주 독서
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayPages = dailyReadings.filter((r) => r.date === todayStr).reduce((s, r) => s + r.pages, 0);
+  const weekDays = (() => {
+    const out: { label: string; read: boolean; isToday: boolean; pages: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ds = d.toISOString().slice(0, 10);
+      const pages = dailyReadings.filter((r) => r.date === ds).reduce((s, r) => s + r.pages, 0);
+      out.push({ label: WEEK_LABELS[d.getDay()], read: pages > 0, isToday: ds === todayStr, pages });
+    }
+    return out;
+  })();
+  const weekReadCount = weekDays.filter((d) => d.read).length;
+  const perfectWeek = weekReadCount === 7;
+
+  // 업적 배지 (12종)
   const badges = [
     { emoji: '🎬', label: '첫 걸음',   desc: '첫 책 완독',       blurb: '첫 책을 끝까지 읽어냈어요. 모든 여정의 시작!',        earned: done.length >= 1 },
     { emoji: '🔥', label: '3일 연속',  desc: '3일 연속 독서',     blurb: '3일 내리 책을 펼쳤어요. 습관이 붙는 중이에요.',        earned: streak >= 3 },
     { emoji: '⚡', label: '일주일',    desc: '7일 연속 독서',     blurb: '일주일 내내 독서! 이제 멈출 수 없는 흐름이에요.',       earned: streak >= 7 },
+    { emoji: '🌟', label: '한 달 연속', desc: '30일 연속 독서',    blurb: '30일 연속! 독서가 삶의 일부가 되었어요.',            earned: streak >= 30 },
+    { emoji: '✨', label: '완벽한 한 주', desc: '이번 주 7일 독서',  blurb: '이번 주 7일 모두 책을 폈어요. 완벽한 한 주!',          earned: perfectWeek },
     { emoji: '📗', label: '책장 채우기', desc: '10권 완독',        blurb: '10권을 완독했어요. 책장이 차곡차곡 채워지는 중.',      earned: done.length >= 10 },
-    { emoji: '📜', label: '천 페이지',  desc: '누적 1,000쪽',     blurb: '누적 1,000쪽 돌파! 종이의 무게가 느껴지나요?',        earned: totalPages >= 1000 },
-    { emoji: '⭐', label: '평론가',    desc: '별점 5권 이상',     blurb: '5권에 별점을 남긴 진정한 리뷰어가 되었어요.',          earned: rated.length >= 5 },
     { emoji: '🏆', label: '다독가',    desc: '25권 완독',        blurb: '25권 완독! 당신은 이미 소문난 다독가예요.',          earned: done.length >= 25 },
+    { emoji: '💎', label: '다독왕',    desc: '50권 완독',        blurb: '50권 완독. 진정한 다독왕의 반열에 올랐어요.',         earned: done.length >= 50 },
+    { emoji: '⭐', label: '평론가',    desc: '별점 5권 이상',     blurb: '5권에 별점을 남긴 진정한 리뷰어가 되었어요.',          earned: rated.length >= 5 },
+    { emoji: '📜', label: '천 페이지',  desc: '누적 1,000쪽',     blurb: '누적 1,000쪽 돌파! 종이의 무게가 느껴지나요?',        earned: totalPages >= 1000 },
+    { emoji: '🌊', label: '오천 페이지', desc: '누적 5,000쪽',     blurb: '누적 5,000쪽. 페이지의 바다를 헤엄쳐 왔어요.',        earned: totalPages >= 5000 },
     { emoji: '🌙', label: '만 페이지',  desc: '누적 10,000쪽',    blurb: '누적 10,000쪽. 밤을 잊고 읽어 내려간 독서가.',        earned: totalPages >= 10000 },
   ];
   type Badge = typeof badges[number];
   const earnedCount = badges.filter((b) => b.earned).length;
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+
+  // 오늘의 목표 (하루 페이지 목표)
+  const [dailyGoal, setDailyGoal] = useState(30);
+  const [editingDaily, setEditingDaily] = useState(false);
+  const [dailyInput, setDailyInput] = useState('30');
+  useEffect(() => {
+    const s = localStorage.getItem('daily-page-goal');
+    if (s) { setDailyGoal(parseInt(s)); setDailyInput(s); }
+  }, []);
+  function saveDaily() {
+    const n = Math.max(1, Math.min(999, parseInt(dailyInput) || 30));
+    setDailyGoal(n); setDailyInput(String(n));
+    localStorage.setItem('daily-page-goal', String(n));
+    setEditingDaily(false);
+  }
+  const dailyProgress = Math.min(todayPages / dailyGoal, 1);
+  const DR = 26, DC = 2 * Math.PI * DR;
 
   return (
     <div className="rounded-3xl p-5 sm:p-6 mb-4 text-white relative overflow-hidden"
@@ -93,6 +133,71 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
         <div className="h-2.5 bg-black/20 rounded-full overflow-hidden">
           <div className="h-full rounded-full transition-all duration-700"
             style={{ width: `${levelProgress * 100}%`, background: 'linear-gradient(90deg, #FDE68A, #FBBF24)' }} />
+        </div>
+      </div>
+
+      {/* 오늘의 목표 링 */}
+      <div className="relative mt-4 rounded-2xl p-3.5 flex items-center gap-4"
+        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+        <div className="relative flex-shrink-0" style={{ width: 60, height: 60 }}>
+          <svg width={60} height={60}>
+            <circle cx={30} cy={30} r={DR} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth={6} />
+            <circle cx={30} cy={30} r={DR} fill="none" stroke={dailyProgress >= 1 ? '#34D399' : '#38BDF8'} strokeWidth={6} strokeLinecap="round"
+              strokeDasharray={DC} strokeDashoffset={DC * (1 - dailyProgress)} transform="rotate(-90 30 30)"
+              style={{ transition: 'stroke-dashoffset 0.7s ease' }} />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-lg leading-none">{dailyProgress >= 1 ? '✅' : '📖'}</span>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] text-white/55">오늘의 목표</p>
+          {editingDaily ? (
+            <div className="flex items-center gap-2 mt-1">
+              <input type="number" value={dailyInput} onChange={(e) => setDailyInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveDaily()}
+                className="w-16 px-2 py-1 rounded-lg bg-white/10 text-white text-sm text-center outline-none focus:ring-2 focus:ring-white/30" autoFocus />
+              <span className="text-white/50 text-xs">쪽</span>
+              <button onClick={saveDaily} className="px-2.5 py-1 bg-white text-[#111626] rounded-lg text-xs font-bold">저장</button>
+            </div>
+          ) : (
+            <>
+              <p className="text-[17px] font-extrabold tabular-nums leading-tight">
+                {todayPages.toLocaleString()}<span className="text-white/45 text-[13px] font-semibold"> / {dailyGoal}쪽</span>
+              </p>
+              <p className="text-[11px] text-white/50 mt-0.5">
+                {dailyProgress >= 1 ? '🎉 오늘 목표 달성!' : `${dailyGoal - todayPages}쪽 더 읽으면 달성`}
+                <button onClick={() => setEditingDaily(true)} className="ml-2 text-white/70 font-semibold hover:text-white transition-colors">수정</button>
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 이번 주 독서 */}
+      <div className="relative mt-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <p className="text-[13px] font-bold text-white/90">이번 주 독서</p>
+          <p className="text-[11px] font-semibold text-white/60">{weekReadCount}/7일</p>
+        </div>
+        <div className="flex items-center justify-between">
+          {weekDays.map((d, i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                style={{
+                  background: d.read ? 'linear-gradient(135deg,#38BDF8,#3B7DE8)' : 'rgba(255,255,255,0.07)',
+                  border: d.isToday ? '2px solid rgba(255,255,255,0.55)' : '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: d.read ? '0 3px 10px rgba(59,125,232,0.35)' : 'none',
+                }}>
+                {d.read ? (
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                ) : (
+                  <span className="text-white/25 text-[13px] font-bold leading-none">·</span>
+                )}
+              </div>
+              <span className="text-[10px] font-semibold" style={{ color: d.isToday ? '#fff' : 'rgba(255,255,255,0.42)' }}>{d.label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
