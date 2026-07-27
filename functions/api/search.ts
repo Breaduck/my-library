@@ -82,7 +82,7 @@ function pickAladinPages(item: Record<string, unknown>): number | undefined {
 }
 
 /* 책 단행본만 통과. 묶음상품/세트/굿즈/문구류는 모두 제외. */
-const EXCLUDE_TITLE = /(묶음|묶음상품|패키지|콜렉션|컬렉션|세트|박스 ?세트|박스세트|전집|전권|특별판\s*세트|선물\s*세트|양장본\s*세트|합본|에디션\s*세트|북클럽|전\s*\d+\s*권|\d+\s*권\s*세트|\d+\s*권\s*묶음|\d+\s*[~\-–]\s*\d+\s*권|\d+\s*,\s*\d+\s*권|노트|다이어리|캘린더|문구|굿즈|에코백|책갈피|머그|볼펜|연필|키링|기프트카드|증정|스티커|텀블러|포스터|굿즈팩|보드게임|퍼즐|달력|키트|스타터팩|샘플러)/;
+const EXCLUDE_TITLE = /(묶음|묶음상품|패키지|콜렉션|컬렉션|세트|박스 ?세트|박스세트|전집|전권|특별판\s*세트|선물\s*세트|양장본\s*세트|합본|에디션\s*세트|북클럽|전\s*\d+\s*권|\d+\s*권\s*세트|\d+\s*권\s*묶음|\d+\s*[~\-–]\s*\d+\s*권|\d+\s*,\s*\d+\s*권|\(\s*전\s*\d+\s*권|노트|다이어리|캘린더|문구|굿즈|에코백|책갈피|머그|볼펜|연필|키링|기프트카드|증정|스티커|텀블러|포스터|굿즈팩|보드게임|퍼즐|달력|키트|스타터팩|샘플러|box\s?set|boxed\s?set|\bcollection\b|complete\s+(series|collection|set)|omnibus|\bset\s+of\s+\d+)/i;
 const EXCLUDE_CATEGORY = /(세트|묶음|굿즈|문구|음반|DVD|블루레이|영상|음반\/DVD)/;
 function isBookOnly(title: string, categoryName?: string): boolean {
   if (!title) return false;
@@ -121,9 +121,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             isbn: String(item.isbn13 || item.isbn || ''),
             genre: mapGenre(String(item.categoryName || '')),
             _categoryName: String(item.categoryName || ''),
+            // 필터는 정제 전 원본 제목으로 — [세트]/(전2권) 태그가 잘리기 전에 걸러냄
+            _rawTitle: String(item.title || '').replace(/<[^>]+>/g, ''),
           }))
-          .filter((b) => isBookOnly(b.title, b._categoryName))
-          .map(({ _categoryName: _c, ...rest }) => rest);
+          .filter((b) => isBookOnly(b._rawTitle, b._categoryName))
+          .map(({ _categoryName: _c, _rawTitle: _r, ...rest }) => rest);
         if (results.length > 0) return json(results);
       }
     } catch {}
@@ -143,8 +145,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             author: cleanNaverAuthor(item.author),
             coverUrl: upgradeNaverCover(item.image || ''),
             isbn: item.isbn?.split(' ').find((s) => s.length === 13) || item.isbn?.split(' ')[0] || '',
+            _rawTitle: (item.title || '').replace(/<[^>]+>/g, ''),
           }))
-          .filter((b) => isBookOnly(b.title));
+          .filter((b) => isBookOnly(b._rawTitle))
+          .map(({ _rawTitle: _r, ...rest }) => rest);
         if (results.length > 0) return json(results);
       }
     } catch {}

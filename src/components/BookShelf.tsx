@@ -14,7 +14,7 @@ const SPINE_GRADIENTS = [
   'linear-gradient(180deg, #a855f7, #7e22ce)',
 ];
 
-const BOOKS_PER_SHELF = 6;
+const BOOKS_PER_SHELF = 5;
 
 interface Props {
   books: Book[];
@@ -35,18 +35,18 @@ export default function BookShelf({ books }: Props) {
         <div key={shelfIdx} className="relative">
           {/* Books row */}
           <div
-            className="flex items-end gap-0.5 px-2 pt-4 pb-0"
-            style={{ minHeight: 148 }}
+            className="flex items-end gap-1 px-2 pt-5 pb-0"
+            style={{ minHeight: 196 }}
           >
             {shelf.map((book, bookIdx) => {
               const gradIdx = (book.title.charCodeAt(0) + bookIdx) % SPINE_GRADIENTS.length;
               const gradient = SPINE_GRADIENTS[gradIdx];
               // Vary height slightly for realism
-              const heightVariance = ((book.title.charCodeAt(0) + bookIdx * 3) % 3) * 8;
-              const spineHeight = 112 + heightVariance;
+              const heightVariance = ((book.title.charCodeAt(0) + bookIdx * 3) % 3) * 10;
+              const spineHeight = 150 + heightVariance;
               // Vary width slightly (thicker/thinner books)
               const widthVariance = ((book.title.charCodeAt(1) ?? 0) + bookIdx) % 4;
-              const spineWidth = 26 + widthVariance * 4;
+              const spineWidth = 44 + widthVariance * 5;
 
               return (
                 <Link
@@ -101,9 +101,9 @@ export default function BookShelf({ books }: Props) {
                       <span
                         className="text-white font-semibold leading-none select-none"
                         style={{
-                          fontSize: 9,
+                          fontSize: 11,
                           textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-                          maxHeight: spineHeight - 8,
+                          maxHeight: spineHeight - 10,
                           overflow: 'hidden',
                           display: '-webkit-box',
                           WebkitLineClamp: 1,
@@ -168,7 +168,7 @@ export default function BookShelf({ books }: Props) {
               <div
                 key={`ghost-${i}`}
                 className="flex-shrink-0"
-                style={{ width: 28, height: 120 }}
+                style={{ width: 46, height: 150 }}
               />
             ))}
           </div>
