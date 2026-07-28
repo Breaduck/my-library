@@ -167,7 +167,7 @@ export default function HomePage() {
             <span className="text-2xl">🔥</span>
             <div className="flex-1 min-w-0">
               <p className="text-white font-bold text-sm">{streak}일 연속 독서 중!</p>
-              <p className="text-white/80 text-xs">오늘도 독서해서 스트릭을 이어가세요</p>
+              <p className="text-white/80 text-xs">오늘도 읽고 연속 독서를 이어가세요</p>
             </div>
             <button onClick={hideStreakBanner} title="숨기기"
               className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:bg-white/20 active:scale-90 transition-all">

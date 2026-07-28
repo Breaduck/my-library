@@ -185,14 +185,20 @@ export default function StatsPage() {
   if (!years.includes(currentYear)) years.unshift(currentYear);
 
   const yearDone = done.filter((b) => doneYM(b)?.year === selectedYear);
-  const totalPagesThisYear = yearDone.filter(b => b.pages).reduce((acc, b) => acc + (b.pages ?? 0), 0);
-  // 읽은 페이지 — 연간/월별 스코프별 책 분해
-  const pageScopeBooks = ((pageView === 'month' && selectedYear === currentYear)
-    ? yearDone.filter((b) => doneYM(b)?.month === currentMonth)
-    : yearDone
-  ).filter((b) => b.pages).sort((a, b) => (b.pages ?? 0) - (a.pages ?? 0));
-  const pageScopeTotal = pageScopeBooks.reduce((s, b) => s + (b.pages ?? 0), 0);
-  const pageScopeMax = Math.max(...pageScopeBooks.map((b) => b.pages ?? 0), 1);
+  // 읽은 페이지 — 완독 책의 페이지 + 읽는중 책의 진행 페이지(현재 연도)
+  const inMonthScope = pageView === 'month' && selectedYear === currentYear;
+  const pageEntries: { book: Book; pages: number; done: boolean }[] = [];
+  (inMonthScope ? yearDone.filter((b) => doneYM(b)?.month === currentMonth) : yearDone)
+    .filter((b) => (b.pages ?? 0) > 0)
+    .forEach((b) => pageEntries.push({ book: b, pages: b.pages ?? 0, done: true }));
+  if (selectedYear === currentYear) {
+    reading.filter((b) => (b.currentPage ?? 0) > 0)
+      .forEach((b) => pageEntries.push({ book: b, pages: b.currentPage ?? 0, done: false }));
+  }
+  pageEntries.sort((a, b) => b.pages - a.pages);
+  const pageScopeTotal = pageEntries.reduce((s, e) => s + e.pages, 0);
+  const pageScopeMax = Math.max(...pageEntries.map((e) => e.pages), 1);
+  const totalPagesThisYear = pageScopeTotal;
 
   const monthlyCounts = Array(12).fill(0);
   const monthlyPages = Array(12).fill(0);
@@ -354,7 +360,7 @@ export default function StatsPage() {
               <span className="text-lg">🎮</span>
               <div>
                 <p className="text-sm font-semibold text-[#1D1D1F]">게임 모드</p>
-                <p className="text-[11px] text-[#AEAEB2]">레벨 · 스트릭 · 업적으로 더 재미있게</p>
+                <p className="text-[11px] text-[#AEAEB2]">레벨 · 연속 독서 · 업적으로 더 재미있게</p>
               </div>
             </div>
             <button onClick={toggleGameMode} role="switch" aria-checked={gameMode} title="게임 모드"
@@ -370,17 +376,24 @@ export default function StatsPage() {
           <GamificationCard books={books} dailyReadings={dailyReadings} streak={streak} />
         )}
 
-        {/* 상태별 현황 */}
+        {/* 상태별 현황 — 유리 카드 */}
         <div className="grid grid-cols-4 gap-2 mb-4">
           {[
-            { label: '완독',      count: done.length,    color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: '읽는중',   count: reading.length, color: 'text-blue-600',    bg: 'bg-blue-50' },
-            { label: '읽을 예정', count: want.length,    color: 'text-purple-600',  bg: 'bg-purple-50' },
-            { label: '중단',      count: stopped.length, color: 'text-gray-500',    bg: 'bg-gray-100' },
+            { label: '완독',      count: done.length,    accent: '#10B981' },
+            { label: '읽는중',   count: reading.length, accent: '#3B7DE8' },
+            { label: '읽을 예정', count: want.length,    accent: '#8B5CF6' },
+            { label: '중단',      count: stopped.length, accent: '#9CA3AF' },
           ].map((item) => (
-            <div key={item.label} className={`${item.bg} rounded-2xl p-3 text-center`}>
-              <p className={`text-xl font-bold ${item.color}`}>{item.count}</p>
-              <p className="text-[10px] text-[#6E6E73] mt-0.5 leading-tight">{item.label}</p>
+            <div key={item.label} className="rounded-2xl p-3 text-center relative overflow-hidden"
+              style={{
+                background: 'rgba(255,255,255,0.7)',
+                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.9)',
+                boxShadow: '0 4px 14px rgba(80,90,130,0.10)',
+              }}>
+              <span className="absolute top-0 left-0 right-0 h-1" style={{ background: item.accent, opacity: 0.85 }} />
+              <p className="text-2xl font-extrabold mt-0.5" style={{ color: item.accent }}>{item.count}</p>
+              <p className="text-[10px] text-[#6E6E73] mt-0.5 leading-tight font-medium">{item.label}</p>
             </div>
           ))}
         </div>
@@ -413,23 +426,26 @@ export default function StatsPage() {
               </div>
             </div>
 
-            {pageScopeBooks.length > 0 ? (
+            {pageEntries.length > 0 ? (
               <>
                 <button onClick={() => setPagesExpanded((v) => !v)}
                   className="mt-3 w-full flex items-center justify-center gap-1 text-[12px] text-[#3B7DE8] font-semibold py-1.5 active:opacity-60 transition-opacity">
-                  {pagesExpanded ? '접기' : `어떤 책을 읽었는지 보기 (${pageScopeBooks.length}권)`}
+                  {pagesExpanded ? '접기' : `어떤 책을 읽었는지 보기 (${pageEntries.length}권)`}
                   <svg className={`w-3.5 h-3.5 transition-transform ${pagesExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </button>
                 {pagesExpanded && (
                   <div className="mt-1 pt-3 border-t border-[#F5F5F7] space-y-3">
-                    {pageScopeBooks.map((b) => (
-                      <Link key={b.id} to={`/book/${b.id}`} className="block active:opacity-70 transition-opacity">
+                    {pageEntries.map(({ book, pages, done: isDone }) => (
+                      <Link key={book.id} to={`/book/${book.id}`} className="block active:opacity-70 transition-opacity">
                         <div className="flex items-center justify-between mb-1 gap-2">
-                          <span className="text-[12.5px] font-medium text-[#1D1D1F] truncate">{b.title}</span>
-                          <span className="text-[12px] font-bold text-[#3B7DE8] flex-shrink-0 tabular-nums">{(b.pages ?? 0).toLocaleString()}쪽</span>
+                          <span className="text-[12.5px] font-medium text-[#1D1D1F] truncate flex items-center gap-1.5">
+                            {book.title}
+                            {!isDone && <span className="text-[9px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full flex-shrink-0">읽는중</span>}
+                          </span>
+                          <span className="text-[12px] font-bold text-[#3B7DE8] flex-shrink-0 tabular-nums">{pages.toLocaleString()}쪽</span>
                         </div>
                         <div className="h-2 bg-[#F0F0F5] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${Math.max(((b.pages ?? 0) / pageScopeMax) * 100, 4)}%`, background: 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' }} />
+                          <div className="h-full rounded-full" style={{ width: `${Math.max((pages / pageScopeMax) * 100, 4)}%`, background: isDone ? 'linear-gradient(90deg,#4F8EF7,#3B7DE8)' : 'linear-gradient(90deg,#93C5FD,#60A5FA)' }} />
                         </div>
                       </Link>
                     ))}
@@ -437,7 +453,7 @@ export default function StatsPage() {
                 )}
               </>
             ) : (
-              <p className="mt-3 text-center text-[11px] text-[#AEAEB2]">이 달에 완독한 책이 없어요</p>
+              <p className="mt-3 text-center text-[11px] text-[#AEAEB2]">아직 읽은 페이지가 없어요</p>
             )}
           </div>
         )}

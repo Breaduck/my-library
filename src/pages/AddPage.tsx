@@ -156,58 +156,48 @@ export default function AddPage() {
                 </div>
               )}
 
-              {/* 나의 기록 — 북베어3 스타일 딥 블루 글래스 */}
+              {/* 나의 기록 — 플레인 화이트 */}
               <div className="rounded-3xl overflow-hidden relative"
                 style={{
-                  background: 'linear-gradient(135deg, #5079E8 0%, #2A4BB8 50%, #15276E 100%)',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.06), 0 24px 60px rgba(35,60,160,0.32)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: '#FFFFFF',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05)',
+                  border: '1px solid rgba(0,0,0,0.05)',
                 }}>
-                <div className="absolute top-0 left-0 w-72 h-72 rounded-full opacity-70 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(190,215,255,0.55) 0%, transparent 65%)', transform: 'translate(-30%, -40%)' }} />
-                <div className="absolute bottom-0 right-0 w-60 h-60 rounded-full opacity-45 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(120,150,255,0.50) 0%, transparent 70%)', transform: 'translate(30%, 40%)' }} />
                 <div className="relative p-5 sm:p-7">
-                  <h2 className="text-[16px] font-semibold text-white tracking-tight" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>나의 기록</h2>
-                  <p className="text-[12px] text-white/70 mt-0.5 mb-5">읽으면서 떠오른 생각을 기록해보세요</p>
+                  <h2 className="text-[18px] font-extrabold text-[#1D1D1F] tracking-tight">나의 기록</h2>
+                  <p className="text-[12.5px] text-[#86848A] mt-1 mb-5">읽으면서 떠오른 생각을 기록해보세요</p>
                   <textarea value={review} onChange={(e) => setReview(e.target.value)}
                     placeholder={REVIEW_PLACEHOLDER}
                     rows={6}
-                    className="w-full px-4 py-3.5 rounded-2xl text-[15px] text-[#1D1D1F] placeholder-[#9A9AA0] outline-none focus:ring-2 transition-all resize-none"
+                    className="w-full px-4 py-3.5 rounded-2xl text-[15px] text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 transition-all resize-none"
                     style={{
                       fontFamily: '"Noto Serif KR", Georgia, "Times New Roman", serif',
-                      background: 'rgba(255,255,255,0.94)',
-                      backdropFilter: 'blur(20px)',
-                      WebkitBackdropFilter: 'blur(20px)',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), inset 0 0 0 1px rgba(255,255,255,0.3), 0 4px 16px rgba(0,0,0,0.08)',
+                      background: '#F9F9FB',
+                      boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)',
                       lineHeight: 1.95,
-                      ['--tw-ring-color' as never]: 'rgba(255,255,255,0.4)',
+                      ['--tw-ring-color' as never]: 'rgba(0,0,0,0.12)',
                     }}
                   />
-                  <p className="text-right text-[10px] text-white/55 mt-2 tracking-wide">{review.length}자</p>
+                  <p className="text-right text-[10px] text-[#AEAEB2] mt-2 tracking-wide">{review.length}자</p>
                 </div>
               </div>
 
-              {/* 인상깊은 구절 — 북베어3 스타일 인디고 글래스 */}
+              {/* 인상깊은 구절 — 플레인 화이트 */}
               <div className="rounded-3xl overflow-hidden relative"
                 style={{
-                  background: 'linear-gradient(135deg, #6F60EE 0%, #4232C2 50%, #1F1880 100%)',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.06), 0 24px 60px rgba(60,40,180,0.30)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: '#FFFFFF',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05)',
+                  border: '1px solid rgba(0,0,0,0.05)',
                 }}>
-                <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-65 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(200,180,255,0.55) 0%, transparent 65%)', transform: 'translate(30%, -40%)' }} />
-                <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full opacity-45 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(150,120,255,0.50) 0%, transparent 70%)', transform: 'translate(-30%, 40%)' }} />
                 <div className="relative p-5 sm:p-7">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="text-[16px] font-semibold text-white tracking-tight" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>인상깊은 구절</h2>
-                      <p className="text-[12px] text-white/70 mt-0.5">밑줄 긋고 싶은 문장을 모아두세요</p>
+                      <h2 className="text-[18px] font-extrabold text-[#1D1D1F] tracking-tight">인상깊은 구절</h2>
+                      <p className="text-[12.5px] text-[#86848A] mt-1">밑줄 긋고 싶은 문장을 모아두세요</p>
                     </div>
                     <button type="button" onClick={addQuote}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/95 hover:bg-white text-[#1D1D1F] text-[12px] font-semibold active:scale-95 transition-all flex-shrink-0"
-                      style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.8)' }}>
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1D1D1F] hover:bg-[#3A3A3C] text-white text-[12px] font-semibold active:scale-95 transition-all flex-shrink-0"
+                      style={{ boxShadow: '0 3px 10px rgba(0,0,0,0.18)' }}>
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
                       구절 추가
                     </button>
@@ -216,10 +206,8 @@ export default function AddPage() {
                     {quotes.map((q, i) => (
                       <div key={i} className="rounded-2xl p-3.5 space-y-2"
                         style={{
-                          background: 'rgba(255,255,255,0.94)',
-                          backdropFilter: 'blur(20px)',
-                          WebkitBackdropFilter: 'blur(20px)',
-                          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), inset 0 0 0 1px rgba(255,255,255,0.3), 0 4px 16px rgba(0,0,0,0.08)',
+                          background: '#F9F9FB',
+                          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)',
                         }}>
                         <div className="flex gap-2 items-start">
                           <textarea value={q.text} onChange={(e) => updateQuote(i, 'text', e.target.value)}

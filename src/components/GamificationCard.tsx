@@ -4,6 +4,18 @@ import { DailyReading } from '@/lib/storage';
 
 const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
+// 업적 메달 링 색 (당근 배지 느낌)
+const TONE_GRADIENTS: Record<string, string> = {
+  gold:   'linear-gradient(140deg, #FDE68A, #F59E0B)',
+  flame:  'linear-gradient(140deg, #FDBA74, #EF4444)',
+  green:  'linear-gradient(140deg, #86EFAC, #16A34A)',
+  blue:   'linear-gradient(140deg, #93C5FD, #2563EB)',
+  cyan:   'linear-gradient(140deg, #A5F3FC, #0891B2)',
+  purple: 'linear-gradient(140deg, #C4B5FD, #7C3AED)',
+  indigo: 'linear-gradient(140deg, #A5B4FC, #4338CA)',
+  amber:  'linear-gradient(140deg, #FCD34D, #D97706)',
+};
+
 interface Props {
   books: Book[];
   dailyReadings: DailyReading[];
@@ -48,27 +60,27 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
       d.setDate(d.getDate() - i);
       const ds = d.toISOString().slice(0, 10);
       const pages = dailyReadings.filter((r) => r.date === ds).reduce((s, r) => s + r.pages, 0);
-      out.push({ label: WEEK_LABELS[d.getDay()], read: pages > 0, isToday: ds === todayStr, pages });
+      out.push({ label: ds === todayStr ? '오늘' : WEEK_LABELS[d.getDay()], read: pages > 0, isToday: ds === todayStr, pages });
     }
     return out;
   })();
   const weekReadCount = weekDays.filter((d) => d.read).length;
   const perfectWeek = weekReadCount === 7;
 
-  // 업적 배지 (12종)
+  // 업적 배지 (12종) — tone: 메달 링 색
   const badges = [
-    { emoji: '🎬', label: '첫 걸음',   desc: '첫 책 완독',       blurb: '첫 책을 끝까지 읽어냈어요. 모든 여정의 시작!',        earned: done.length >= 1 },
-    { emoji: '🔥', label: '3일 연속',  desc: '3일 연속 독서',     blurb: '3일 내리 책을 펼쳤어요. 습관이 붙는 중이에요.',        earned: streak >= 3 },
-    { emoji: '⚡', label: '일주일',    desc: '7일 연속 독서',     blurb: '일주일 내내 독서! 이제 멈출 수 없는 흐름이에요.',       earned: streak >= 7 },
-    { emoji: '🌟', label: '한 달 연속', desc: '30일 연속 독서',    blurb: '30일 연속! 독서가 삶의 일부가 되었어요.',            earned: streak >= 30 },
-    { emoji: '✨', label: '완벽한 한 주', desc: '이번 주 7일 독서',  blurb: '이번 주 7일 모두 책을 폈어요. 완벽한 한 주!',          earned: perfectWeek },
-    { emoji: '📗', label: '책장 채우기', desc: '10권 완독',        blurb: '10권을 완독했어요. 책장이 차곡차곡 채워지는 중.',      earned: done.length >= 10 },
-    { emoji: '🏆', label: '다독가',    desc: '25권 완독',        blurb: '25권 완독! 당신은 이미 소문난 다독가예요.',          earned: done.length >= 25 },
-    { emoji: '💎', label: '다독왕',    desc: '50권 완독',        blurb: '50권 완독. 진정한 다독왕의 반열에 올랐어요.',         earned: done.length >= 50 },
-    { emoji: '⭐', label: '평론가',    desc: '별점 5권 이상',     blurb: '5권에 별점을 남긴 진정한 리뷰어가 되었어요.',          earned: rated.length >= 5 },
-    { emoji: '📜', label: '천 페이지',  desc: '누적 1,000쪽',     blurb: '누적 1,000쪽 돌파! 종이의 무게가 느껴지나요?',        earned: totalPages >= 1000 },
-    { emoji: '🌊', label: '오천 페이지', desc: '누적 5,000쪽',     blurb: '누적 5,000쪽. 페이지의 바다를 헤엄쳐 왔어요.',        earned: totalPages >= 5000 },
-    { emoji: '🌙', label: '만 페이지',  desc: '누적 10,000쪽',    blurb: '누적 10,000쪽. 밤을 잊고 읽어 내려간 독서가.',        earned: totalPages >= 10000 },
+    { emoji: '🎬', label: '첫 걸음',   desc: '첫 책 완독',       tone: 'gold',   blurb: '첫 책을 끝까지 읽어냈어요. 모든 여정의 시작!',        earned: done.length >= 1 },
+    { emoji: '🔥', label: '3일 연속',  desc: '3일 연속 독서',     tone: 'flame',  blurb: '3일 내리 책을 펼쳤어요. 습관이 붙는 중이에요.',        earned: streak >= 3 },
+    { emoji: '⚡', label: '일주일',    desc: '7일 연속 독서',     tone: 'flame',  blurb: '일주일 내내 독서! 이제 멈출 수 없는 흐름이에요.',       earned: streak >= 7 },
+    { emoji: '🌟', label: '한 달 연속', desc: '30일 연속 독서',    tone: 'amber',  blurb: '30일 연속! 독서가 삶의 일부가 되었어요.',            earned: streak >= 30 },
+    { emoji: '✨', label: '완벽한 한 주', desc: '이번 주 7일 독서',  tone: 'purple', blurb: '이번 주 7일 모두 책을 폈어요. 완벽한 한 주!',          earned: perfectWeek },
+    { emoji: '📗', label: '책장 채우기', desc: '10권 완독',        tone: 'green',  blurb: '10권을 완독했어요. 책장이 차곡차곡 채워지는 중.',      earned: done.length >= 10 },
+    { emoji: '🏆', label: '다독가',    desc: '25권 완독',        tone: 'gold',   blurb: '25권 완독! 당신은 이미 소문난 다독가예요.',          earned: done.length >= 25 },
+    { emoji: '💎', label: '다독왕',    desc: '50권 완독',        tone: 'cyan',   blurb: '50권 완독. 진정한 다독왕의 반열에 올랐어요.',         earned: done.length >= 50 },
+    { emoji: '⭐', label: '평론가',    desc: '별점 5권 이상',     tone: 'amber',  blurb: '5권에 별점을 남긴 진정한 리뷰어가 되었어요.',          earned: rated.length >= 5 },
+    { emoji: '📜', label: '천 페이지',  desc: '누적 1,000쪽',     tone: 'blue',   blurb: '누적 1,000쪽 돌파! 종이의 무게가 느껴지나요?',        earned: totalPages >= 1000 },
+    { emoji: '🌊', label: '오천 페이지', desc: '누적 5,000쪽',     tone: 'cyan',   blurb: '누적 5,000쪽. 페이지의 바다를 헤엄쳐 왔어요.',        earned: totalPages >= 5000 },
+    { emoji: '🌙', label: '만 페이지',  desc: '누적 10,000쪽',    tone: 'indigo', blurb: '누적 10,000쪽. 밤을 잊고 읽어 내려간 독서가.',        earned: totalPages >= 10000 },
   ];
   type Badge = typeof badges[number];
   const earnedCount = badges.filter((b) => b.earned).length;
@@ -217,17 +229,26 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
           <p className="text-[13px] font-bold text-[#1D1D1F]">업적</p>
           <p className="text-[11px] font-semibold text-[#6E6E73]">{earnedCount}/{badges.length}</p>
         </div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-y-3 gap-x-2">
           {badges.map((b) => (
             <button key={b.label} onClick={() => setSelectedBadge(b)}
-              className="rounded-2xl py-2.5 px-1 flex flex-col items-center gap-1 transition-all active:scale-95"
-              style={{
-                background: b.earned ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.035)',
-                border: b.earned ? '1px solid rgba(0,0,0,0.05)' : '1px solid transparent',
-                boxShadow: b.earned ? '0 3px 10px rgba(80,90,130,0.10)' : 'none',
-              }}>
-              <span className="text-2xl leading-none" style={{ filter: b.earned ? 'none' : 'grayscale(1)', opacity: b.earned ? 1 : 0.4 }}>{b.emoji}</span>
-              <span className={`text-[9.5px] font-semibold leading-tight text-center ${b.earned ? 'text-[#1D1D1F]' : 'text-[#C7C7CC]'}`}>{b.label}</span>
+              className="flex flex-col items-center gap-1.5 transition-transform active:scale-90">
+              {/* 동그란 메달 */}
+              <div className="w-[52px] h-[52px] rounded-full flex items-center justify-center relative"
+                style={{
+                  background: b.earned ? TONE_GRADIENTS[b.tone] ?? TONE_GRADIENTS.gold : '#EAEAEF',
+                  boxShadow: b.earned
+                    ? 'inset 0 2px 4px rgba(255,255,255,0.55), inset 0 -2px 5px rgba(0,0,0,0.12), 0 5px 12px rgba(80,90,130,0.22)'
+                    : 'inset 0 1px 2px rgba(255,255,255,0.6), inset 0 -1px 3px rgba(0,0,0,0.06)',
+                }}>
+                <span className="text-[26px] leading-none" style={{ filter: b.earned ? 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' : 'grayscale(1)', opacity: b.earned ? 1 : 0.45 }}>{b.emoji}</span>
+                {b.earned && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                    <svg className="w-2.5 h-2.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" /></svg>
+                  </span>
+                )}
+              </div>
+              <span className={`text-[9.5px] font-semibold leading-tight text-center ${b.earned ? 'text-[#1D1D1F]' : 'text-[#AEAEB2]'}`}>{b.label}</span>
             </button>
           ))}
         </div>

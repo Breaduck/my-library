@@ -509,7 +509,7 @@ export default function BookDetailPage() {
             {/* 나의 기록 — Apple 노트 스타일 (플레인 화이트) */}
             <div className="rounded-3xl overflow-hidden relative mb-3 sm:mb-4"
               style={{
-                background: 'linear-gradient(160deg, #FFFFFF 0%, #F5F5F7 100%)',
+                background: '#FFFFFF',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05)',
                 border: '1px solid rgba(0,0,0,0.05)',
               }}>
@@ -584,7 +584,7 @@ export default function BookDetailPage() {
             {/* 인상깊은 구절 — Apple 책갈피 스타일 (플레인 화이트) */}
             <div className="rounded-3xl overflow-hidden relative mb-3 sm:mb-4"
               style={{
-                background: 'linear-gradient(160deg, #FFFFFF 0%, #F5F5F7 100%)',
+                background: '#FFFFFF',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05)',
                 border: '1px solid rgba(0,0,0,0.05)',
               }}>

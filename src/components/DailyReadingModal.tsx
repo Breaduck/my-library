@@ -186,7 +186,7 @@ export default function DailyReadingModal({ readingBook, onClose }: Props) {
                       className="text-[10px] font-medium"
                       style={{ color: isToday ? '#3B7DE8' : '#AEAEB2' }}
                     >
-                      {day.label}
+                      {isToday ? '오늘' : day.label}
                     </p>
                   </div>
                 );
