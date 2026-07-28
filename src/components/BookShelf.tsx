@@ -34,7 +34,7 @@ export default function BookShelf({ books }: Props) {
 
   return (
     <div className="space-y-0">
-      <style>{`@keyframes flipIn{from{transform:translateX(-50%) translateY(-6px) rotateY(-70deg) scale(0.9);opacity:0}to{transform:translateX(-50%) translateY(-6px) rotateY(0) scale(1);opacity:1}}`}</style>
+      <style>{`@keyframes flipIn{from{transform:translateY(-6px) rotateY(-78deg);opacity:0}to{transform:translateY(-6px) rotateY(0);opacity:1}}`}</style>
       {shelves.map((shelf, shelfIdx) => (
         <div key={shelfIdx} className="relative">
           {/* Books row */}
@@ -51,19 +51,21 @@ export default function BookShelf({ books }: Props) {
               // 두께는 얇게(세로 책등)
               const widthVariance = ((book.title.charCodeAt(1) ?? 0) + bookIdx) % 4;
               const spineWidth = 30 + widthVariance * 3;
+              const coverW = Math.round(spineHeight * 0.66);
+              const isFlipped = flippedId === book.id;
 
               return (
-                <div key={book.id} className="flex-shrink-0 relative" style={{ width: spineWidth, height: spineHeight }}>
-                {flippedId === book.id ? (
-                  /* 앞면(표지) — 한 번 더 누르면 상세로 */
+                <div key={book.id} className="flex-shrink-0 relative"
+                  style={{ width: isFlipped ? coverW : spineWidth, height: spineHeight, transition: 'width 0.3s ease', zIndex: isFlipped ? 30 : undefined }}>
+                {isFlipped ? (
+                  /* 앞면(표지) — 주위 책은 옆으로 밀리고, 한 번 더 누르면 상세로 */
                   <Link
                     to={`/book/${book.id}`}
                     title={book.title}
-                    className="absolute left-1/2 bottom-0 rounded overflow-hidden"
+                    className="block w-full h-full rounded overflow-hidden"
                     style={{
-                      width: Math.round(spineHeight * 0.66), height: spineHeight,
-                      transform: 'translateX(-50%) translateY(-6px)', zIndex: 50,
-                      boxShadow: '0 14px 30px rgba(0,0,0,0.42)', animation: 'flipIn 0.28s ease',
+                      transform: 'translateY(-6px)',
+                      boxShadow: '0 14px 30px rgba(0,0,0,0.42)', animation: 'flipIn 0.3s ease',
                       background: book.coverUrl ? '#fff' : gradient,
                     }}
                   >
