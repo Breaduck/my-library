@@ -53,14 +53,18 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
   // 오늘 / 이번 주 독서
   const todayStr = new Date().toISOString().slice(0, 10);
   const todayPages = dailyReadings.filter((r) => r.date === todayStr).reduce((s, r) => s + r.pages, 0);
+  // 이번 주(일~토) 고정 배치 — 오늘 강조, 아직 안 온 날은 흐리게
   const weekDays = (() => {
-    const out: { label: string; read: boolean; isToday: boolean; pages: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    const now = new Date();
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - now.getDay());
+    const out: { label: string; read: boolean; isToday: boolean; isFuture: boolean; pages: number }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sunday);
+      d.setDate(sunday.getDate() + i);
       const ds = d.toISOString().slice(0, 10);
       const pages = dailyReadings.filter((r) => r.date === ds).reduce((s, r) => s + r.pages, 0);
-      out.push({ label: ds === todayStr ? '오늘' : WEEK_LABELS[d.getDay()], read: pages > 0, isToday: ds === todayStr, pages });
+      out.push({ label: WEEK_LABELS[i], read: pages > 0, isToday: ds === todayStr, isFuture: ds > todayStr, pages });
     }
     return out;
   })();
@@ -190,17 +194,17 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
         </div>
         <div className="flex items-center justify-between">
           {weekDays.map((d, i) => (
-            <div key={i} className="flex flex-col items-center gap-1.5">
+            <div key={i} className="flex flex-col items-center gap-1.5" style={{ opacity: d.isFuture ? 0.4 : 1 }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
                 style={{
-                  background: d.read ? 'linear-gradient(135deg,#38BDF8,#3B7DE8)' : 'rgba(0,0,0,0.05)',
-                  border: d.isToday ? '2px solid rgba(59,125,232,0.6)' : '1px solid rgba(0,0,0,0.06)',
+                  background: d.read ? 'linear-gradient(135deg,#38BDF8,#3B7DE8)' : d.isToday ? 'rgba(59,125,232,0.10)' : 'rgba(0,0,0,0.05)',
+                  border: d.isToday ? '2px solid rgba(59,125,232,0.7)' : '1px solid rgba(0,0,0,0.06)',
                   boxShadow: d.read ? '0 3px 10px rgba(59,125,232,0.28)' : 'none',
                 }}>
                 {d.read ? (
                   <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 ) : (
-                  <span className="text-[#C7C7CC] text-[13px] font-bold leading-none">·</span>
+                  <span className="text-[13px] font-bold leading-none" style={{ color: d.isToday ? '#3B7DE8' : '#C7C7CC' }}>·</span>
                 )}
               </div>
               <span className="text-[10px] font-semibold" style={{ color: d.isToday ? '#3B7DE8' : '#AEAEB2' }}>{d.label}</span>
