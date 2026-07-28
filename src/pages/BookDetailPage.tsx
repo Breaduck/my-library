@@ -112,7 +112,9 @@ export default function BookDetailPage() {
   function addPostit() {
     setLivePostits((p) => {
       const color = POSTIT_ORDER[p.length % POSTIT_ORDER.length];
-      return [...p, { id: crypto.randomUUID(), text: '', color }];
+      const now = new Date();
+      const date = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+      return [...p, { id: crypto.randomUUID(), text: '', color, date }];
     });
   }
   function updatePostit(i: number, text: string) {
@@ -560,7 +562,7 @@ export default function BookDetailPage() {
                         const c = POSTIT_COLORS[n.color] ?? POSTIT_COLORS.yellow;
                         const tilt = i % 2 === 0 ? '-1.2deg' : '1.4deg';
                         return (
-                          <div key={n.id} className="relative rounded-xl p-3 pt-3.5"
+                          <div key={n.id} className="relative rounded-xl p-3 pt-3.5 pb-6"
                             style={{ background: c.bg, boxShadow: '0 4px 12px rgba(0,0,0,0.10)', transform: `rotate(${tilt})` }}>
                             <button type="button" onClick={() => removePostit(i)}
                               className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full text-black/25 hover:text-black/50 hover:bg-black/5 transition-colors">
@@ -572,6 +574,9 @@ export default function BookDetailPage() {
                               className="w-full bg-transparent text-[13.5px] font-medium outline-none resize-none placeholder-black/25 pr-4"
                               style={{ color: c.text, fontFamily: '"Noto Sans KR", sans-serif', lineHeight: 1.6 }}
                             />
+                            {n.date && (
+                              <span className="absolute bottom-1.5 right-2.5 text-[9.5px] font-bold tabular-nums" style={{ color: c.text, opacity: 0.5 }}>{n.date}</span>
+                            )}
                           </div>
                         );
                       })}

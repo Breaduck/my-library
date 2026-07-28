@@ -10,6 +10,7 @@ export interface Postit {
   id: string;
   text: string;
   color: string; // 포스트잇 배경색 키 (yellow/pink/blue/green/purple)
+  date?: string; // 작성일 (YYYY.MM.DD)
 }
 
 export interface Book {

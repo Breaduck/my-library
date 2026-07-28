@@ -233,6 +233,18 @@ export default function StatsPage() {
   const calMonthDoneCount = Object.values(calDayBooks).flat().filter((e) => e.done).length;
   const calMonthActiveDays = Object.keys(calDayBooks).length;
 
+  // 완독 책의 '미기록' 페이지를 완독일에 자동 집계 (완독 = 읽은 페이지로 반영)
+  const completionByDate: Record<string, number> = {};
+  books.forEach((b) => {
+    if (b.status !== 'done' || !b.endDate) return;
+    const logged = dailyReadings.filter((r) => r.bookId === b.id).reduce((s, r) => s + r.pages, 0);
+    const remainder = Math.max((b.pages ?? 0) - logged, 0);
+    if (remainder > 0) {
+      const key = b.endDate.slice(0, 10);
+      completionByDate[key] = (completionByDate[key] ?? 0) + remainder;
+    }
+  });
+
   // 일별 페이지 (최근 N일) — 북베어 스타일 막대 차트
   const dailyChart = (() => {
     const out: { date: string; pages: number; label: string; isToday: boolean; book?: Book }[] = [];
@@ -242,7 +254,7 @@ export default function StatsPage() {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
       const dayReadings = dailyReadings.filter((r) => r.date === dateStr);
-      const dayPages = dayReadings.reduce((s, r) => s + r.pages, 0);
+      const dayPages = dayReadings.reduce((s, r) => s + r.pages, 0) + (completionByDate[dateStr] ?? 0);
       const label = i === 0 ? '오늘' : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`;
       const entry = dayReadings[0];
       const book = entry?.bookId ? books.find((b) => b.id === entry.bookId) : undefined;
@@ -738,9 +750,10 @@ export default function StatsPage() {
                       {stack.map((entry, i) => {
                         const p = POS[i];
                         return (
-                          <Link
+                          <button
                             key={entry.book.id}
-                            to={`/book/${entry.book.id}`}
+                            type="button"
+                            onClick={() => setCalSelectedDay(isSelected ? null : day)}
                             title={entry.book.title}
                             className="absolute rounded-md overflow-hidden"
                             style={{
@@ -768,7 +781,7 @@ export default function StatsPage() {
                                 <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" /></svg>
                               </div>
                             )}
-                          </Link>
+                          </button>
                         );
                       })}
                       {dayBooksArr.length > 1 && !expanded && (
@@ -809,16 +822,21 @@ export default function StatsPage() {
 
           {/* Selected day books */}
           {calSelectedDay !== null && calDayBooks[calSelectedDay] && (() => {
-            const dayTotalPages = calDayBooks[calSelectedDay].reduce((s, e) => s + e.pages, 0);
+            // 완독 표시 대신 그날 읽은 쪽수 (기록 없으면 완독 책은 전체 쪽으로 집계)
+            const entries = calDayBooks[calSelectedDay].map((e) => ({
+              book: e.book,
+              shown: e.pages > 0 ? e.pages : (e.done ? (e.book.pages ?? 0) : 0),
+            }));
+            const dayTotalPages = entries.reduce((s, e) => s + e.shown, 0);
             return (
             <div className="mt-4 pt-4 border-t border-[#F5F5F7] space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-[#6E6E73]">{calDisplayMonth + 1}월 {calSelectedDay}일 · 책 {calDayBooks[calSelectedDay].length}권</p>
+                <p className="text-xs font-semibold text-[#6E6E73]">{calDisplayMonth + 1}월 {calSelectedDay}일 · 책 {entries.length}권</p>
                 {dayTotalPages > 0 && (
-                  <p className="text-xs font-bold text-[#3B7DE8]">이 날 {dayTotalPages}쪽 읽음</p>
+                  <p className="text-xs font-bold text-[#3B7DE8]">이 날 {dayTotalPages.toLocaleString()}쪽</p>
                 )}
               </div>
-              {calDayBooks[calSelectedDay].map(({ book, done, pages }) => (
+              {entries.map(({ book, shown }) => (
                 <Link key={book.id} to={`/book/${book.id}`}
                   className="flex items-center gap-3 bg-[#F5F5F7] rounded-xl p-3 active:opacity-70 transition-opacity">
                   <div className="w-9 rounded-lg overflow-hidden flex-shrink-0" style={{ height: 48 }}>
@@ -829,13 +847,11 @@ export default function StatsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[#1D1D1F] truncate">{book.title}</p>
-                    <p className="text-xs text-[#6E6E73] truncate">
-                      {pages > 0 ? <span className="text-[#3B7DE8] font-semibold">{pages}쪽 읽음</span> : book.author}
-                    </p>
+                    <p className="text-xs text-[#6E6E73] truncate">{book.author}</p>
                   </div>
-                  <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${done ? 'text-emerald-600 bg-emerald-100' : 'text-blue-600 bg-blue-100'}`}>
-                    {done ? '완독' : '읽음'}
-                  </span>
+                  {shown > 0 && (
+                    <span className="flex-shrink-0 text-[12px] font-bold text-[#3B7DE8] tabular-nums">{shown.toLocaleString()}쪽</span>
+                  )}
                 </Link>
               ))}
             </div>

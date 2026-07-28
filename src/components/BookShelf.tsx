@@ -22,7 +22,8 @@ interface Props {
 }
 
 export default function BookShelf({ books }: Props) {
-  const [preview, setPreview] = useState<Book | null>(null);
+  // 한 번 누르면 그 자리에서 표지가 보이고(뒤집힘), 한 번 더 누르면 상세로
+  const [flippedId, setFlippedId] = useState<string | null>(null);
   if (books.length === 0) return null;
 
   // Chunk books into shelves of BOOKS_PER_SHELF
@@ -33,6 +34,7 @@ export default function BookShelf({ books }: Props) {
 
   return (
     <div className="space-y-0">
+      <style>{`@keyframes flipIn{from{transform:translateX(-50%) translateY(-6px) rotateY(-70deg) scale(0.9);opacity:0}to{transform:translateX(-50%) translateY(-6px) rotateY(0) scale(1);opacity:1}}`}</style>
       {shelves.map((shelf, shelfIdx) => (
         <div key={shelfIdx} className="relative">
           {/* Books row */}
@@ -51,12 +53,29 @@ export default function BookShelf({ books }: Props) {
               const spineWidth = 30 + widthVariance * 3;
 
               return (
+                <div key={book.id} className="flex-shrink-0 relative" style={{ width: spineWidth, height: spineHeight }}>
+                {flippedId === book.id ? (
+                  /* 앞면(표지) — 한 번 더 누르면 상세로 */
+                  <Link
+                    to={`/book/${book.id}`}
+                    title={book.title}
+                    className="absolute left-1/2 bottom-0 rounded overflow-hidden"
+                    style={{
+                      width: Math.round(spineHeight * 0.66), height: spineHeight,
+                      transform: 'translateX(-50%) translateY(-6px)', zIndex: 50,
+                      boxShadow: '0 14px 30px rgba(0,0,0,0.42)', animation: 'flipIn 0.28s ease',
+                      background: book.coverUrl ? '#fff' : gradient,
+                    }}
+                  >
+                    {book.coverUrl
+                      ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center p-1"><span className="text-white text-[11px] font-bold text-center leading-tight">{book.title}</span></div>}
+                  </Link>
+                ) : (
                 <button
-                  key={book.id}
                   type="button"
-                  onClick={() => setPreview(book)}
-                  className="flex-shrink-0 group relative"
-                  style={{ width: spineWidth }}
+                  onClick={() => setFlippedId(book.id)}
+                  className="group relative w-full h-full"
                   title={`${book.title} — ${book.author}`}
                 >
                   <div
@@ -163,6 +182,8 @@ export default function BookShelf({ books }: Props) {
                     );
                   })()}
                 </button>
+                )}
+                </div>
               );
             })}
 
@@ -195,37 +216,6 @@ export default function BookShelf({ books }: Props) {
           />
         </div>
       ))}
-
-      {/* 표지 미리보기 팝업 — 책등을 누르면 표지가 뜬다 */}
-      {preview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
-          onClick={() => setPreview(null)}>
-          <div className="w-full max-w-[280px] rounded-3xl p-6 text-center relative animate-[pop_0.18s_ease-out]"
-            style={{ background: '#fff', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}
-            onClick={(e) => e.stopPropagation()}>
-            <style>{`@keyframes pop{from{transform:scale(0.9);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
-            <button onClick={() => setPreview(null)}
-              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-[#AEAEB2] hover:bg-[#F5F5F7] transition-colors z-10">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            {/* 표지 */}
-            <div className="mx-auto rounded-xl overflow-hidden mb-4" style={{ width: 150, aspectRatio: '2 / 3', boxShadow: '0 16px 40px rgba(0,0,0,0.28)' }}>
-              {preview.coverUrl
-                ? <img src={preview.coverUrl} alt={preview.title} className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-700"><span className="text-white text-2xl font-black">{preview.title.slice(0, 2)}</span></div>
-              }
-            </div>
-            <h3 className="text-[17px] font-extrabold text-[#1D1D1F] tracking-tight leading-snug px-2">{preview.title}</h3>
-            <p className="text-[13px] text-[#86848A] mt-1">{preview.author}</p>
-            <Link to={`/book/${preview.id}`}
-              className="mt-5 inline-flex items-center justify-center gap-1.5 w-full py-3 rounded-2xl bg-[#1D1D1F] text-white text-sm font-semibold active:scale-[0.98] transition-transform">
-              자세히 보기
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </Link>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
