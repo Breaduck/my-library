@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Book } from '@/types';
 import { useBooks } from '@/hooks/useBooks';
-import { addDailyPages, logDailyPages, getWeeklyPages, getTodayPages, markDailyPopupShown } from '@/lib/storage';
+import { addDailyPages, logDailyPages, getWeeklyPages, getTodayPages, markDailyPopupShown, localDate } from '@/lib/storage';
 
 interface Props {
   readingBook?: Book;
@@ -12,7 +12,7 @@ export default function DailyReadingModal({ readingBook, onClose }: Props) {
   const { updateBook } = useBooks();
   const weekly = getWeeklyPages();
   const maxPages = Math.max(...weekly.map((w) => w.pages), 1);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
 
   const hasBookPages = !!(readingBook && readingBook.pages && readingBook.pages > 0);
   const totalPages = readingBook?.pages ?? 0;

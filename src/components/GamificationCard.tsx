@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Book } from '@/types';
-import { DailyReading } from '@/lib/storage';
+import { DailyReading, localDate } from '@/lib/storage';
 
 const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -51,7 +51,7 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
   const rated = done.filter((b) => b.rating > 0);
 
   // 오늘 / 이번 주 독서
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDate();
   const todayPages = dailyReadings.filter((r) => r.date === todayStr).reduce((s, r) => s + r.pages, 0);
   // 이번 주(일~토) 고정 배치 — 오늘 강조, 아직 안 온 날은 흐리게
   const weekDays = (() => {
@@ -62,7 +62,7 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
     for (let i = 0; i < 7; i++) {
       const d = new Date(sunday);
       d.setDate(sunday.getDate() + i);
-      const ds = d.toISOString().slice(0, 10);
+      const ds = localDate(d);
       const pages = dailyReadings.filter((r) => r.date === ds).reduce((s, r) => s + r.pages, 0);
       out.push({ label: WEEK_LABELS[i], read: pages > 0, isToday: ds === todayStr, isFuture: ds > todayStr, pages });
     }

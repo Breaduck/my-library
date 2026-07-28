@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Book } from '@/types';
-import { getBooks, saveBooks } from '@/lib/storage';
+import { getBooks, saveBooks, addTombstone } from '@/lib/storage';
 
 function migrate(book: Partial<Book>): Book {
   return {
@@ -71,6 +71,7 @@ export function useBooks() {
   }, []);
 
   const deleteBook = useCallback((id: string) => {
+    addTombstone(id); // 삭제 기록 — 병합/동기화에서 되살아나지 않도록
     commitStore(loadStore().filter((b) => b.id !== id));
   }, []);
 

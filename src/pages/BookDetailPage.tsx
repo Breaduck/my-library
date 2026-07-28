@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
+import { localDate } from '@/lib/storage';
 import StarRating from '@/components/StarRating';
 import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
@@ -184,7 +185,7 @@ export default function BookDetailPage() {
     if (!editTitle.trim() || !id) return;
     // 읽음으로 표시했는데 완독일이 비어 있으면 오늘로 자동 채운다 (독서 목표 반영용)
     const resolvedEndDate = editStatus === 'done' && !editEndDate
-      ? new Date().toISOString().slice(0, 10)
+      ? localDate()
       : editEndDate;
     updateBook(id, {
       title: editTitle.trim(),

@@ -2,6 +2,11 @@ import { Book } from '@/types';
 
 const KEY = 'book-tracker';
 
+// 로컬(사용자 시간대) 기준 YYYY-MM-DD — UTC(toISOString) 대신 사용해 '오늘' 경계 오차 방지
+export function localDate(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function getBooks(): Book[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -17,11 +22,50 @@ export function saveBooks(books: Book[]): void {
   window.dispatchEvent(new CustomEvent('books:changed', { detail: books }));
 }
 
+// ── 삭제 툼스톤 (지운 책이 병합/동기화에서 되살아나지 않게) ──────────────
+const TOMB_KEY = 'deleted-book-ids';
+export function getTombstones(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(TOMB_KEY) || '[]'); } catch { return []; }
+}
+export function setTombstones(ids: string[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOMB_KEY, JSON.stringify(Array.from(new Set(ids))));
+}
+export function addTombstone(id: string): void {
+  const t = getTombstones();
+  if (!t.includes(id)) { t.push(id); setTombstones(t); }
+}
+export function removeTombstone(id: string): void {
+  setTombstones(getTombstones().filter((x) => x !== id));
+}
+
+// ── 합집합 병합 (툼스톤 제외, updatedAt 최신 우선) — 절대 책을 잃지 않음 ──
+export function mergeBooks(local: Book[], remote: Book[], tombstones: string[] = []): Book[] {
+  const dead = new Set(tombstones);
+  const byId = new Map<string, Book>();
+  const order: string[] = [];
+  for (const b of local) {
+    if (dead.has(b.id)) continue;
+    if (!byId.has(b.id)) order.push(b.id);
+    byId.set(b.id, b);
+  }
+  for (const b of remote) {
+    if (dead.has(b.id)) continue;
+    const ex = byId.get(b.id);
+    if (!ex) { order.push(b.id); byId.set(b.id, b); continue; }
+    const et = ex.updatedAt ?? ex.createdAt ?? '';
+    const rt = b.updatedAt ?? b.createdAt ?? '';
+    if (rt > et) byId.set(b.id, b);
+  }
+  return order.map((id) => byId.get(id)!);
+}
+
 const DATES_KEY = 'reading-dates';
 
 export function logReadingDate(): void {
   if (typeof window === 'undefined') return;
-  const date = new Date().toISOString().slice(0, 10);
+  const date = localDate();
   const existing: string[] = JSON.parse(localStorage.getItem(DATES_KEY) || '[]');
   if (!existing.includes(date)) {
     existing.push(date);
@@ -34,12 +78,12 @@ export function getReadingStreak(): number {
   const dates: string[] = JSON.parse(localStorage.getItem(DATES_KEY) || '[]');
   if (dates.length === 0) return 0;
   const sorted = [...dates].sort().reverse();
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = localDate();
+  const yesterday = localDate(new Date(Date.now() - 86400000));
   if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
   let streak = 1;
   for (let i = 1; i < sorted.length; i++) {
-    const diff = Math.round((new Date(sorted[i-1]).getTime() - new Date(sorted[i]).getTime()) / 86400000);
+    const diff = Math.round((new Date(sorted[i - 1]).getTime() - new Date(sorted[i]).getTime()) / 86400000);
     if (diff === 1) streak++; else break;
   }
   return streak;
@@ -65,7 +109,7 @@ export function getDailyReadings(): DailyReading[] {
 // pages: replaces today's value for that (book or general) entry.
 export function logDailyPages(pages: number, bookId?: string): void {
   if (typeof window === 'undefined') return;
-  const date = new Date().toISOString().slice(0, 10);
+  const date = localDate();
   const existing = getDailyReadings();
   const idx = existing.findIndex((d) => d.date === date && d.bookId === bookId);
   if (idx >= 0) {
@@ -81,7 +125,7 @@ export function logDailyPages(pages: number, bookId?: string): void {
 // Add `delta` pages to today's entry for the given (or unscoped) bookId.
 export function addDailyPages(delta: number, bookId?: string): void {
   if (delta <= 0) return;
-  const date = new Date().toISOString().slice(0, 10);
+  const date = localDate();
   const existing = getDailyReadings();
   const idx = existing.findIndex((d) => d.date === date && d.bookId === bookId);
   if (idx >= 0) existing[idx].pages += delta;
@@ -91,7 +135,7 @@ export function addDailyPages(delta: number, bookId?: string): void {
 }
 
 export function getTodayPages(bookId?: string): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   const all = getDailyReadings().filter((d) => d.date === today);
   if (bookId === undefined) return all.reduce((s, d) => s + d.pages, 0);
   return all.find((d) => d.bookId === bookId)?.pages ?? 0;
@@ -117,7 +161,7 @@ export function getWeeklyPages(): { date: string; pages: number; label: string }
   const result = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
-    const date = d.toISOString().slice(0, 10);
+    const date = localDate(d);
     const pages = readings.filter((r) => r.date === date).reduce((s, r) => s + r.pages, 0);
     const label = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
     result.push({ date, pages, label });
@@ -127,12 +171,69 @@ export function getWeeklyPages(): { date: string; pages: number; label: string }
 
 export function hasDoneReadingToday(): boolean {
   if (typeof window === 'undefined') return false;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   const lastShown = localStorage.getItem('daily-popup-date');
   return lastShown === today;
 }
 
 export function markDailyPopupShown(): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('daily-popup-date', new Date().toISOString().slice(0, 10));
+  localStorage.setItem('daily-popup-date', localDate());
+}
+
+// ── 백업(내보내기) / 복원(가져오기) ───────────────────────────────────
+export function exportData(): string {
+  const dump = {
+    app: 'my-library',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    books: getBooks(),
+    dailyReadings: getDailyReadings(),
+    readingDates: (() => { try { return JSON.parse(localStorage.getItem(DATES_KEY) || '[]'); } catch { return []; } })(),
+    settings: {
+      readingGoal: localStorage.getItem('reading-goal'),
+      monthlyGoal: localStorage.getItem('reading-goal-monthly'),
+      dailyGoal: localStorage.getItem('daily-page-goal'),
+    },
+  };
+  return JSON.stringify(dump, null, 2);
+}
+
+// mode: 'merge' = 합치기(안전), 'replace' = 통째 교체
+export function importData(json: string, mode: 'merge' | 'replace'): { books: number } {
+  const data = JSON.parse(json);
+  const incoming: Book[] = Array.isArray(data) ? data : (data.books ?? []);
+  if (!Array.isArray(incoming)) throw new Error('올바른 백업 파일이 아니에요');
+
+  const next = mode === 'replace' ? incoming : mergeBooks(getBooks(), incoming, getTombstones());
+  saveBooks(next);
+
+  const dr: DailyReading[] | undefined = Array.isArray(data) ? undefined : data.dailyReadings;
+  if (dr) {
+    if (mode === 'replace') {
+      localStorage.setItem(DAILY_KEY, JSON.stringify(dr));
+    } else {
+      const cur = getDailyReadings();
+      const k = (r: DailyReading) => `${r.date}|${r.bookId ?? ''}`;
+      const map = new Map(cur.map((r) => [k(r), r]));
+      for (const r of dr) if (!map.has(k(r))) map.set(k(r), r);
+      localStorage.setItem(DAILY_KEY, JSON.stringify([...map.values()]));
+    }
+  }
+
+  const rd: string[] | undefined = Array.isArray(data) ? undefined : data.readingDates;
+  if (rd) {
+    const cur = mode === 'replace' ? [] : (() => { try { return JSON.parse(localStorage.getItem(DATES_KEY) || '[]'); } catch { return []; } })();
+    localStorage.setItem(DATES_KEY, JSON.stringify(Array.from(new Set([...cur, ...rd]))));
+  }
+
+  if (!Array.isArray(data) && data.settings && mode === 'replace') {
+    const s = data.settings;
+    if (s.readingGoal) localStorage.setItem('reading-goal', String(s.readingGoal));
+    if (s.monthlyGoal) localStorage.setItem('reading-goal-monthly', String(s.monthlyGoal));
+    if (s.dailyGoal) localStorage.setItem('daily-page-goal', String(s.dailyGoal));
+  }
+
+  window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: getBooks() }));
+  return { books: next.length };
 }

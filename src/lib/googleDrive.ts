@@ -126,21 +126,29 @@ async function findFileId(): Promise<string | null> {
   return data.files?.[0]?.id ?? null;
 }
 
-export async function loadFromDrive(): Promise<unknown[] | null> {
+export interface DrivePayload { books: unknown[]; tombstones: string[] }
+
+export async function loadFromDrive(): Promise<DrivePayload | null> {
   try {
     const fileId = await findFileId();
     if (!fileId) return null;
     const res = await apiFetch(`/drive/v3/files/${fileId}?alt=media`);
     const data: unknown = await res.json();
-    return Array.isArray(data) ? data : null;
+    // 구버전(책 배열) 호환 + 신버전({books, tombstones})
+    if (Array.isArray(data)) return { books: data, tombstones: [] };
+    if (data && typeof data === 'object' && Array.isArray((data as DrivePayload).books)) {
+      const d = data as DrivePayload;
+      return { books: d.books, tombstones: Array.isArray(d.tombstones) ? d.tombstones : [] };
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
-export async function saveToDrive(books: unknown[]): Promise<void> {
+export async function saveToDrive(payload: DrivePayload): Promise<void> {
   const fileId = await findFileId();
-  const body = JSON.stringify(books);
+  const body = JSON.stringify(payload);
 
   if (fileId) {
     await apiFetch(`/upload/drive/v3/files/${fileId}?uploadType=media`, {

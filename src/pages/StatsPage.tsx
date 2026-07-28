@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
 import { Book } from '@/types';
-import { getReadingStreak, getDailyReadings, setDailyPages } from '@/lib/storage';
+import { getReadingStreak, getDailyReadings, setDailyPages, localDate } from '@/lib/storage';
 import MonthlyShareCard from '@/components/MonthlyShareCard';
 import GamificationCard from '@/components/GamificationCard';
 
@@ -248,11 +248,11 @@ export default function StatsPage() {
   // 일별 페이지 (최근 N일) — 북베어 스타일 막대 차트
   const dailyChart = (() => {
     const out: { date: string; pages: number; label: string; isToday: boolean; book?: Book }[] = [];
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDate();
     for (let i = dailyRange - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = localDate(d);
       const dayReadings = dailyReadings.filter((r) => r.date === dateStr);
       const dayPages = dayReadings.reduce((s, r) => s + r.pages, 0) + (completionByDate[dateStr] ?? 0);
       const label = i === 0 ? '오늘' : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`;

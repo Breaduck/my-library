@@ -2,28 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as gd from '@/lib/googleDrive';
 import { Book } from '@/types';
 
+import { mergeBooks, getTombstones, setTombstones } from '@/lib/storage';
+
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 
 function readLocalBooks(): Book[] {
   try { return JSON.parse(localStorage.getItem('book-tracker') || '[]') as Book[]; }
   catch { return []; }
-}
-
-/* 합집합 병합 — 절대 책을 잃지 않는다.
-   같은 id는 updatedAt(없으면 createdAt)이 더 최신인 쪽을 채택.
-   로컬 순서를 유지하고, 원격에만 있는 책을 뒤에 붙인다. */
-function mergeBooks(local: Book[], remote: Book[]): Book[] {
-  const byId = new Map<string, Book>();
-  const order: string[] = [];
-  for (const b of local) { if (!byId.has(b.id)) order.push(b.id); byId.set(b.id, b); }
-  for (const b of remote) {
-    const ex = byId.get(b.id);
-    if (!ex) { order.push(b.id); byId.set(b.id, b); continue; }
-    const et = ex.updatedAt ?? ex.createdAt ?? '';
-    const rt = b.updatedAt ?? b.createdAt ?? '';
-    if (rt > et) byId.set(b.id, b);
-  }
-  return order.map((id) => byId.get(id)!);
 }
 
 export type SyncState = 'idle' | 'connecting' | 'synced' | 'saving' | 'error';
@@ -79,19 +64,19 @@ export function useAuth(): AuthApi {
       const [driveBooks, prof] = await Promise.all([gd.loadFromDrive(), gd.fetchUserProfile()]);
       if (prof) setProfile(prof);
 
-      // ★ 절대 덮어쓰지 않고 합집합 병합 — 로컬/원격 어느 쪽 책도 사라지지 않음
+      // ★ 절대 덮어쓰지 않고 합집합 병합 — 어느 쪽 책도 사라지지 않음. 삭제는 툼스톤으로 반영.
       const local = readLocalBooks();
-      const remote = (driveBooks ?? []) as Book[];
-      const merged = mergeBooks(local, remote);
+      const remote = (driveBooks?.books ?? []) as Book[];
+      const tombs = Array.from(new Set([...getTombstones(), ...(driveBooks?.tombstones ?? [])]));
+      setTombstones(tombs);
+      const merged = mergeBooks(local, remote, tombs);
       const mergedJSON = JSON.stringify(merged);
 
       lastSyncedJSON.current = mergedJSON;
       if (mergedJSON !== JSON.stringify(local)) {
-        // 로컬에 없던(원격) 책이 합쳐졌을 때만 로컬 갱신
         window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: merged }));
       }
-      // 원격이 축소되지 않도록 합쳐진 전체를 업로드
-      await gd.saveToDrive(merged);
+      await gd.saveToDrive({ books: merged, tombstones: tombs });
 
       setLastSync(new Date());
       setState('synced');
@@ -132,7 +117,7 @@ export function useAuth(): AuthApi {
       setState('saving');
       debounceRef.current = setTimeout(async () => {
         try {
-          await gd.saveToDrive(books);
+          await gd.saveToDrive({ books, tombstones: getTombstones() });
           lastSyncedJSON.current = json;
           setLastSync(new Date());
           setState('synced');

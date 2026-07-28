@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBooks } from '@/hooks/useBooks';
 import LoginModal from '@/components/LoginModal';
 import { Book } from '@/types';
+import { exportData, importData, localDate } from '@/lib/storage';
 
 function formatTime(d: Date) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -33,12 +34,13 @@ export default function SettingsPage() {
   const showSyncCard = signedIn || state === 'error';
 
   function handleExport() {
-    const json = JSON.stringify(books, null, 2);
+    // 책 + 일별 기록 + 목표까지 전체 백업
+    const json = exportData();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `my-library-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `my-library-${localDate()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -47,14 +49,13 @@ export default function SettingsPage() {
     if (!file) return;
     try {
       const text = await file.text();
-      const data = JSON.parse(text) as Book[];
-      if (!Array.isArray(data)) throw new Error('형식이 올바르지 않아요');
-      const ok = window.confirm(`${data.length}권을 불러올까요? 현재 책 목록은 덮어써집니다.`);
+      const parsed = JSON.parse(text);
+      const count = Array.isArray(parsed) ? parsed.length : (parsed?.books?.length ?? 0);
+      // 안전 우선: 기존 책은 유지하고 합쳐서(merge) 불러옴 — 어떤 책도 사라지지 않음
+      const ok = window.confirm(`${count}권을 현재 목록에 합쳐서 불러올까요?\n(기존 책은 그대로 유지됩니다)`);
       if (!ok) return;
-      localStorage.setItem('book-tracker', JSON.stringify(data));
-      window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: data }));
-      window.dispatchEvent(new CustomEvent('books:changed', { detail: data }));
-      alert('가져오기 완료');
+      const res = importData(text, 'merge');
+      alert(`가져오기 완료 · 총 ${res.books}권`);
     } catch (e) {
       alert(`가져오기 실패: ${e instanceof Error ? e.message : '알 수 없는 오류'}`);
     }
@@ -170,7 +171,7 @@ export default function SettingsPage() {
               className="w-full flex items-center justify-between px-5 sm:px-6 py-4 hover:bg-[#FAFAFB] active:bg-[#F5F5F7] transition-colors text-left border-t border-[#F5F5F7]">
               <div>
                 <p className="text-sm font-medium text-[#1D1D1F]">JSON으로 내보내기</p>
-                <p className="text-[11px] text-[#AEAEB2] mt-0.5">현재 책 목록을 파일로 다운로드</p>
+                <p className="text-[11px] text-[#AEAEB2] mt-0.5">책·일별 기록·목표 전체를 파일로 백업</p>
               </div>
               <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -180,7 +181,7 @@ export default function SettingsPage() {
               className="w-full flex items-center justify-between px-5 sm:px-6 py-4 hover:bg-[#FAFAFB] active:bg-[#F5F5F7] transition-colors text-left border-t border-[#F5F5F7]">
               <div>
                 <p className="text-sm font-medium text-[#1D1D1F]">JSON에서 가져오기</p>
-                <p className="text-[11px] text-[#AEAEB2] mt-0.5">백업 파일로 복원 (현재 목록 덮어씀)</p>
+                <p className="text-[11px] text-[#AEAEB2] mt-0.5">백업 파일을 현재 목록에 합쳐서 복원(안전)</p>
               </div>
               <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
