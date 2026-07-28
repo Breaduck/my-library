@@ -187,6 +187,11 @@ export default function BookDetailPage() {
     const resolvedEndDate = editStatus === 'done' && !editEndDate
       ? localDate()
       : editEndDate;
+    // 페이지 값 검증 — 음수/과대값 방지, 현재 페이지는 총 페이지 이내로 클램프
+    const pagesNum = editPages ? Math.min(Math.max(parseInt(editPages) || 0, 0), 99999) || undefined : undefined;
+    const curNum = editCurrentPage
+      ? Math.min(Math.max(parseInt(editCurrentPage) || 0, 0), pagesNum ?? 99999) || undefined
+      : undefined;
     updateBook(id, {
       title: editTitle.trim(),
       author: editAuthor.trim(),
@@ -195,8 +200,8 @@ export default function BookDetailPage() {
       startDate: editStartDate,
       endDate: resolvedEndDate,
       rating: editRating,
-      pages: editPages ? parseInt(editPages) : undefined,
-      currentPage: editCurrentPage ? parseInt(editCurrentPage) : undefined,
+      pages: pagesNum,
+      currentPage: curNum,
     });
     setIsEditing(false);
   }

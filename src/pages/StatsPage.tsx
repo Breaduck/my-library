@@ -222,6 +222,8 @@ export default function StatsPage() {
   const rated = done.filter((b) => b.rating > 0);
   const avgRating = rated.length > 0 ? (rated.reduce((s, b) => s + b.rating, 0) / rated.length).toFixed(1) : null;
   const totalReadingTime = books.reduce((acc, b) => acc + (b.totalReadingTime ?? 0), 0);
+  const totalDonePages = done.filter((b) => b.pages).reduce((s, b) => s + (b.pages ?? 0), 0);
+  const pagesPerHour = totalReadingTime > 0 && totalDonePages > 0 ? Math.round(totalDonePages / (totalReadingTime / 3600)) : null;
   const recent = [...done].sort((a, b) => (b.endDate || b.createdAt).localeCompare(a.endDate || a.createdAt)).slice(0, 5);
   const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
@@ -494,6 +496,9 @@ export default function StatsPage() {
                 <p className="text-xs text-white/50">총 독서 시간</p>
               </div>
               <p className="text-xl font-bold text-white leading-tight">{fmtTime(totalReadingTime)}</p>
+              {pagesPerHour && (
+                <p className="text-white/45 text-[11px] mt-1">평균 속도 시간당 약 {pagesPerHour.toLocaleString()}쪽</p>
+              )}
             </div>
           )}
         </div>
