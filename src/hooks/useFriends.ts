@@ -2,6 +2,25 @@ import { useState, useCallback, useEffect } from 'react';
 import * as social from '@/lib/social';
 import { FriendsData, SharedBook, CommentEntry } from '@/lib/social';
 
+export function usePendingRequestCount(active: boolean) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    const load = () => {
+      social.listFriends()
+        .then((d) => { if (!cancelled) setCount(d.incoming.length); })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener('focus', load);
+    return () => { cancelled = true; window.removeEventListener('focus', load); };
+  }, [active]);
+
+  return count;
+}
+
 export function useFriends(active: boolean) {
   const [data, setData] = useState<FriendsData>({ friends: [], incoming: [], outgoing: [] });
   const [loading, setLoading] = useState(false);

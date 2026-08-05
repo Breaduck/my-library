@@ -4,8 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBooks } from '@/hooks/useBooks';
 import LoginModal from '@/components/LoginModal';
 import { Book } from '@/types';
-import { exportData, importData, localDate } from '@/lib/storage';
+import { exportData, importData, localDate, getVisibility, setVisibility, Visibility, getSharedBookIds, toggleSharedBookId } from '@/lib/storage';
 import { resizeImageFile } from '@/lib/image';
+
+const VISIBILITY_OPTIONS: { key: Visibility; label: string; desc: string }[] = [
+  { key: 'private', label: '나만 보기', desc: '친구에게 내 책과 평점을 전혀 보여주지 않아요' },
+  { key: 'all', label: '전체 공개', desc: '모든 책과 평점을 친구에게 보여줘요' },
+  { key: 'select', label: '일부 공개', desc: '직접 선택한 책만 친구에게 보여줘요' },
+];
 
 function formatTime(d: Date) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -33,8 +39,20 @@ export default function SettingsPage() {
   const [avatarError, setAvatarError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarFileRef = useRef<HTMLInputElement>(null);
+  const [visibility, setVisibilityState] = useState<Visibility>(() => getVisibility());
+  const [sharedIds, setSharedIdsState] = useState<string[]>(() => getSharedBookIds());
 
   const showSyncCard = signedIn;
+
+  function handleVisibilityChange(v: Visibility) {
+    setVisibility(v);
+    setVisibilityState(v);
+  }
+
+  function handleToggleShared(bookId: string, shared: boolean) {
+    toggleSharedBookId(bookId, shared);
+    setSharedIdsState(getSharedBookIds());
+  }
   const hasCustomPicture = !!avatarUrl && avatarUrl !== profile?.picture;
 
   async function handleAvatarPick(file: File | null | undefined) {
@@ -200,6 +218,43 @@ export default function SettingsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
+          )}
+
+          {signedIn && (
+            <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
+              <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] mb-3">독서 기록 공개 범위</h2>
+              <div className="space-y-2">
+                {VISIBILITY_OPTIONS.map((opt) => (
+                  <button key={opt.key} onClick={() => handleVisibilityChange(opt.key)}
+                    className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${visibility === opt.key ? 'bg-[#F0F6FF]' : 'hover:bg-[#FAFAFB]'}`}>
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${visibility === opt.key ? 'border-[#0071E3]' : 'border-[#D1D1D6]'}`}>
+                      {visibility === opt.key && <div className="w-2 h-2 rounded-full bg-[#0071E3]" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[#1D1D1F]">{opt.label}</p>
+                      <p className="text-[11px] text-[#AEAEB2] mt-0.5">{opt.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {visibility === 'select' && (
+                <div className="mt-3 pt-3 border-t border-[#F5F5F7] max-h-64 overflow-y-auto space-y-1">
+                  {books.length === 0 ? (
+                    <p className="text-xs text-[#AEAEB2] text-center py-3">등록된 책이 없어요</p>
+                  ) : (
+                    books.map((b) => (
+                      <label key={b.id} className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[#FAFAFB] cursor-pointer">
+                        <input type="checkbox" checked={sharedIds.includes(b.id)}
+                          onChange={(e) => handleToggleShared(b.id, e.target.checked)}
+                          className="w-4 h-4 rounded accent-[#0071E3] flex-shrink-0" />
+                        <span className="text-sm text-[#1D1D1F] truncate">{b.title}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* 동기화 카드 */}

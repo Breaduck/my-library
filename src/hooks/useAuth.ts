@@ -3,7 +3,7 @@ import * as gd from '@/lib/googleDrive';
 import * as social from '@/lib/social';
 import { Book } from '@/types';
 
-import { mergeBooks, getTombstones, setTombstones } from '@/lib/storage';
+import { mergeBooks, getTombstones, setTombstones, filterSharedBooks } from '@/lib/storage';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const CUSTOM_PICTURE_KEY = 'social-custom-picture';
@@ -124,7 +124,7 @@ export function useAuth(): AuthApi {
           .then((p) => { setCustomPicture(p.customPicture || null); setCachedCustomPicture(p.customPicture || null); })
           .catch(() => {});
       }
-      social.syncMyBooks(merged).catch(() => {});
+      social.syncMyBooks(filterSharedBooks(merged)).catch(() => {});
 
       setLastSync(new Date());
       setState('synced');
@@ -174,7 +174,7 @@ export function useAuth(): AuthApi {
       debounceRef.current = setTimeout(async () => {
         try {
           await gd.saveToDrive({ books, tombstones: getTombstones() });
-          social.syncMyBooks(books).catch(() => {});
+          social.syncMyBooks(filterSharedBooks(books)).catch(() => {});
           lastSyncedJSON.current = json;
           setLastSync(new Date());
           setState('synced');
@@ -191,6 +191,14 @@ export function useAuth(): AuthApi {
       window.removeEventListener('books:changed', handler);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+  }, [signedIn]);
+
+  // 공개 범위(나만 보기/전체/일부) 설정이 바뀌면 즉시 친구용 백엔드에 다시 반영
+  useEffect(() => {
+    if (!signedIn) return;
+    const handler = () => { social.syncMyBooks(filterSharedBooks(readLocalBooks())).catch(() => {}); };
+    window.addEventListener('visibility:changed', handler);
+    return () => window.removeEventListener('visibility:changed', handler);
   }, [signedIn]);
 
   const signIn = useCallback(() => {

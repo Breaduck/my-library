@@ -181,6 +181,49 @@ export function markDailyPopupShown(): void {
   localStorage.setItem('daily-popup-date', localDate());
 }
 
+// ── 독서 기록 공개 범위 (친구 기능용) ──────────────────────────────────
+export type Visibility = 'private' | 'all' | 'select';
+const VISIBILITY_KEY = 'reading-visibility';
+const SHARED_IDS_KEY = 'shared-book-ids';
+
+export function getVisibility(): Visibility {
+  if (typeof window === 'undefined') return 'all';
+  const v = localStorage.getItem(VISIBILITY_KEY);
+  return v === 'private' || v === 'select' ? v : 'all';
+}
+
+export function setVisibility(v: Visibility): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(VISIBILITY_KEY, v);
+  window.dispatchEvent(new CustomEvent('visibility:changed'));
+}
+
+export function getSharedBookIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(SHARED_IDS_KEY) || '[]'); } catch { return []; }
+}
+
+export function setSharedBookIds(ids: string[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SHARED_IDS_KEY, JSON.stringify(Array.from(new Set(ids))));
+  window.dispatchEvent(new CustomEvent('visibility:changed'));
+}
+
+export function toggleSharedBookId(id: string, shared: boolean): void {
+  const ids = new Set(getSharedBookIds());
+  if (shared) ids.add(id); else ids.delete(id);
+  setSharedBookIds(Array.from(ids));
+}
+
+// 공개 범위 설정에 따라 친구에게 동기화할 책만 걸러냄
+export function filterSharedBooks(books: Book[]): Book[] {
+  const v = getVisibility();
+  if (v === 'private') return [];
+  if (v === 'all') return books;
+  const ids = new Set(getSharedBookIds());
+  return books.filter((b) => ids.has(b.id));
+}
+
 // ── 백업(내보내기) / 복원(가져오기) ───────────────────────────────────
 export function exportData(): string {
   const dump = {
