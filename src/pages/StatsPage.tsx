@@ -101,6 +101,7 @@ export default function StatsPage() {
   const [isDailyEditing, setIsDailyEditing] = useState(false);
   const [editingDayDate, setEditingDayDate] = useState<string | null>(null);
   const [editDayInput, setEditDayInput] = useState('');
+  const [tappedDate, setTappedDate] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('reading-goal');
@@ -511,7 +512,7 @@ export default function StatsPage() {
               {!isDailyEditing && (
                 <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-[#F5F5F7]">
                   {[14, 30, 60].map((n) => (
-                    <button key={n} onClick={() => { setDailyRange(n); setEditingDayDate(null); }}
+                    <button key={n} onClick={() => { setDailyRange(n); setEditingDayDate(null); setTappedDate(null); }}
                       className="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all"
                       style={{ background: dailyRange === n ? '#fff' : 'transparent', color: dailyRange === n ? '#1D1D1F' : '#AEAEB2', boxShadow: dailyRange === n ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
                       {n}일
@@ -542,26 +543,30 @@ export default function StatsPage() {
             <div className="flex items-end justify-between overflow-x-auto" style={{ height: 140, gap: dailyRange <= 14 ? 6 : dailyRange <= 30 ? 3 : 1.5 }}>
               {dailyChart.map((d, i) => {
                 const h = d.pages > 0 ? Math.max((d.pages / maxDaily) * 96 + 14, 18) : 4;
-                const showNum = dailyRange <= 14;
+                const isTapped = tappedDate === d.date;
+                const showNum = dailyRange <= 14 || isTapped;
                 const barMax = dailyRange <= 14 ? 26 : dailyRange <= 30 ? 14 : 8;
                 const labelStep = dailyRange <= 14 ? 1 : dailyRange <= 30 ? 5 : 10;
-                const showLabel = d.isToday || i % labelStep === 0;
+                const showLabel = d.isToday || i % labelStep === 0 || isTapped;
                 const isEditSelected = isDailyEditing && editingDayDate === d.date;
                 return (
                   <button
                     key={d.date}
-                    className={`flex-1 flex flex-col items-center gap-2 outline-none min-w-0 ${isDailyEditing ? 'cursor-pointer' : 'cursor-default'}`}
+                    className="flex-1 flex flex-col items-center gap-2 outline-none min-w-0 cursor-pointer"
                     title={`${d.label} · ${d.pages}p${d.book ? ` (${d.book.title})` : ''}`}
-                    disabled={!isDailyEditing}
                     onClick={() => {
-                      setEditingDayDate(d.date);
-                      setEditDayInput(String(d.pages || ''));
+                      if (isDailyEditing) {
+                        setEditingDayDate(d.date);
+                        setEditDayInput(String(d.pages || ''));
+                      } else {
+                        setTappedDate((cur) => (cur === d.date ? null : d.date));
+                      }
                     }}
                   >
                     <div className="w-full flex flex-col items-center justify-end" style={{ height: 118 }}>
-                      {showNum && d.pages > 0 && (
+                      {showNum && (d.pages > 0 || isTapped) && (
                         <span className="text-[11px] font-bold mb-1 leading-none transition-colors"
-                          style={{ color: isEditSelected ? '#6366F1' : d.isToday ? '#3B7DE8' : '#6E6E73' }}>
+                          style={{ color: isEditSelected || isTapped ? '#6366F1' : d.isToday ? '#3B7DE8' : '#6E6E73' }}>
                           {d.pages}p
                         </span>
                       )}
@@ -569,7 +574,7 @@ export default function StatsPage() {
                         className="w-full rounded-lg transition-all duration-500"
                         style={{
                           height: h,
-                          background: isEditSelected
+                          background: isEditSelected || isTapped
                             ? 'linear-gradient(180deg, #818CF8, #6366F1)'
                             : d.isToday
                             ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)'
@@ -578,14 +583,14 @@ export default function StatsPage() {
                             : '#F0F0F5',
                           minHeight: 4,
                           maxWidth: barMax,
-                          boxShadow: isEditSelected
+                          boxShadow: isEditSelected || isTapped
                             ? '0 4px 12px rgba(99,102,241,0.3)'
                             : d.isToday ? '0 4px 12px rgba(59,125,232,0.25)' : 'none',
                         }}
                       />
                     </div>
                     <p className="text-[9.5px] font-semibold leading-tight whitespace-nowrap"
-                      style={{ color: isEditSelected ? '#6366F1' : d.isToday ? '#3B7DE8' : '#AEAEB2', visibility: showLabel ? 'visible' : 'hidden' }}>
+                      style={{ color: isEditSelected || isTapped ? '#6366F1' : d.isToday ? '#3B7DE8' : '#AEAEB2', visibility: showLabel ? 'visible' : 'hidden' }}>
                       {d.isToday ? '오늘' : d.label}
                     </p>
                   </button>
