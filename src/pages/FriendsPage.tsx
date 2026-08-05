@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
-import { FriendEntry } from '@/lib/social';
+import { FriendEntry, lookupByNickname } from '@/lib/social';
 
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
@@ -21,10 +21,14 @@ function Avatar({ name, picture, size = 44 }: { name: string; picture: string; s
 export default function FriendsPage() {
   const { signedIn } = useAuth();
   const { friends, incoming, outgoing, loading, error, invite, accept, decline } = useFriends(signedIn);
+  const [inviteMode, setInviteMode] = useState<'email' | 'nickname'>('email');
   const [email, setEmail] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteMsg, setInviteMsg] = useState('');
   const [busyEmail, setBusyEmail] = useState<string | null>(null);
+  const [nickname, setNickname] = useState('');
+  const [nicknameResults, setNicknameResults] = useState<FriendEntry[] | null>(null);
+  const [nicknameBusy, setNicknameBusy] = useState(false);
 
   async function handleInvite() {
     const target = email.trim();
@@ -39,6 +43,30 @@ export default function FriendsPage() {
       setInviteMsg('요청을 보내지 못했어요. 이메일을 확인해주세요');
     } finally {
       setInviteBusy(false);
+    }
+  }
+
+  async function handleNicknameSearch() {
+    const n = nickname.trim();
+    if (!n) return;
+    setNicknameBusy(true);
+    setNicknameResults(null);
+    try {
+      setNicknameResults(await lookupByNickname(n));
+    } catch {
+      setNicknameResults([]);
+    } finally {
+      setNicknameBusy(false);
+    }
+  }
+
+  async function handleInviteFromSearch(target: string) {
+    setBusyEmail(target);
+    try {
+      await invite(target);
+      setNicknameResults((prev) => prev?.filter((u) => u.email !== target) ?? null);
+    } finally {
+      setBusyEmail(null);
     }
   }
 
@@ -70,25 +98,79 @@ export default function FriendsPage() {
           <div className="space-y-4">
             {/* 초대 */}
             <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
-              <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] mb-3">친구 초대</h2>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleInvite())}
-                  placeholder="친구의 구글 이메일 주소"
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all"
-                />
-                <button onClick={handleInvite} disabled={inviteBusy || !email.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
-                  초대
-                </button>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2]">친구 초대</h2>
+                <div className="inline-flex p-0.5 rounded-lg gap-0.5" style={{ background: 'rgba(120,120,128,0.12)' }}>
+                  {(['email', 'nickname'] as const).map((m) => (
+                    <button key={m} onClick={() => setInviteMode(m)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${inviteMode === m ? 'bg-white text-[#1D1D1F] shadow-sm' : 'text-[#6E6E73]'}`}>
+                      {m === 'email' ? '이메일' : '닉네임'}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {inviteMsg && <p className="text-[11px] text-[#6E6E73] mt-2">{inviteMsg}</p>}
-              <p className="text-[11px] text-[#AEAEB2] mt-2 leading-relaxed">
-                친구가 이 이메일로 로그인한 적이 있어야 요청을 받을 수 있어요. 서로 초대하면 바로 친구가 돼요.
-              </p>
+
+              {inviteMode === 'email' ? (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleInvite())}
+                      placeholder="친구의 구글 이메일 주소"
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all"
+                    />
+                    <button onClick={handleInvite} disabled={inviteBusy || !email.trim()}
+                      className="px-4 py-2.5 rounded-xl bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
+                      초대
+                    </button>
+                  </div>
+                  {inviteMsg && <p className="text-[11px] text-[#6E6E73] mt-2">{inviteMsg}</p>}
+                  <p className="text-[11px] text-[#AEAEB2] mt-2 leading-relaxed">
+                    친구가 이 이메일로 로그인한 적이 있어야 요청을 받을 수 있어요. 서로 초대하면 바로 친구가 돼요.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleNicknameSearch())}
+                      placeholder="친구의 닉네임 (정확히 입력)"
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all"
+                    />
+                    <button onClick={handleNicknameSearch} disabled={nicknameBusy || !nickname.trim()}
+                      className="px-4 py-2.5 rounded-xl bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
+                      찾기
+                    </button>
+                  </div>
+                  {nicknameResults !== null && (
+                    <div className="mt-3 space-y-1.5">
+                      {nicknameResults.length === 0 ? (
+                        <p className="text-[11px] text-[#AEAEB2] text-center py-2">일치하는 닉네임이 없어요</p>
+                      ) : (
+                        nicknameResults.map((u) => (
+                          <div key={u.email} className="flex items-center gap-3 p-2 rounded-lg bg-[#FAFAFB]">
+                            <Avatar name={u.name} picture={u.picture} size={32} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1D1D1F] truncate">{u.name}</p>
+                            </div>
+                            <button disabled={busyEmail === u.email} onClick={() => handleInviteFromSearch(u.email)}
+                              className="px-3 py-1 rounded-full bg-[#1D1D1F] text-white text-[11px] font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors">
+                              초대
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-[#AEAEB2] mt-2 leading-relaxed">
+                    닉네임은 설정 페이지에서 지정한 경우에만 검색돼요.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* 받은 요청 */}

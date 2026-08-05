@@ -49,13 +49,16 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
 
 let _token: string | null = null;
 let _tokenClient: unknown = null;
+let _tokenExpiresAt: number | null = null;
 
 export function getToken() { return _token; }
+export function getTokenExpiresAt() { return _tokenExpiresAt; }
 
 // 액세스 토큰(수명 ~1시간, 휘발성)과 "로그인 기억" 플래그를 분리한다.
 // 토큰이 만료돼도 remembered는 유지 → 다음 로드에서 조용히 재연결(로그아웃처럼 보이지 않음).
-function setToken(t: string | null) {
+function setToken(t: string | null, expiresInSec?: number) {
   _token = t;
+  _tokenExpiresAt = t && expiresInSec ? Date.now() + expiresInSec * 1000 : null;
   if (t) localStorage.setItem(WAS_SIGNED_IN_KEY, '1');
   // t === null 일 때는 기억 플래그를 지우지 않는다 (만료일 뿐 로그아웃 아님).
 }
@@ -79,9 +82,9 @@ export function initTokenClient(
   _tokenClient = g.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope: SCOPES,
-    callback: (response: { access_token?: string; error?: string }) => {
+    callback: (response: { access_token?: string; error?: string; expires_in?: number }) => {
       if (response.error || !response.access_token) { onError(); return; }
-      setToken(response.access_token);
+      setToken(response.access_token, response.expires_in);
       onSuccess(response.access_token);
     },
     error_callback: onError,

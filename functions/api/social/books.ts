@@ -9,6 +9,9 @@ interface SharedBookRow {
   cover_url: string | null;
   status: string | null;
   rating: number | null;
+  current_page: number | null;
+  pages: number | null;
+  review: string | null;
   updated_at: string | null;
 }
 
@@ -19,6 +22,9 @@ interface SyncBook {
   coverUrl: string;
   status: string;
   rating: number;
+  currentPage?: number;
+  pages?: number;
+  review?: string;
   updatedAt?: string;
 }
 
@@ -42,7 +48,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const { results } = await env.DB.prepare(
-    'SELECT book_id, title, author, cover_url, status, rating, updated_at FROM shared_books WHERE email = ? ORDER BY updated_at DESC'
+    'SELECT book_id, title, author, cover_url, status, rating, current_page, pages, review, updated_at FROM shared_books WHERE email = ? ORDER BY updated_at DESC'
   ).bind(target).all<SharedBookRow>();
 
   return json({
@@ -53,6 +59,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       coverUrl: r.cover_url ?? '',
       status: r.status ?? '',
       rating: r.rating ?? 0,
+      currentPage: r.current_page ?? 0,
+      pages: r.pages ?? 0,
+      review: r.review ?? '',
       updatedAt: r.updated_at ?? '',
     })),
   });
@@ -71,9 +80,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     if (!b?.id || !b.title) continue;
     statements.push(
       db.prepare(
-        `INSERT INTO shared_books (email, book_id, title, author, cover_url, status, rating, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(me, b.id, b.title, b.author ?? '', b.coverUrl ?? '', b.status ?? '', b.rating ?? 0, b.updatedAt ?? new Date().toISOString())
+        `INSERT INTO shared_books (email, book_id, title, author, cover_url, status, rating, current_page, pages, review, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        me, b.id, b.title, b.author ?? '', b.coverUrl ?? '', b.status ?? '', b.rating ?? 0,
+        b.currentPage ?? 0, b.pages ?? 0, b.review ?? '', b.updatedAt ?? new Date().toISOString()
+      )
     );
   }
   await db.batch(statements);

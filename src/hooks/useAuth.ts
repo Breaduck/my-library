@@ -3,15 +3,21 @@ import * as gd from '@/lib/googleDrive';
 import * as social from '@/lib/social';
 import { Book } from '@/types';
 
-import { mergeBooks, getTombstones, setTombstones, filterSharedBooks } from '@/lib/storage';
+import { mergeBooks, getTombstones, setTombstones, prepareSharedBooks, computeReadingStats, getShareStats } from '@/lib/storage';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const CUSTOM_PICTURE_KEY = 'social-custom-picture';
+const CUSTOM_NAME_KEY = 'social-custom-name';
 const OWNER_KEY = 'book-tracker-owner';
 
 function readLocalBooks(): Book[] {
   try { return JSON.parse(localStorage.getItem('book-tracker') || '[]') as Book[]; }
   catch { return []; }
+}
+
+function syncStats(books: Book[]) {
+  if (getShareStats()) social.syncMyStats(computeReadingStats(books)).catch(() => {});
+  else social.clearMyStats().catch(() => {});
 }
 
 // 이 브라우저에 로컬 저장된 책이 어느 구글 계정 소유인지 추적.
@@ -38,6 +44,17 @@ function setCachedCustomPicture(v: string | null) {
   else localStorage.removeItem(CUSTOM_PICTURE_KEY);
 }
 
+function getCachedCustomName(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(CUSTOM_NAME_KEY) || null;
+}
+
+function setCachedCustomName(v: string | null) {
+  if (typeof window === 'undefined') return;
+  if (v) localStorage.setItem(CUSTOM_NAME_KEY, v);
+  else localStorage.removeItem(CUSTOM_NAME_KEY);
+}
+
 export type SyncState = 'idle' | 'connecting' | 'synced' | 'saving' | 'error';
 
 interface AuthApi {
@@ -47,7 +64,9 @@ interface AuthApi {
   profile: gd.UserProfile | null;
   lastSync: Date | null;
   avatarUrl: string;
+  displayName: string;
   updateCustomPicture: (dataUrl: string | null) => Promise<void>;
+  updateCustomName: (name: string | null) => Promise<void>;
   signIn: () => void;
   signOut: () => void;
   syncNow: () => Promise<void>;
@@ -76,11 +95,14 @@ function ensureGis(): Promise<void> {
 }
 
 export function useAuth(): AuthApi {
-  // 이미 이 세션에 토큰이 있으면(SPA 네비게이션) 곧바로 로그인 상태로 시작 → 화면 이동마다 로그인 요구 안 함
-  const [state, setState] = useState<SyncState>(() => (gd.getToken() ? 'synced' : 'idle'));
+  // 이미 토큰이 있으면(SPA 네비게이션) 곧바로 synced로 시작. 토큰은 없지만 이전에 로그인한
+  // 적이 있다면(새로고침 등으로 메모리상 토큰만 날아간 경우) idle이 아니라 connecting으로 시작해서
+  // "로그인 안 됨" 화면이 잠깐이라도 깜빡이지 않게 한다 — 재연결은 아래 effect가 조용히 처리.
+  const [state, setState] = useState<SyncState>(() => (gd.getToken() ? 'synced' : gd.wasSignedIn() ? 'connecting' : 'idle'));
   const [profile, setProfile] = useState<gd.UserProfile | null>(() => gd.getCachedProfile());
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [customPicture, setCustomPicture] = useState<string | null>(() => getCachedCustomPicture());
+  const [customName, setCustomName] = useState<string | null>(() => getCachedCustomName());
   const tokenClientReady = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedJSON = useRef('');
@@ -121,10 +143,14 @@ export function useAuth(): AuthApi {
       // 친구 기능용 백엔드 동기화(실패해도 Drive 백업엔 영향 없음)
       if (prof) {
         social.saveProfile({ name: prof.name, googlePicture: prof.picture })
-          .then((p) => { setCustomPicture(p.customPicture || null); setCachedCustomPicture(p.customPicture || null); })
+          .then((p) => {
+            setCustomPicture(p.customPicture || null); setCachedCustomPicture(p.customPicture || null);
+            setCustomName(p.customName || null); setCachedCustomName(p.customName || null);
+          })
           .catch(() => {});
       }
-      social.syncMyBooks(filterSharedBooks(merged)).catch(() => {});
+      social.syncMyBooks(prepareSharedBooks(merged)).catch(() => {});
+      syncStats(merged);
 
       setLastSync(new Date());
       setState('synced');
@@ -162,6 +188,17 @@ export function useAuth(): AuthApi {
     return () => { cancelled = true; };
   }, [enabled, onSignInSuccess]);
 
+  // 액세스 토큰(수명 ~1시간)이 만료되기 전에 미리 조용히 갱신 — "동기화" 버튼을 눌렀을 때
+  // 토큰이 이미 죽어 있어서 로그인 팝업이 뜨는 상황을 줄인다.
+  useEffect(() => {
+    if (state !== 'synced') return;
+    const expiresAt = gd.getTokenExpiresAt();
+    if (!expiresAt) return;
+    const delay = Math.max(expiresAt - Date.now() - 5 * 60 * 1000, 60 * 1000);
+    const timer = setTimeout(() => gd.requestAccess(''), delay);
+    return () => clearTimeout(timer);
+  }, [state, lastSync]);
+
   // Sync local book changes up to Drive (debounced)
   useEffect(() => {
     if (!signedIn) return;
@@ -174,7 +211,8 @@ export function useAuth(): AuthApi {
       debounceRef.current = setTimeout(async () => {
         try {
           await gd.saveToDrive({ books, tombstones: getTombstones() });
-          social.syncMyBooks(filterSharedBooks(books)).catch(() => {});
+          social.syncMyBooks(prepareSharedBooks(books)).catch(() => {});
+          syncStats(books);
           lastSyncedJSON.current = json;
           setLastSync(new Date());
           setState('synced');
@@ -196,7 +234,11 @@ export function useAuth(): AuthApi {
   // 공개 범위(나만 보기/전체/일부) 설정이 바뀌면 즉시 친구용 백엔드에 다시 반영
   useEffect(() => {
     if (!signedIn) return;
-    const handler = () => { social.syncMyBooks(filterSharedBooks(readLocalBooks())).catch(() => {}); };
+    const handler = () => {
+      const books = readLocalBooks();
+      social.syncMyBooks(prepareSharedBooks(books)).catch(() => {});
+      syncStats(books);
+    };
     window.addEventListener('visibility:changed', handler);
     return () => window.removeEventListener('visibility:changed', handler);
   }, [signedIn]);
@@ -216,6 +258,8 @@ export function useAuth(): AuthApi {
     lastSyncedJSON.current = '';
     setCustomPicture(null);
     setCachedCustomPicture(null);
+    setCustomName(null);
+    setCachedCustomName(null);
     setState('idle');
   }, []);
 
@@ -233,7 +277,14 @@ export function useAuth(): AuthApi {
     setCachedCustomPicture(p.customPicture || null);
   }, []);
 
-  const avatarUrl = customPicture || profile?.picture || '';
+  const updateCustomName = useCallback(async (name: string | null) => {
+    const p = await social.saveProfile({ customName: name });
+    setCustomName(p.customName || null);
+    setCachedCustomName(p.customName || null);
+  }, []);
 
-  return { enabled, state, signedIn, profile, lastSync, avatarUrl, updateCustomPicture, signIn, signOut, syncNow };
+  const avatarUrl = customPicture || profile?.picture || '';
+  const displayName = customName || profile?.name || '';
+
+  return { enabled, state, signedIn, profile, lastSync, avatarUrl, displayName, updateCustomPicture, updateCustomName, signIn, signOut, syncNow };
 }

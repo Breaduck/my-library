@@ -5,6 +5,7 @@ interface Env { DB: D1Database }
 interface UserRow {
   email: string;
   name: string;
+  custom_name: string | null;
   google_picture: string | null;
   custom_picture: string | null;
 }
@@ -19,7 +20,7 @@ interface FriendshipRow {
 function pictureOf(row: UserRow | undefined, email: string) {
   return {
     email,
-    name: row?.name ?? email,
+    name: (row?.custom_name || row?.name) ?? email,
     picture: (row?.custom_picture || row?.google_picture) ?? '',
   };
 }

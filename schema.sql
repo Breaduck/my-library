@@ -3,6 +3,7 @@
 CREATE TABLE IF NOT EXISTS users (
   email TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  custom_name TEXT,
   google_picture TEXT,
   custom_picture TEXT,
   updated_at TEXT NOT NULL
@@ -27,10 +28,22 @@ CREATE TABLE IF NOT EXISTS shared_books (
   cover_url TEXT,
   status TEXT,
   rating INTEGER,
+  current_page INTEGER,
+  pages INTEGER,
+  review TEXT,
   updated_at TEXT,
   PRIMARY KEY (email, book_id)
 );
 CREATE INDEX IF NOT EXISTS idx_shared_books_email ON shared_books(email);
+
+CREATE TABLE IF NOT EXISTS reading_stats (
+  email TEXT PRIMARY KEY,
+  total_books INTEGER NOT NULL DEFAULT 0,
+  done_books INTEGER NOT NULL DEFAULT 0,
+  avg_rating REAL NOT NULL DEFAULT 0,
+  total_pages INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS comments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

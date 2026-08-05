@@ -1,11 +1,13 @@
 import { getToken } from '@/lib/googleDrive';
 import { Book } from '@/types';
+import { ReadingStats } from '@/lib/storage';
 
 const BASE = '/api/social';
 
 export interface ServerProfile {
   email: string;
   name: string;
+  customName: string;
   googlePicture: string;
   customPicture: string;
 }
@@ -30,6 +32,9 @@ export interface SharedBook {
   coverUrl: string;
   status: string;
   rating: number;
+  currentPage: number;
+  pages: number;
+  review: string;
   updatedAt: string;
 }
 
@@ -62,7 +67,7 @@ export async function getProfile(): Promise<ServerProfile | null> {
   return data.profile;
 }
 
-export async function saveProfile(fields: { name?: string; googlePicture?: string; customPicture?: string | null }): Promise<ServerProfile> {
+export async function saveProfile(fields: { name?: string; googlePicture?: string; customPicture?: string | null; customName?: string | null }): Promise<ServerProfile> {
   const res = await apiFetch('/profile', { method: 'POST', body: JSON.stringify(fields) });
   const data = await res.json() as { profile: ServerProfile };
   return data.profile;
@@ -82,6 +87,12 @@ export const acceptFriend = (email: string) => friendAction('accept', email);
 export const declineFriend = (email: string) => friendAction('decline', email);
 export const removeFriend = (email: string) => friendAction('remove', email);
 
+export async function lookupByNickname(nickname: string): Promise<FriendEntry[]> {
+  const res = await apiFetch(`/lookup?nickname=${encodeURIComponent(nickname)}`);
+  const data = await res.json() as { users: FriendEntry[] };
+  return data.users;
+}
+
 export async function syncMyBooks(books: Book[]): Promise<void> {
   const payload = books.map((b) => ({
     id: b.id,
@@ -90,6 +101,9 @@ export async function syncMyBooks(books: Book[]): Promise<void> {
     coverUrl: b.coverUrl,
     status: b.status,
     rating: b.rating,
+    currentPage: b.currentPage ?? 0,
+    pages: b.pages ?? 0,
+    review: b.review ?? '',
     updatedAt: b.updatedAt ?? b.createdAt,
   }));
   await apiFetch('/books', { method: 'POST', body: JSON.stringify({ books: payload }) });
@@ -109,4 +123,18 @@ export async function getComments(owner: string, bookId: string): Promise<Commen
 
 export async function addComment(owner: string, bookId: string, text: string, authorName?: string): Promise<void> {
   await apiFetch('/comments', { method: 'POST', body: JSON.stringify({ owner, bookId, text, authorName }) });
+}
+
+export async function syncMyStats(stats: ReadingStats): Promise<void> {
+  await apiFetch('/stats', { method: 'POST', body: JSON.stringify(stats) });
+}
+
+export async function clearMyStats(): Promise<void> {
+  await apiFetch('/stats', { method: 'DELETE' });
+}
+
+export async function getFriendStats(email: string): Promise<ReadingStats | null> {
+  const res = await apiFetch(`/stats?email=${encodeURIComponent(email)}`);
+  const data = await res.json() as { stats: ReadingStats | null };
+  return data.stats;
 }

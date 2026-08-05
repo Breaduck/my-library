@@ -4,7 +4,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBooks } from '@/hooks/useBooks';
 import LoginModal from '@/components/LoginModal';
 import { Book } from '@/types';
-import { exportData, importData, localDate, getVisibility, setVisibility, Visibility, getSharedBookIds, toggleSharedBookId } from '@/lib/storage';
+import {
+  exportData, importData, localDate, getVisibility, setVisibility, Visibility, getSharedBookIds, toggleSharedBookId,
+  getShareReviews, setShareReviews, getShareStats, setShareStats,
+} from '@/lib/storage';
 import { resizeImageFile } from '@/lib/image';
 
 const VISIBILITY_OPTIONS: { key: Visibility; label: string; desc: string }[] = [
@@ -29,7 +32,7 @@ function fmtRelative(d: Date | null): string {
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
 export default function SettingsPage() {
-  const { enabled, state, signedIn, profile, lastSync, avatarUrl, updateCustomPicture, signIn, signOut, syncNow } = useAuth();
+  const { enabled, state, signedIn, profile, displayName, lastSync, avatarUrl, updateCustomPicture, updateCustomName, signIn, signOut, syncNow } = useAuth();
   const { books } = useBooks();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
@@ -41,6 +44,11 @@ export default function SettingsPage() {
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const [visibility, setVisibilityState] = useState<Visibility>(() => getVisibility());
   const [sharedIds, setSharedIdsState] = useState<string[]>(() => getSharedBookIds());
+  const [shareReviews, setShareReviewsState] = useState(() => getShareReviews());
+  const [shareStats, setShareStatsState] = useState(() => getShareStats());
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameBusy, setNameBusy] = useState(false);
 
   const showSyncCard = signedIn;
 
@@ -53,6 +61,34 @@ export default function SettingsPage() {
     toggleSharedBookId(bookId, shared);
     setSharedIdsState(getSharedBookIds());
   }
+
+  function handleToggleShareReviews(v: boolean) {
+    setShareReviews(v);
+    setShareReviewsState(v);
+  }
+
+  function handleToggleShareStats(v: boolean) {
+    setShareStats(v);
+    setShareStatsState(v);
+  }
+
+  function startEditName() {
+    setNameDraft(displayName);
+    setEditingName(true);
+  }
+
+  async function saveName() {
+    const t = nameDraft.trim();
+    if (!t) { setEditingName(false); return; }
+    setNameBusy(true);
+    try {
+      await updateCustomName(t);
+      setEditingName(false);
+    } finally {
+      setNameBusy(false);
+    }
+  }
+
   const hasCustomPicture = !!avatarUrl && avatarUrl !== profile?.picture;
 
   async function handleAvatarPick(file: File | null | undefined) {
@@ -139,11 +175,11 @@ export default function SettingsPage() {
               <div className="flex items-center gap-4">
                 <div className="relative flex-shrink-0">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt={profile.name} className="w-14 h-14 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={avatarUrl} alt={displayName} className="w-14 h-14 rounded-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold text-white"
                       style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)' }}>
-                      {(profile.name?.[0] ?? '?').toUpperCase()}
+                      {(displayName?.[0] ?? '?').toUpperCase()}
                     </div>
                   )}
                   <button type="button" onClick={() => avatarFileRef.current?.click()} disabled={avatarBusy}
@@ -161,7 +197,25 @@ export default function SettingsPage() {
                     onChange={(e) => { handleAvatarPick(e.target.files?.[0]); e.target.value = ''; }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-semibold text-[#1D1D1F] truncate">{profile.name}</p>
+                  {editingName ? (
+                    <div className="flex items-center gap-1.5">
+                      <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                        autoFocus maxLength={20}
+                        className="min-w-0 flex-1 px-2 py-1 rounded-lg bg-[#F5F5F7] text-[15px] font-semibold text-[#1D1D1F] outline-none focus:ring-2 focus:ring-[#0071E3]" />
+                      <button onClick={saveName} disabled={nameBusy} className="text-xs font-semibold text-[#0071E3] disabled:opacity-40 flex-shrink-0">저장</button>
+                      <button onClick={() => setEditingName(false)} className="text-xs text-[#AEAEB2] flex-shrink-0">취소</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[15px] font-semibold text-[#1D1D1F] truncate">{displayName}</p>
+                      <button type="button" onClick={startEditName} aria-label="이름 수정" className="text-[#AEAEB2] hover:text-[#6E6E73] flex-shrink-0">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-[#6E6E73] truncate">{profile.email}</p>
                   <p className="text-[11px] text-[#AEAEB2] mt-1 flex items-center gap-1.5">
                     <svg className="w-3 h-3" viewBox="0 0 24 24">
@@ -252,6 +306,27 @@ export default function SettingsPage() {
                       </label>
                     ))
                   )}
+                </div>
+              )}
+
+              {visibility !== 'private' && (
+                <div className="mt-3 pt-3 border-t border-[#F5F5F7] space-y-1">
+                  <label className="flex items-center justify-between gap-3 px-1 py-2 cursor-pointer">
+                    <div>
+                      <p className="text-sm text-[#1D1D1F]">독서록(리뷰) 함께 공개</p>
+                      <p className="text-[11px] text-[#AEAEB2]">끄면 책·평점만 보이고 작성한 글은 안 보여요</p>
+                    </div>
+                    <input type="checkbox" checked={shareReviews} onChange={(e) => handleToggleShareReviews(e.target.checked)}
+                      className="w-4 h-4 rounded accent-[#0071E3] flex-shrink-0" />
+                  </label>
+                  <label className="flex items-center justify-between gap-3 px-1 py-2 cursor-pointer">
+                    <div>
+                      <p className="text-sm text-[#1D1D1F]">독서 통계 공개</p>
+                      <p className="text-[11px] text-[#AEAEB2]">완독 수·평균 별점·읽은 페이지를 친구에게 보여줘요</p>
+                    </div>
+                    <input type="checkbox" checked={shareStats} onChange={(e) => handleToggleShareStats(e.target.checked)}
+                      className="w-4 h-4 rounded accent-[#0071E3] flex-shrink-0" />
+                  </label>
                 </div>
               )}
             </div>

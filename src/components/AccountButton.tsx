@@ -11,7 +11,7 @@ function initialsFromName(name: string): string {
 }
 
 export default function AccountButton() {
-  const { enabled, state, signedIn, profile, avatarUrl, signIn } = useAuth();
+  const { enabled, state, signedIn, displayName, avatarUrl, signIn } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const navigate = useNavigate();
 
@@ -41,11 +41,11 @@ export default function AccountButton() {
         style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.10)' }}
       >
         {signedIn && avatarUrl ? (
-          <img src={avatarUrl} alt={profile?.name ?? ''} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : signedIn ? (
           <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-white"
             style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)' }}>
-            {initialsFromName(profile?.name ?? '?')}
+            {initialsFromName(displayName)}
           </div>
         ) : (
           <svg className="w-5 h-5 text-[#6E6E73]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

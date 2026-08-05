@@ -224,6 +224,58 @@ export function filterSharedBooks(books: Book[]): Book[] {
   return books.filter((b) => ids.has(b.id));
 }
 
+const SHARE_REVIEWS_KEY = 'share-reviews';
+const SHARE_STATS_KEY = 'share-stats';
+
+export function getShareReviews(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(SHARE_REVIEWS_KEY) === '1';
+}
+
+export function setShareReviews(v: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SHARE_REVIEWS_KEY, v ? '1' : '0');
+  window.dispatchEvent(new CustomEvent('visibility:changed'));
+}
+
+export function getShareStats(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(SHARE_STATS_KEY) === '1';
+}
+
+export function setShareStats(v: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SHARE_STATS_KEY, v ? '1' : '0');
+  window.dispatchEvent(new CustomEvent('visibility:changed'));
+}
+
+// 공개 범위(전체/일부) + 독서록 공개 여부를 함께 반영해 친구에게 보낼 책 데이터를 준비
+export function prepareSharedBooks(books: Book[]): Book[] {
+  const filtered = filterSharedBooks(books);
+  if (getShareReviews()) return filtered;
+  return filtered.map((b) => ({ ...b, review: '' }));
+}
+
+export interface ReadingStats {
+  totalBooks: number;
+  doneBooks: number;
+  avgRating: number;
+  totalPages: number;
+}
+
+export function computeReadingStats(books: Book[]): ReadingStats {
+  const done = books.filter((b) => b.status === 'done');
+  const rated = done.filter((b) => b.rating > 0);
+  const avgRating = rated.length > 0 ? rated.reduce((s, b) => s + b.rating, 0) / rated.length : 0;
+  const totalPages = done.reduce((s, b) => s + (b.pages ?? 0), 0);
+  return {
+    totalBooks: books.length,
+    doneBooks: done.length,
+    avgRating: Math.round(avgRating * 10) / 10,
+    totalPages,
+  };
+}
+
 // ── 백업(내보내기) / 복원(가져오기) ───────────────────────────────────
 export function exportData(): string {
   const dump = {
