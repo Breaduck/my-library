@@ -38,8 +38,9 @@ function SortableGridCard({ book, isDragging }: { book: Book; isDragging: boolea
 
 export default function HomePage() {
   const { books, loaded, reorderBooks } = useBooks();
-  const { signedIn } = useAuth();
+  const { signedIn, displayName } = useAuth();
   const pendingRequests = usePendingRequestCount(signedIn);
+  const libraryTitle = signedIn && displayName ? `${displayName}의 서재` : '나의 서재';
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -127,7 +128,7 @@ export default function HomePage() {
         <div className="flex items-end justify-between mb-5 sm:mb-7">
           <div>
             <p className="text-[#AEAEB2] text-xs font-medium tracking-widest uppercase mb-1">My Library</p>
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#1D1D1F] tracking-tight">나의 서재</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#1D1D1F] tracking-tight">{libraryTitle}</h1>
             {books.length > 0 && (
               <p className="text-[#AEAEB2] mt-1.5 text-sm">
                 {[

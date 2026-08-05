@@ -46,10 +46,10 @@ export interface CommentEntry {
   createdAt: string;
 }
 
-async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+async function authFetch(fullPath: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
   if (!token) throw new Error('not-signed-in');
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(fullPath, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -59,6 +59,10 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
   });
   if (!res.ok) throw new Error(`social-error-${res.status}`);
   return res;
+}
+
+function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  return authFetch(`${BASE}${path}`, options);
 }
 
 export async function getProfile(): Promise<ServerProfile | null> {
@@ -137,4 +141,26 @@ export async function getFriendStats(email: string): Promise<ReadingStats | null
   const res = await apiFetch(`/stats?email=${encodeURIComponent(email)}`);
   const data = await res.json() as { stats: ReadingStats | null };
   return data.stats;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  newUsers7d: number;
+  newUsers30d: number;
+  active7d: number;
+  active30d: number;
+  totalFriendships: number;
+  totalComments: number;
+  totalSharedBooks: number;
+  signupsByDay: { day: string; c: number }[];
+  recentUsers: { email: string; name: string; createdAt: string; lastSeenAt: string; activeMinutes: number }[];
+}
+
+export async function getAdminStats(): Promise<AdminStats> {
+  const res = await authFetch('/api/admin/stats');
+  return await res.json() as AdminStats;
+}
+
+export async function sendHeartbeat(seconds: number): Promise<void> {
+  await authFetch('/api/admin/heartbeat', { method: 'POST', body: JSON.stringify({ seconds }) });
 }

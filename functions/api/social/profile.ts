@@ -42,13 +42,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const googlePicture = body.googlePicture ?? existing?.google_picture ?? '';
   const customPicture = 'customPicture' in body ? (body.customPicture ?? '') : (existing?.custom_picture ?? '');
   const customName = 'customName' in body ? (body.customName ?? '') : (existing?.custom_name ?? '');
+  const now = new Date().toISOString();
 
   await env.DB.prepare(
-    `INSERT INTO users (email, name, custom_name, google_picture, custom_picture, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO users (email, name, custom_name, google_picture, custom_picture, created_at, last_seen_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(email) DO UPDATE SET name = excluded.name, custom_name = excluded.custom_name,
-       google_picture = excluded.google_picture, custom_picture = excluded.custom_picture, updated_at = excluded.updated_at`
-  ).bind(email, name, customName, googlePicture, customPicture, new Date().toISOString()).run();
+       google_picture = excluded.google_picture, custom_picture = excluded.custom_picture,
+       last_seen_at = excluded.last_seen_at, updated_at = excluded.updated_at`
+  ).bind(email, name, customName, googlePicture, customPicture, now, now, now).run();
 
   return json({ profile: { email, name, customName, googlePicture, customPicture } });
 };

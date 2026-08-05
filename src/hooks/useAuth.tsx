@@ -236,6 +236,18 @@ function useAuthState(): AuthApi {
     return () => window.removeEventListener('visibility:changed', handler);
   }, [signedIn]);
 
+  // 대략적인 체류시간 집계 — 탭이 실제로 보이는 동안에만 30초마다 서버에 알림.
+  useEffect(() => {
+    if (!signedIn) return;
+    const HEARTBEAT_SEC = 30;
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        social.sendHeartbeat(HEARTBEAT_SEC).catch(() => {});
+      }
+    }, HEARTBEAT_SEC * 1000);
+    return () => clearInterval(interval);
+  }, [signedIn]);
+
   const signIn = useCallback(() => {
     if (!enabled) return;
     setState('connecting');

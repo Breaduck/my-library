@@ -7,6 +7,7 @@ import TimerPage from './pages/TimerPage';
 import SettingsPage from './pages/SettingsPage';
 import FriendsPage from './pages/FriendsPage';
 import FriendDetailPage from './pages/FriendDetailPage';
+import AdminPage from './pages/AdminPage';
 import { AuthProvider } from './hooks/useAuth';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/friends/:email" element={<FriendDetailPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -17,3 +17,10 @@ export async function requireEmail(request: Request): Promise<string | null> {
 export function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
+
+// 관리자 대시보드 접근 제어. Cloudflare Pages 환경변수 ADMIN_EMAILS(콤마 구분)에
+// 등록된 이메일만 허용 — 코드에 이메일을 하드코딩하지 않기 위함.
+export function isAdmin(email: string, adminEmailsEnv: string | undefined): boolean {
+  const allowed = (adminEmailsEnv ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return allowed.includes(email.toLowerCase());
+}

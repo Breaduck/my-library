@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS users (
   custom_name TEXT,
   google_picture TEXT,
   custom_picture TEXT,
+  created_at TEXT,
+  last_seen_at TEXT,
+  total_active_seconds INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL
 );
 
