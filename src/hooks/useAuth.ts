@@ -199,6 +199,14 @@ export function useAuth(): AuthApi {
     return () => clearTimeout(timer);
   }, [state, lastSync]);
 
+  // 재연결이 계속 실패해도(오프라인 등) 로그아웃을 누르기 전까지는 포기하지 않고
+  // 백그라운드에서 주기적으로 조용히 재시도한다 — 매번 로그인 화면을 띄우지 않기 위함.
+  useEffect(() => {
+    if (state !== 'error' || !gd.wasSignedIn()) return;
+    const interval = setInterval(() => gd.requestAccess(''), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [state]);
+
   // Sync local book changes up to Drive (debounced)
   useEffect(() => {
     if (!signedIn) return;

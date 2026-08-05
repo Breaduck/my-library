@@ -1,6 +1,25 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as social from '@/lib/social';
 import { FriendsData, SharedBook, CommentEntry } from '@/lib/social';
+import { ReadingStats } from '@/lib/storage';
+
+export function useFriendStats(email: string | undefined) {
+  const [stats, setStats] = useState<ReadingStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!email) return;
+    let cancelled = false;
+    setLoading(true);
+    social.getFriendStats(email)
+      .then((s) => { if (!cancelled) setStats(s); })
+      .catch(() => { if (!cancelled) setStats(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [email]);
+
+  return { stats, loading };
+}
 
 export function usePendingRequestCount(active: boolean) {
   const [count, setCount] = useState(0);
