@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useContext, createContext, ReactNode } from 'react';
 import * as gd from '@/lib/googleDrive';
 import * as social from '@/lib/social';
 import { Book } from '@/types';
@@ -94,7 +94,7 @@ function ensureGis(): Promise<void> {
   });
 }
 
-export function useAuth(): AuthApi {
+function useAuthState(): AuthApi {
   // 이미 토큰이 있으면(SPA 네비게이션) 곧바로 synced로 시작. 토큰은 없지만 이전에 로그인한
   // 적이 있다면(새로고침 등으로 메모리상 토큰만 날아간 경우) idle이 아니라 connecting으로 시작해서
   // "로그인 안 됨" 화면이 잠깐이라도 깜빡이지 않게 한다 — 재연결은 아래 effect가 조용히 처리.
@@ -188,24 +188,10 @@ export function useAuth(): AuthApi {
     return () => { cancelled = true; };
   }, [enabled, onSignInSuccess]);
 
-  // 액세스 토큰(수명 ~1시간)이 만료되기 전에 미리 조용히 갱신 — "동기화" 버튼을 눌렀을 때
-  // 토큰이 이미 죽어 있어서 로그인 팝업이 뜨는 상황을 줄인다.
-  useEffect(() => {
-    if (state !== 'synced') return;
-    const expiresAt = gd.getTokenExpiresAt();
-    if (!expiresAt) return;
-    const delay = Math.max(expiresAt - Date.now() - 5 * 60 * 1000, 60 * 1000);
-    const timer = setTimeout(() => gd.requestAccess(''), delay);
-    return () => clearTimeout(timer);
-  }, [state, lastSync]);
-
-  // 재연결이 계속 실패해도(오프라인 등) 로그아웃을 누르기 전까지는 포기하지 않고
-  // 백그라운드에서 주기적으로 조용히 재시도한다 — 매번 로그인 화면을 띄우지 않기 위함.
-  useEffect(() => {
-    if (state !== 'error' || !gd.wasSignedIn()) return;
-    const interval = setInterval(() => gd.requestAccess(''), 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [state]);
+  // ⚠️ 배경 타이머로 gd.requestAccess()를 자동 호출하지 않는다 — 사용자 제스처 없이 호출하면
+  // 브라우저가 조용한 재인증을 허용하지 않고 실제 구글 계정 선택 팝업을 띄우는 경우가 있어서
+  // "책 삭제/뒤로가기 같은 평범한 조작에도 로그인창이 뜬다"는 문제로 이어졌다.
+  // 재연결은 (1) 앱을 새로 열었을 때 한 번, (2) 사용자가 "동기화"를 직접 눌렀을 때만 시도한다.
 
   // Sync local book changes up to Drive (debounced)
   useEffect(() => {
@@ -225,10 +211,9 @@ export function useAuth(): AuthApi {
           setLastSync(new Date());
           setState('synced');
         } catch {
-          // 토큰 만료 등 — 로컬은 안전. 조용히 재연결 시도(로그아웃 아님).
-          // 재연결 성공 시 onSignInSuccess가 병합·업로드로 밀린 변경을 반영한다.
-          if (gd.wasSignedIn()) { setState('connecting'); gd.requestAccess(''); }
-          else setState('error');
+          // 토큰 만료 등 — 로컬은 안전. 여기서 자동으로 재로그인 팝업을 띄우지 않는다(사용자 제스처가
+          // 아니므로). "동기화"를 직접 누르거나 다음에 앱을 새로 열면 자연스럽게 재연결된다.
+          setState('error');
         }
       }, 1200);
     };
@@ -295,4 +280,20 @@ export function useAuth(): AuthApi {
   const displayName = customName || profile?.name || '';
 
   return { enabled, state, signedIn, profile, lastSync, avatarUrl, displayName, updateCustomPicture, updateCustomName, signIn, signOut, syncNow };
+}
+
+// Context로 감싸서 앱 전체에 단 하나의 인스턴스만 존재하게 한다.
+// 페이지마다 useAuth()를 새로 마운트하면 토큰 클라이언트 초기화·재연결 로직이 라우팅할 때마다
+// 다시 실행돼 불필요한 재인증 시도(팝업)로 이어질 수 있어서, Provider를 앱 최상단에 한 번만 둔다.
+const AuthContext = createContext<AuthApi | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const value = useAuthState();
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthApi {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
+  return ctx;
 }
