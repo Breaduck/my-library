@@ -11,13 +11,12 @@ function initialsFromName(name: string): string {
 }
 
 export default function AccountButton() {
-  const { enabled, state, profile, signIn } = useAuth();
+  const { enabled, state, signedIn, profile, avatarUrl, signIn } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const navigate = useNavigate();
 
   if (!enabled) return null;
 
-  const signedIn = state === 'synced' || state === 'saving' || (state === 'connecting' && !!profile);
   const showSpinner = state === 'connecting' || state === 'saving';
 
   function handleClick() {
@@ -41,8 +40,8 @@ export default function AccountButton() {
         className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white overflow-hidden active:scale-95 transition-transform"
         style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.10)' }}
       >
-        {signedIn && profile?.picture ? (
-          <img src={profile.picture} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        {signedIn && avatarUrl ? (
+          <img src={avatarUrl} alt={profile?.name ?? ''} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : signedIn ? (
           <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-white"
             style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)' }}>
@@ -56,7 +55,7 @@ export default function AccountButton() {
         {showSpinner && (
           <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#0071E3] animate-spin pointer-events-none" />
         )}
-        {state === 'error' && !signedIn && (
+        {state === 'error' && (
           <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white" />
         )}
       </button>

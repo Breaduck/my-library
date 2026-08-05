@@ -3,5 +3,12 @@
 	"name": "my-library",
 	"pages_build_output_dir": "dist",
 	"compatibility_date": "2025-01-01",
-	"compatibility_flags": ["nodejs_compat"]
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "my-library-social",
+			"database_id": "7e4e879b-8635-4134-934d-5072d46a7393"
+		}
+	]
 }

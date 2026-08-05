@@ -5,6 +5,7 @@ import { useBooks } from '@/hooks/useBooks';
 import LoginModal from '@/components/LoginModal';
 import { Book } from '@/types';
 import { exportData, importData, localDate } from '@/lib/storage';
+import { resizeImageFile } from '@/lib/image';
 
 function formatTime(d: Date) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -22,16 +23,46 @@ function fmtRelative(d: Date | null): string {
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
 export default function SettingsPage() {
-  const { enabled, state, profile, lastSync, signIn, signOut, syncNow } = useAuth();
+  const { enabled, state, signedIn, profile, lastSync, avatarUrl, updateCustomPicture, signIn, signOut, syncNow } = useAuth();
   const { books } = useBooks();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const avatarFileRef = useRef<HTMLInputElement>(null);
 
-  const signedIn = state === 'synced' || state === 'saving';
-  const showSyncCard = signedIn || state === 'error';
+  const showSyncCard = signedIn;
+  const hasCustomPicture = !!avatarUrl && avatarUrl !== profile?.picture;
+
+  async function handleAvatarPick(file: File | null | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setAvatarError('이미지 파일만 올릴 수 있어요'); return; }
+    setAvatarBusy(true);
+    setAvatarError('');
+    try {
+      const dataUrl = await resizeImageFile(file);
+      await updateCustomPicture(dataUrl);
+    } catch {
+      setAvatarError('사진을 저장하지 못했어요');
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function handleAvatarReset() {
+    setAvatarBusy(true);
+    setAvatarError('');
+    try {
+      await updateCustomPicture(null);
+    } catch {
+      setAvatarError('되돌리지 못했어요');
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
 
   function handleExport() {
     // 책 + 일별 기록 + 목표까지 전체 백업
@@ -88,14 +119,29 @@ export default function SettingsPage() {
             <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] mb-3">계정</h2>
             {signedIn && profile ? (
               <div className="flex items-center gap-4">
-                {profile.picture ? (
-                  <img src={profile.picture} alt={profile.name} className="w-14 h-14 rounded-full object-cover flex-shrink-0" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold text-white flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)' }}>
-                    {(profile.name?.[0] ?? '?').toUpperCase()}
-                  </div>
-                )}
+                <div className="relative flex-shrink-0">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={profile.name} className="w-14 h-14 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold text-white"
+                      style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)' }}>
+                      {(profile.name?.[0] ?? '?').toUpperCase()}
+                    </div>
+                  )}
+                  <button type="button" onClick={() => avatarFileRef.current?.click()} disabled={avatarBusy}
+                    aria-label="프로필 사진 변경"
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#1D1D1F] text-white flex items-center justify-center border-2 border-white active:scale-95 transition-transform disabled:opacity-50">
+                    {avatarBusy ? (
+                      <div className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    )}
+                  </button>
+                  <input ref={avatarFileRef} type="file" accept="image/*" className="hidden"
+                    onChange={(e) => { handleAvatarPick(e.target.files?.[0]); e.target.value = ''; }} />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[15px] font-semibold text-[#1D1D1F] truncate">{profile.name}</p>
                   <p className="text-xs text-[#6E6E73] truncate">{profile.email}</p>
@@ -108,6 +154,13 @@ export default function SettingsPage() {
                     </svg>
                     Google 계정으로 로그인됨
                   </p>
+                  {hasCustomPicture && (
+                    <button type="button" onClick={handleAvatarReset} disabled={avatarBusy}
+                      className="text-[11px] text-[#0071E3] hover:text-[#0058B0] mt-1 disabled:text-[#AEAEB2]">
+                      Google 사진으로 되돌리기
+                    </button>
+                  )}
+                  {avatarError && <p className="text-[11px] text-red-500 mt-1">{avatarError}</p>}
                 </div>
               </div>
             ) : (
@@ -132,6 +185,22 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+
+          {signedIn && (
+            <Link to="/friends" className="flex items-center justify-between bg-white rounded-2xl p-5 sm:p-6 hover:bg-[#FAFAFB] active:bg-[#F5F5F7] transition-colors" style={cs}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#F5F5F7] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-[#6E6E73]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6-2a3 3 0 10-2-5.24" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-[#1D1D1F]">친구</p>
+              </div>
+              <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          )}
 
           {/* 동기화 카드 */}
           {showSyncCard && (
