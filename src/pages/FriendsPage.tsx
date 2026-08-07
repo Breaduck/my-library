@@ -182,7 +182,6 @@ export default function FriendsPage() {
                     <Avatar name={f.name} picture={f.picture} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1D1D1F] truncate">{f.name}</p>
-                      <p className="text-[11px] text-[#AEAEB2] truncate">{f.email}</p>
                     </div>
                     <button disabled={busyEmail === f.email} onClick={() => run(accept, f.email)}
                       className="px-3 py-1.5 rounded-full bg-[#1D1D1F] text-white text-xs font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors">
@@ -206,7 +205,6 @@ export default function FriendsPage() {
                     <Avatar name={f.name} picture={f.picture} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1D1D1F] truncate">{f.name}</p>
-                      <p className="text-[11px] text-[#AEAEB2] truncate">{f.email}</p>
                     </div>
                     <span className="text-[11px] text-[#AEAEB2] mr-1">대기중</span>
                     <button disabled={busyEmail === f.email} onClick={() => run(decline, f.email)}
@@ -234,7 +232,6 @@ export default function FriendsPage() {
                     <Avatar name={f.name} picture={f.picture} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1D1D1F] truncate">{f.name}</p>
-                      <p className="text-[11px] text-[#AEAEB2] truncate">{f.email}</p>
                     </div>
                     <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

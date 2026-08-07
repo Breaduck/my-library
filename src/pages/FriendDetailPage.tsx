@@ -172,7 +172,6 @@ export default function FriendDetailPage() {
           {friend && <Avatar name={friend.name} picture={friend.picture} />}
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-[#1D1D1F] truncate">{friend?.name ?? email}</h1>
-            <p className="text-xs text-[#AEAEB2] truncate">{email}</p>
           </div>
           <button onClick={() => setConfirmRemove(true)} className="text-xs text-red-400 hover:text-red-500 flex-shrink-0 px-2 py-1">
             친구 끊기
