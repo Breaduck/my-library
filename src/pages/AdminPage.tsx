@@ -34,20 +34,29 @@ function StatTile({ label, value, sub }: { label: string; value: string | number
 }
 
 export default function AdminPage() {
-  const { signedIn } = useAuth();
+  const { signedIn, state } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!signedIn) { setLoading(false); return; }
+    if (state === 'idle') { setLoading(false); return; }
+    // 새로고침 직후 등 토큰이 아직 조용히 재연결되는 중이면(connecting/saving) 기다렸다가 요청한다.
+    // signedIn만 보고 바로 요청하면 토큰이 아직 없어서 "불러오지 못했어요"로 잘못 표시됐었음.
+    if (state === 'connecting' || state === 'saving') { setLoading(true); return; }
     let cancelled = false;
+    if (state === 'error') {
+      setLoading(false);
+      setError('로그인 연결에 실패했어요. 설정에서 동기화를 눌러보세요');
+      return () => { cancelled = true; };
+    }
+    setLoading(true);
     getAdminStats()
-      .then((s) => { if (!cancelled) setStats(s); })
+      .then((s) => { if (!cancelled) { setStats(s); setError(null); } })
       .catch((e) => { if (!cancelled) setError(e?.message === 'social-error-403' ? '관리자 권한이 없어요' : '불러오지 못했어요'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [signedIn]);
+  }, [state]);
 
   if (!signedIn) {
     return <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center"><p className="text-sm text-[#6E6E73]">로그인이 필요해요</p></div>;
