@@ -332,19 +332,21 @@ export default function HomePage() {
               <div className="text-center py-20 text-[#6E6E73] text-sm">
                 {search ? `"${search}"에 해당하는 책이 없어요` : '이 탭에 책이 없어요'}
               </div>
-            ) : viewMode === 'shelf' ? (
-              <div className="rounded-3xl p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
-                <BookShelf books={filtered} />
-              </div>
-            ) : viewMode === 'list' ? (
-              <BookStack books={filtered} />
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
-                    {filtered.map((book) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} />)}
+                {viewMode === 'shelf' ? (
+                  <div className="rounded-3xl p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
+                    <BookShelf books={filtered} />
                   </div>
-                </SortableContext>
+                ) : viewMode === 'list' ? (
+                  <BookStack books={filtered} />
+                ) : (
+                  <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
+                      {filtered.map((book) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} />)}
+                    </div>
+                  </SortableContext>
+                )}
                 <DragOverlay>
                   {activeBook ? (
                     <div style={{ width: 140, opacity: 0.9, transform: 'rotate(3deg) scale(1.05)', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))' }}><BookCard book={activeBook} /></div>

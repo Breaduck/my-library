@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Book } from '@/types';
 
 const SPINE_GRADIENTS = [
@@ -17,6 +19,162 @@ const SPINE_GRADIENTS = [
 
 const BOOKS_PER_SHELF = 6;
 
+function ShelfSpine({ book, bookIdx, shelfLength, isFlipped, onFlip }: {
+  book: Book; bookIdx: number; shelfLength: number; isFlipped: boolean; onFlip: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: book.id });
+  const gradIdx = (book.title.charCodeAt(0) + bookIdx) % SPINE_GRADIENTS.length;
+  const gradient = SPINE_GRADIENTS[gradIdx];
+  // Vary height slightly for realism — 키는 크게
+  const heightVariance = ((book.title.charCodeAt(0) + bookIdx * 3) % 3) * 10;
+  const spineHeight = 158 + heightVariance;
+  // 두께는 얇게(세로 책등)
+  const widthVariance = ((book.title.charCodeAt(1) ?? 0) + bookIdx) % 4;
+  const spineWidth = 30 + widthVariance * 3;
+  const coverW = Math.round(spineHeight * 0.66);
+
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners} className="flex-shrink-0 relative"
+      style={{
+        width: isFlipped ? coverW : spineWidth, height: spineHeight,
+        transition: isDragging ? transition : 'width 0.3s ease',
+        transform: CSS.Transform.toString(transform),
+        opacity: isDragging ? 0.4 : 1,
+        touchAction: 'none',
+        zIndex: isFlipped ? 30 : undefined,
+      }}>
+    {isFlipped ? (
+      /* 앞면(표지) — 주위 책은 옆으로 밀리고, 한 번 더 누르면 상세로 */
+      <Link
+        to={`/book/${book.id}`}
+        title={book.title}
+        className="block w-full h-full rounded overflow-hidden"
+        style={{
+          transform: 'translateY(-6px)',
+          boxShadow: '0 14px 30px rgba(0,0,0,0.42)', animation: 'flipIn 0.3s ease',
+          background: book.coverUrl ? '#fff' : gradient,
+        }}
+      >
+        {book.coverUrl
+          ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
+          : <div className="w-full h-full flex items-center justify-center p-1"><span className="text-white text-[11px] font-bold text-center leading-tight">{book.title}</span></div>}
+      </Link>
+    ) : (
+    <button
+      type="button"
+      onClick={onFlip}
+      className="group relative w-full h-full"
+      title={`${book.title} — ${book.author}`}
+    >
+      <div
+        className="relative overflow-hidden rounded-t-sm"
+        style={{
+          width: spineWidth,
+          height: spineHeight,
+          background: book.coverUrl ? undefined : gradient,
+          boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.2), inset 2px 0 2px rgba(255,255,255,0.1)',
+          transition: 'transform 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-8px)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = '';
+        }}
+      >
+        {/* Cover image as spine background */}
+        {book.coverUrl && (
+          <img
+            src={book.coverUrl}
+            alt={book.title}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: 'left center' }}
+          />
+        )}
+
+        {/* Dark overlay for text visibility */}
+        {book.coverUrl && (
+          <div
+            className="absolute inset-0"
+            style={{ background: 'rgba(0,0,0,0.15)' }}
+          />
+        )}
+
+        {/* Vertical title text */}
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+          }}
+        >
+          <span
+            className="text-white font-semibold leading-none select-none"
+            style={{
+              fontSize: 11,
+              textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+              maxHeight: spineHeight - 10,
+              overflow: 'hidden',
+              display: '-webkit-box',
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
+            {book.title}
+          </span>
+        </div>
+
+        {/* Status indicator dot at bottom */}
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+          <div
+            className="w-1 h-1 rounded-full"
+            style={{
+              background:
+                book.status === 'done' ? '#34d399' :
+                book.status === 'reading' ? '#60a5fa' :
+                book.status === 'want' ? '#a78bfa' :
+                '#9ca3af',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Tooltip on hover — 화면 밖으로 잘리지 않게 가장자리 책은 정렬 방향 조정 */}
+      {(() => {
+        const isFirst = bookIdx === 0;
+        const isLast = bookIdx === shelfLength - 1;
+        const posClass = isLast ? 'right-0' : isFirst ? 'left-0' : 'left-1/2 -translate-x-1/2';
+        const arrowClass = isLast ? 'ml-auto mr-2.5' : isFirst ? 'ml-2.5' : 'mx-auto';
+        return (
+          <div
+            className={`absolute bottom-full ${posClass} mb-2 z-30 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity`}
+            style={{ transitionDelay: '0.2s' }}
+          >
+            <div
+              className="bg-[#1D1D1F] text-white rounded-lg px-2 py-1.5 whitespace-nowrap"
+              style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)', fontSize: 10 }}
+            >
+              <p className="font-semibold leading-tight max-w-[120px] truncate">{book.title}</p>
+              <p className="opacity-60 leading-tight max-w-[120px] truncate">{book.author}</p>
+            </div>
+            {/* Arrow */}
+            <div
+              className={`w-0 h-0 ${arrowClass}`}
+              style={{
+                borderLeft: '4px solid transparent',
+                borderRight: '4px solid transparent',
+                borderTop: '4px solid #1D1D1F',
+              }}
+            />
+          </div>
+        );
+      })()}
+    </button>
+    )}
+    </div>
+  );
+}
+
 interface Props {
   books: Book[];
 }
@@ -33,6 +191,7 @@ export default function BookShelf({ books }: Props) {
   }
 
   return (
+    <SortableContext items={books.map((b) => b.id)} strategy={rectSortingStrategy}>
     <div className="space-y-0">
       <style>{`@keyframes flipIn{from{transform:translateY(-6px) rotateY(-78deg);opacity:0}to{transform:translateY(-6px) rotateY(0);opacity:1}}`}</style>
       {shelves.map((shelf, shelfIdx) => (
@@ -42,152 +201,16 @@ export default function BookShelf({ books }: Props) {
             className="flex items-end gap-1 px-2 pt-5 pb-0"
             style={{ minHeight: 206 }}
           >
-            {shelf.map((book, bookIdx) => {
-              const gradIdx = (book.title.charCodeAt(0) + bookIdx) % SPINE_GRADIENTS.length;
-              const gradient = SPINE_GRADIENTS[gradIdx];
-              // Vary height slightly for realism — 키는 크게
-              const heightVariance = ((book.title.charCodeAt(0) + bookIdx * 3) % 3) * 10;
-              const spineHeight = 158 + heightVariance;
-              // 두께는 얇게(세로 책등)
-              const widthVariance = ((book.title.charCodeAt(1) ?? 0) + bookIdx) % 4;
-              const spineWidth = 30 + widthVariance * 3;
-              const coverW = Math.round(spineHeight * 0.66);
-              const isFlipped = flippedId === book.id;
-
-              return (
-                <div key={book.id} className="flex-shrink-0 relative"
-                  style={{ width: isFlipped ? coverW : spineWidth, height: spineHeight, transition: 'width 0.3s ease', zIndex: isFlipped ? 30 : undefined }}>
-                {isFlipped ? (
-                  /* 앞면(표지) — 주위 책은 옆으로 밀리고, 한 번 더 누르면 상세로 */
-                  <Link
-                    to={`/book/${book.id}`}
-                    title={book.title}
-                    className="block w-full h-full rounded overflow-hidden"
-                    style={{
-                      transform: 'translateY(-6px)',
-                      boxShadow: '0 14px 30px rgba(0,0,0,0.42)', animation: 'flipIn 0.3s ease',
-                      background: book.coverUrl ? '#fff' : gradient,
-                    }}
-                  >
-                    {book.coverUrl
-                      ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center p-1"><span className="text-white text-[11px] font-bold text-center leading-tight">{book.title}</span></div>}
-                  </Link>
-                ) : (
-                <button
-                  type="button"
-                  onClick={() => setFlippedId(book.id)}
-                  className="group relative w-full h-full"
-                  title={`${book.title} — ${book.author}`}
-                >
-                  <div
-                    className="relative overflow-hidden rounded-t-sm"
-                    style={{
-                      width: spineWidth,
-                      height: spineHeight,
-                      background: book.coverUrl ? undefined : gradient,
-                      boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.2), inset 2px 0 2px rgba(255,255,255,0.1)',
-                      transition: 'transform 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-8px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.transform = '';
-                    }}
-                  >
-                    {/* Cover image as spine background */}
-                    {book.coverUrl && (
-                      <img
-                        src={book.coverUrl}
-                        alt={book.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        style={{ objectPosition: 'left center' }}
-                      />
-                    )}
-
-                    {/* Dark overlay for text visibility */}
-                    {book.coverUrl && (
-                      <div
-                        className="absolute inset-0"
-                        style={{ background: 'rgba(0,0,0,0.15)' }}
-                      />
-                    )}
-
-                    {/* Vertical title text */}
-                    <div
-                      className="absolute inset-0 flex items-center justify-center"
-                      style={{
-                        writingMode: 'vertical-rl',
-                        textOrientation: 'mixed',
-                      }}
-                    >
-                      <span
-                        className="text-white font-semibold leading-none select-none"
-                        style={{
-                          fontSize: 11,
-                          textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-                          maxHeight: spineHeight - 10,
-                          overflow: 'hidden',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 1,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        {book.title}
-                      </span>
-                    </div>
-
-                    {/* Status indicator dot at bottom */}
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
-                      <div
-                        className="w-1 h-1 rounded-full"
-                        style={{
-                          background:
-                            book.status === 'done' ? '#34d399' :
-                            book.status === 'reading' ? '#60a5fa' :
-                            book.status === 'want' ? '#a78bfa' :
-                            '#9ca3af',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Tooltip on hover — 화면 밖으로 잘리지 않게 가장자리 책은 정렬 방향 조정 */}
-                  {(() => {
-                    const isFirst = bookIdx === 0;
-                    const isLast = bookIdx === shelf.length - 1;
-                    const posClass = isLast ? 'right-0' : isFirst ? 'left-0' : 'left-1/2 -translate-x-1/2';
-                    const arrowClass = isLast ? 'ml-auto mr-2.5' : isFirst ? 'ml-2.5' : 'mx-auto';
-                    return (
-                      <div
-                        className={`absolute bottom-full ${posClass} mb-2 z-30 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity`}
-                        style={{ transitionDelay: '0.2s' }}
-                      >
-                        <div
-                          className="bg-[#1D1D1F] text-white rounded-lg px-2 py-1.5 whitespace-nowrap"
-                          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3)', fontSize: 10 }}
-                        >
-                          <p className="font-semibold leading-tight max-w-[120px] truncate">{book.title}</p>
-                          <p className="opacity-60 leading-tight max-w-[120px] truncate">{book.author}</p>
-                        </div>
-                        {/* Arrow */}
-                        <div
-                          className={`w-0 h-0 ${arrowClass}`}
-                          style={{
-                            borderLeft: '4px solid transparent',
-                            borderRight: '4px solid transparent',
-                            borderTop: '4px solid #1D1D1F',
-                          }}
-                        />
-                      </div>
-                    );
-                  })()}
-                </button>
-                )}
-                </div>
-              );
-            })}
+            {shelf.map((book, bookIdx) => (
+              <ShelfSpine
+                key={book.id}
+                book={book}
+                bookIdx={bookIdx}
+                shelfLength={shelf.length}
+                isFlipped={flippedId === book.id}
+                onFlip={() => setFlippedId(book.id)}
+              />
+            ))}
 
             {/* Fill remaining slots with ghost spines */}
             {shelf.length < BOOKS_PER_SHELF && Array.from({ length: BOOKS_PER_SHELF - shelf.length }).map((_, i) => (
@@ -219,5 +242,6 @@ export default function BookShelf({ books }: Props) {
         </div>
       ))}
     </div>
+    </SortableContext>
   );
 }
