@@ -156,6 +156,32 @@ export function setDailyPages(date: string, pages: number): void {
   }
 }
 
+// 특정 책의 시작일~완독일 사이 일별 읽은 페이지. 실제 기록이 있으면 그대로,
+// 없으면(하루 만에 다 읽었거나 기록 없이 완독 처리한 경우) 총 페이지를 기간에 균등 분배해 보여준다.
+export function getDailyPagesForBook(book: Book): { date: string; pages: number }[] {
+  const real = getDailyReadings().filter((d) => d.bookId === book.id);
+  if (real.length > 0) {
+    const map = new Map<string, number>();
+    for (const r of real) map.set(r.date, (map.get(r.date) ?? 0) + r.pages);
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, pages]) => ({ date, pages }));
+  }
+  if (!book.pages) return [];
+  const start = book.startDate || book.endDate;
+  const end = book.endDate || book.startDate;
+  if (!start) return [];
+  const startD = new Date(start);
+  const endD = new Date(end);
+  const dayCount = Math.max(1, Math.round((endD.getTime() - startD.getTime()) / 86400000) + 1);
+  const perDay = Math.floor(book.pages / dayCount);
+  const remainder = book.pages - perDay * dayCount;
+  const result: { date: string; pages: number }[] = [];
+  for (let i = 0; i < dayCount; i++) {
+    const d = new Date(startD.getTime() + i * 86400000);
+    result.push({ date: localDate(d), pages: perDay + (i < remainder ? 1 : 0) });
+  }
+  return result;
+}
+
 export function getWeeklyPages(): { date: string; pages: number; label: string }[] {
   const readings = getDailyReadings();
   const result = [];

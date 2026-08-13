@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
-import { localDate } from '@/lib/storage';
+import { localDate, getDailyPagesForBook } from '@/lib/storage';
 import StarRating from '@/components/StarRating';
 import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
@@ -75,6 +75,7 @@ export default function BookDetailPage() {
   const [showManual, setShowManual] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
+  const [showReadingLog, setShowReadingLog] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
   const [editTitle, setEditTitle] = useState('');
@@ -249,6 +250,8 @@ export default function BookDetailPage() {
   const badge = STATUS_BADGE[book.status ?? 'done'];
   // 완독한 책은 PC(lg+)에서 표지 크게 좌측, 기록/구절 우측 6:4 분할 전체화면 레이아웃을 쓴다.
   const isDoneSplit = book.status === 'done';
+  const dailyPages = showReadingLog ? getDailyPagesForBook(book) : [];
+  const maxDailyPages = Math.max(1, ...dailyPages.map((d) => d.pages));
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all';
   const cardStyle = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
@@ -471,9 +474,11 @@ export default function BookDetailPage() {
           <div className="bg-white px-5 sm:px-6 py-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${badge.cls}`}>
-                  {badge.label}
-                </span>
+                {book.status !== 'done' && (
+                  <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${badge.cls}`}>
+                    {badge.label}
+                  </span>
+                )}
               </div>
               {book.status === 'done' && book.rating > 0 && (
                 <StarRating value={book.rating} readonly />
@@ -503,6 +508,14 @@ export default function BookDetailPage() {
                   <div className="ml-auto">
                     <p className="text-xs text-[#6E6E73]">{days}일 동안 읽었어요</p>
                   </div>
+                )}
+                {book.status === 'done' && book.pages && (book.startDate || book.endDate) && (
+                  <button onClick={() => setShowReadingLog(true)} title="읽은 기록"
+                    className={`flex-shrink-0 w-9 h-9 rounded-full bg-[#F5F5F7] text-[#1D1D1F] flex items-center justify-center hover:bg-[#EAEAEC] active:scale-95 transition-all ${days ? '' : 'ml-auto'}`}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </button>
                 )}
               </div>
             )}
@@ -668,32 +681,34 @@ export default function BookDetailPage() {
         </div>
         </div>
 
-        {/* Timer card */}
-        <div className="mt-3 sm:mt-4 rounded-3xl overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #0C0C18 0%, #1a1040 100%)', boxShadow: '0 4px 32px rgba(0,0,0,0.2)' }}>
-          <div className="px-6 py-5 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-white/70 text-sm font-medium">독서 타이머</p>
+        {/* Timer card — 완독한 책은 더 이상 타이머가 필요 없으므로 숨김 */}
+        {book.status !== 'done' && (
+          <div className="mt-3 sm:mt-4 rounded-3xl overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #0C0C18 0%, #1a1040 100%)', boxShadow: '0 4px 32px rgba(0,0,0,0.2)' }}>
+            <div className="px-6 py-5 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-white/70 text-sm font-medium">독서 타이머</p>
+                </div>
+                {(book.totalReadingTime ?? 0) > 0
+                  ? <p className="text-white/40 text-xs">누적 {fmtReadingTime(book.totalReadingTime)}</p>
+                  : <p className="text-white/30 text-xs">아직 기록된 시간이 없어요</p>
+                }
               </div>
-              {(book.totalReadingTime ?? 0) > 0
-                ? <p className="text-white/40 text-xs">누적 {fmtReadingTime(book.totalReadingTime)}</p>
-                : <p className="text-white/30 text-xs">아직 기록된 시간이 없어요</p>
-              }
+              <Link to={`/timer/${id}`}
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-[#0C0C18] active:scale-95 transition-transform"
+                style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)', boxShadow: '0 4px 16px rgba(129,140,248,0.4)' }}>
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                시작
+              </Link>
             </div>
-            <Link to={`/timer/${id}`}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-[#0C0C18] active:scale-95 transition-transform"
-              style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)', boxShadow: '0 4px 16px rgba(129,140,248,0.4)' }}>
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              시작
-            </Link>
           </div>
-        </div>
+        )}
 
         {/* 위험 액션은 페이지 맨 아래로 분리해 실수 방지 */}
         <div className="mt-10 flex justify-center">
@@ -865,6 +880,44 @@ export default function BookDetailPage() {
                 닫기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 읽은 기록 — 일별 페이지 막대 그래프 */}
+      {showReadingLog && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50"
+          onClick={(e) => e.target === e.currentTarget && setShowReadingLog(false)}>
+          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 sm:p-7"
+            style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.18)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden" />
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-bold text-[#1D1D1F]">읽은 기록</h3>
+              <button onClick={() => setShowReadingLog(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] hover:bg-gray-200 transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p className="text-[13px] text-[#6E6E73] mb-5">시작일부터 완독일까지 하루에 읽은 페이지예요</p>
+            {dailyPages.length === 0 ? (
+              <p className="text-sm text-[#AEAEB2] text-center py-8">기록이 없어요</p>
+            ) : (
+              <div className="overflow-x-auto -mx-1 px-1">
+                <div className="flex items-end gap-2" style={{ height: 140, minWidth: dailyPages.length * 36 }}>
+                  {dailyPages.map((d) => {
+                    const height = Math.max((d.pages / maxDailyPages) * 96, d.pages > 0 ? 6 : 2);
+                    return (
+                      <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5" style={{ minWidth: 28 }}>
+                        <span className="text-[10px] font-bold text-[#1D1D1F]">{d.pages > 0 ? d.pages : ''}</span>
+                        <div className="w-full flex items-end justify-center" style={{ height: 96 }}>
+                          <div className="w-full rounded-lg" style={{ height, background: d.pages > 0 ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)' : '#F0F0F5', minHeight: 2 }} />
+                        </div>
+                        <span className="text-[9.5px] text-[#AEAEB2] whitespace-nowrap">{formatDateShort(d.date).slice(5)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
