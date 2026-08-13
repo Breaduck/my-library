@@ -77,6 +77,7 @@ export default function BookDetailPage() {
   const [savingCard, setSavingCard] = useState(false);
   const [showReadingLog, setShowReadingLog] = useState(false);
   const [logDraft, setLogDraft] = useState<{ date: string; pages: number }[]>([]);
+  const [editingLog, setEditingLog] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
   const [editTitle, setEditTitle] = useState('');
@@ -256,6 +257,7 @@ export default function BookDetailPage() {
   function openReadingLog() {
     if (!book) return;
     setLogDraft(getDailyPagesForBook(book));
+    setEditingLog(false);
     setShowReadingLog(true);
   }
   function updateLogDay(i: number, pages: number) {
@@ -906,11 +908,20 @@ export default function BookDetailPage() {
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden" />
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-lg font-bold text-[#1D1D1F]">읽은 기록</h3>
-              <button onClick={() => setShowReadingLog(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] hover:bg-gray-200 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { if (editingLog) commitLog(); setEditingLog((v) => !v); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${editingLog ? 'bg-[#1D1D1F] text-white' : 'bg-[#F5F5F7] text-[#1D1D1F] hover:bg-gray-200'}`}>
+                  {editingLog ? '완료' : '수정'}
+                </button>
+                <button onClick={() => setShowReadingLog(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] hover:bg-gray-200 transition-colors">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
-            <p className="text-[13px] text-[#6E6E73] mb-5">시작일부터 완독일까지 하루에 읽은 페이지예요 · 숫자를 눌러 수정할 수 있어요</p>
+            <p className="text-[13px] text-[#6E6E73] mb-5">
+              {editingLog ? '숫자를 눌러 페이지 수를 수정하세요' : '시작일부터 완독일까지 하루에 읽은 페이지예요'}
+            </p>
             {logDraft.length === 0 ? (
               <p className="text-sm text-[#AEAEB2] text-center py-8">기록이 없어요</p>
             ) : (
@@ -920,15 +931,19 @@ export default function BookDetailPage() {
                     const height = Math.max((d.pages / maxLogPages) * 96, d.pages > 0 ? 6 : 2);
                     return (
                       <div key={d.date} className="flex flex-col items-center gap-1.5" style={{ width: 40 }}>
-                        <input
-                          type="number"
-                          min={0}
-                          value={d.pages}
-                          onChange={(e) => updateLogDay(i, parseInt(e.target.value) || 0)}
-                          onBlur={commitLog}
-                          className="w-full text-center text-sm font-bold text-[#1D1D1F] outline-none rounded focus:ring-2 focus:ring-[#0071E3] focus:bg-[#F5F5F7]"
-                          style={{ appearance: 'textfield' }}
-                        />
+                        {editingLog ? (
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={d.pages}
+                            onChange={(e) => updateLogDay(i, parseInt(e.target.value.replace(/\D/g, '')) || 0)}
+                            onBlur={commitLog}
+                            autoFocus={i === 0}
+                            className="w-full text-center text-sm font-bold text-[#1D1D1F] outline-none rounded focus:ring-2 focus:ring-[#0071E3] focus:bg-[#F5F5F7]"
+                          />
+                        ) : (
+                          <span className="text-sm font-bold text-[#1D1D1F] leading-none">{d.pages > 0 ? d.pages : '-'}</span>
+                        )}
                         <div className="w-full flex items-end justify-center" style={{ height: 96 }}>
                           <div className="w-full rounded-lg" style={{ width: 30, height, background: d.pages > 0 ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)' : '#F0F0F5', minHeight: 2 }} />
                         </div>
