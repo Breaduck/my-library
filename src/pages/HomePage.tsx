@@ -87,11 +87,15 @@ export default function HomePage() {
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    if (search || tab !== 'all') return;
-    const oldIndex = books.findIndex((b) => b.id === active.id);
-    const newIndex = books.findIndex((b) => b.id === over.id);
+    // 탭/검색으로 걸러진 목록 안에서의 순서만 바꾸고, 화면에 없는 책들의 상대 순서는 그대로 둔다.
+    const oldIndex = filtered.findIndex((b) => b.id === active.id);
+    const newIndex = filtered.findIndex((b) => b.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    reorderBooks(arrayMove(books, oldIndex, newIndex).map((b) => b.id));
+    const reorderedFiltered = arrayMove(filtered, oldIndex, newIndex);
+    const filteredIds = new Set(filtered.map((b) => b.id));
+    let i = 0;
+    const reorderedAll = books.map((b) => (filteredIds.has(b.id) ? reorderedFiltered[i++] : b));
+    reorderBooks(reorderedAll.map((b) => b.id));
   }
 
   const counts: Record<Tab, number> = {
@@ -108,7 +112,6 @@ export default function HomePage() {
     .filter((b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase()));
 
   const activeBook = activeId ? books.find((b) => b.id === activeId) : null;
-  const canDrag = !search && tab === 'all' && viewMode === 'grid';
 
   const showReadingSection = readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search;
 
