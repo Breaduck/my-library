@@ -181,10 +181,11 @@ function useAuthState(): AuthApi {
       if (gd.getToken()) {
         setState('synced');
       } else if (gd.wasSignedIn()) {
-        setState('connecting');
-        // hint로 이전 계정을 지정 — 브라우저에 구글 계정이 여러 개면 hint 없이 조용히 재연결 시도해도
-        // "어느 계정으로?" 선택 팝업이 뜬다. hint를 주면 그 계정으로 바로 조용히 재인증된다.
-        gd.requestAccess('', gd.getCachedProfile()?.email);
+        // 앱을 새로 열 때마다 조용히 재연결을 시도하면, hint를 줘도 구글 팝업창이 순간적으로
+        // 열렸다 닫히는 게 보인다(완전히 안 보이게 만드는 옵션은 구글 API에 없음). 그래서 여기서는
+        // 더 이상 재연결을 시도하지 않고, 캐시된 프로필로 로그인된 것처럼 조용히 보여준다.
+        // 실제 토큰은 book 저장/동기화가 실제로 필요해질 때(아래 debounced save, syncNow)만 요청한다.
+        setState('synced');
       }
     });
     return () => { cancelled = true; };
@@ -193,7 +194,7 @@ function useAuthState(): AuthApi {
   // ⚠️ 배경 타이머로 gd.requestAccess()를 자동 호출하지 않는다 — 사용자 제스처 없이 호출하면
   // 브라우저가 조용한 재인증을 허용하지 않고 실제 구글 계정 선택 팝업을 띄우는 경우가 있어서
   // "책 삭제/뒤로가기 같은 평범한 조작에도 로그인창이 뜬다"는 문제로 이어졌다.
-  // 재연결은 (1) 앱을 새로 열었을 때 한 번, (2) 사용자가 "동기화"를 직접 눌렀을 때만 시도한다.
+  // 재연결은 (1) 실제로 저장할 변경사항이 생겼을 때, (2) 사용자가 "동기화"를 직접 눌렀을 때만 시도한다.
 
   // Sync local book changes up to Drive (debounced)
   useEffect(() => {
@@ -205,6 +206,12 @@ function useAuthState(): AuthApi {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       setState('saving');
       debounceRef.current = setTimeout(async () => {
+        // 토큰이 없으면(첫 진입 후 아직 재연결 안 됐거나 만료) 이 시점에 조용히 재연결 시도 —
+        // 성공하면 onSignInSuccess가 최신 로컬 데이터를 병합해서 알아서 동기화한다.
+        if (!gd.getToken()) {
+          gd.requestAccess('', gd.getCachedProfile()?.email);
+          return;
+        }
         try {
           await gd.saveToDrive({ books, tombstones: getTombstones() });
           social.syncMyBooks(prepareSharedBooks(books)).catch(() => {});
@@ -213,8 +220,7 @@ function useAuthState(): AuthApi {
           setLastSync(new Date());
           setState('synced');
         } catch {
-          // 토큰 만료 등 — 로컬은 안전. 여기서 자동으로 재로그인 팝업을 띄우지 않는다(사용자 제스처가
-          // 아니므로). "동기화"를 직접 누르거나 다음에 앱을 새로 열면 자연스럽게 재연결된다.
+          // 토큰 만료 등 — 로컬은 안전. 다음 변경사항이 생기거나 "동기화"를 직접 누르면 재연결된다.
           setState('error');
         }
       }, 1200);
