@@ -7,6 +7,7 @@ import StarRating from '@/components/StarRating';
 import FriendBookCard from '@/components/FriendBookCard';
 import FriendBookStack from '@/components/FriendBookStack';
 import FriendBookShelf from '@/components/FriendBookShelf';
+import LoginModal from '@/components/LoginModal';
 
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 type ViewMode = 'grid' | 'list' | 'shelf';
@@ -126,7 +127,7 @@ export default function FriendDetailPage() {
   const { email: rawEmail } = useParams<{ email: string }>();
   const email = decodeURIComponent(rawEmail ?? '');
   const navigate = useNavigate();
-  const { signedIn, profile } = useAuth();
+  const { signedIn, profile, signIn } = useAuth();
   const { friends, loading: friendsLoading, remove } = useFriends(signedIn);
   const { books, loading: booksLoading, error } = useFriendBooks(signedIn ? email : undefined);
   const { stats } = useFriendStats(signedIn ? email : undefined);
@@ -134,6 +135,7 @@ export default function FriendDetailPage() {
   const [openBook, setOpenBook] = useState<SharedBook | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   const friend = friends.find((f) => f.email === email);
   const reading = books.filter((b) => b.status === 'reading');
@@ -145,8 +147,16 @@ export default function FriendDetailPage() {
 
   if (!signedIn) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center">
-        <p className="text-sm text-[#6E6E73]">로그인이 필요해요</p>
+      <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="inline-flex w-12 h-12 rounded-2xl items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, #FFF1D0 0%, #F2CA8A 100%)', boxShadow: '0 4px 16px rgba(150,100,40,0.18)' }}>
+          <span className="text-2xl">👥</span>
+        </div>
+        <p className="text-sm text-[#6E6E73] leading-relaxed">로그인하면 친구의 서재를<br />볼 수 있어요</p>
+        <button onClick={() => setShowLogin(true)} className="px-5 py-2.5 rounded-full bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] transition-colors">
+          로그인해주세요
+        </button>
+        <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onGoogle={() => { setShowLogin(false); signIn(); }} />
       </div>
     );
   }

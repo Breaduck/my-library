@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { FriendEntry, lookupByNickname } from '@/lib/social';
+import LoginModal from '@/components/LoginModal';
 
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
@@ -19,7 +20,7 @@ function Avatar({ name, picture, size = 44 }: { name: string; picture: string; s
 }
 
 export default function FriendsPage() {
-  const { signedIn } = useAuth();
+  const { signedIn, signIn } = useAuth();
   const { friends, incoming, outgoing, loading, error, invite, accept, decline } = useFriends(signedIn);
   const [inviteMode, setInviteMode] = useState<'email' | 'nickname'>('email');
   const [email, setEmail] = useState('');
@@ -29,6 +30,7 @@ export default function FriendsPage() {
   const [nickname, setNickname] = useState('');
   const [nicknameResults, setNicknameResults] = useState<FriendEntry[] | null>(null);
   const [nicknameBusy, setNicknameBusy] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   async function handleInvite() {
     const target = email.trim();
@@ -89,10 +91,14 @@ export default function FriendsPage() {
 
         {!signedIn ? (
           <div className="bg-white rounded-2xl p-8 text-center" style={cs}>
-            <p className="text-sm text-[#6E6E73]">로그인 후 친구를 추가할 수 있어요</p>
-            <Link to="/settings" className="inline-block mt-4 px-5 py-2.5 rounded-full bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] transition-colors">
-              설정으로 이동
-            </Link>
+            <div className="inline-flex w-12 h-12 rounded-2xl items-center justify-center mb-3"
+              style={{ background: 'linear-gradient(135deg, #FFF1D0 0%, #F2CA8A 100%)', boxShadow: '0 4px 16px rgba(150,100,40,0.18)' }}>
+              <span className="text-2xl">👥</span>
+            </div>
+            <p className="text-sm text-[#6E6E73] leading-relaxed">로그인하면 친구를 추가하고<br />서로의 독서 기록을 볼 수 있어요</p>
+            <button onClick={() => setShowLogin(true)} className="inline-block mt-4 px-5 py-2.5 rounded-full bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] transition-colors">
+              로그인해주세요
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -245,6 +251,8 @@ export default function FriendsPage() {
           </div>
         )}
       </div>
+
+      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onGoogle={() => { setShowLogin(false); signIn(); }} />
     </div>
   );
 }
