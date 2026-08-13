@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
-import { localDate, getDailyPagesForBook } from '@/lib/storage';
+import { localDate, getDailyPagesForBook, setDailyPagesBulkForBook } from '@/lib/storage';
 import StarRating from '@/components/StarRating';
 import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
@@ -76,6 +76,7 @@ export default function BookDetailPage() {
   const [showShareCard, setShowShareCard] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
   const [showReadingLog, setShowReadingLog] = useState(false);
+  const [logDraft, setLogDraft] = useState<{ date: string; pages: number }[]>([]);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
   const [editTitle, setEditTitle] = useState('');
@@ -250,8 +251,20 @@ export default function BookDetailPage() {
   const badge = STATUS_BADGE[book.status ?? 'done'];
   // 완독한 책은 PC(lg+)에서 표지 크게 좌측, 기록/구절 우측 6:4 분할 전체화면 레이아웃을 쓴다.
   const isDoneSplit = book.status === 'done';
-  const dailyPages = showReadingLog ? getDailyPagesForBook(book) : [];
-  const maxDailyPages = Math.max(1, ...dailyPages.map((d) => d.pages));
+  const maxLogPages = Math.max(1, ...logDraft.map((d) => d.pages));
+
+  function openReadingLog() {
+    if (!book) return;
+    setLogDraft(getDailyPagesForBook(book));
+    setShowReadingLog(true);
+  }
+  function updateLogDay(i: number, pages: number) {
+    setLogDraft((prev) => prev.map((d, idx) => (idx === i ? { ...d, pages: Math.max(0, pages) } : d)));
+  }
+  function commitLog() {
+    if (!book || !id) return;
+    setDailyPagesBulkForBook(logDraft, id);
+  }
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all';
   const cardStyle = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
@@ -489,19 +502,19 @@ export default function BookDetailPage() {
                 {book.startDate && (
                   <div>
                     <p className="text-[10px] text-[#AEAEB2] mb-0.5">시작일</p>
-                    <p className="text-xs font-medium text-[#1D1D1F]">{formatDateShort(book.startDate)}</p>
+                    <p className="text-base font-semibold text-[#1D1D1F]">{formatDateShort(book.startDate)}</p>
                   </div>
                 )}
                 {book.endDate && (
                   <div>
                     <p className="text-[10px] text-[#AEAEB2] mb-0.5">완독일</p>
-                    <p className="text-xs font-medium text-[#1D1D1F]">{formatDateShort(book.endDate)}</p>
+                    <p className="text-base font-semibold text-[#1D1D1F]">{formatDateShort(book.endDate)}</p>
                   </div>
                 )}
                 {book.pages && (
                   <div>
                     <p className="text-[10px] text-[#AEAEB2] mb-0.5">페이지</p>
-                    <p className="text-xs font-medium text-[#1D1D1F]">{book.pages}p</p>
+                    <p className="text-base font-semibold text-[#1D1D1F]">{book.pages}p</p>
                   </div>
                 )}
                 {days && (
@@ -510,7 +523,7 @@ export default function BookDetailPage() {
                   </div>
                 )}
                 {book.status === 'done' && book.pages && (book.startDate || book.endDate) && (
-                  <button onClick={() => setShowReadingLog(true)} title="읽은 기록"
+                  <button onClick={openReadingLog} title="읽은 기록"
                     className={`flex-shrink-0 w-9 h-9 rounded-full bg-[#F5F5F7] text-[#1D1D1F] flex items-center justify-center hover:bg-[#EAEAEC] active:scale-95 transition-all ${days ? '' : 'ml-auto'}`}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -897,19 +910,27 @@ export default function BookDetailPage() {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <p className="text-[13px] text-[#6E6E73] mb-5">시작일부터 완독일까지 하루에 읽은 페이지예요</p>
-            {dailyPages.length === 0 ? (
+            <p className="text-[13px] text-[#6E6E73] mb-5">시작일부터 완독일까지 하루에 읽은 페이지예요 · 숫자를 눌러 수정할 수 있어요</p>
+            {logDraft.length === 0 ? (
               <p className="text-sm text-[#AEAEB2] text-center py-8">기록이 없어요</p>
             ) : (
               <div className="overflow-x-auto -mx-1 px-1">
-                <div className="flex items-end gap-2" style={{ height: 140, minWidth: dailyPages.length * 36 }}>
-                  {dailyPages.map((d) => {
-                    const height = Math.max((d.pages / maxDailyPages) * 96, d.pages > 0 ? 6 : 2);
+                <div className="inline-flex items-end gap-3 mx-auto" style={{ height: 140 }}>
+                  {logDraft.map((d, i) => {
+                    const height = Math.max((d.pages / maxLogPages) * 96, d.pages > 0 ? 6 : 2);
                     return (
-                      <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5" style={{ minWidth: 28 }}>
-                        <span className="text-[10px] font-bold text-[#1D1D1F]">{d.pages > 0 ? d.pages : ''}</span>
+                      <div key={d.date} className="flex flex-col items-center gap-1.5" style={{ width: 22 }}>
+                        <input
+                          type="number"
+                          min={0}
+                          value={d.pages}
+                          onChange={(e) => updateLogDay(i, parseInt(e.target.value) || 0)}
+                          onBlur={commitLog}
+                          className="w-full text-center text-[10px] font-bold text-[#1D1D1F] outline-none rounded focus:ring-2 focus:ring-[#0071E3] focus:bg-[#F5F5F7]"
+                          style={{ appearance: 'textfield' }}
+                        />
                         <div className="w-full flex items-end justify-center" style={{ height: 96 }}>
-                          <div className="w-full rounded-lg" style={{ height, background: d.pages > 0 ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)' : '#F0F0F5', minHeight: 2 }} />
+                          <div className="w-full rounded-lg" style={{ width: 10, height, background: d.pages > 0 ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)' : '#F0F0F5', minHeight: 2 }} />
                         </div>
                         <span className="text-[9.5px] text-[#AEAEB2] whitespace-nowrap">{formatDateShort(d.date).slice(5)}</span>
                       </div>

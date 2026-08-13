@@ -182,6 +182,15 @@ export function getDailyPagesForBook(book: Book): { date: string; pages: number 
   return result;
 }
 
+// 특정 책의 일별 기록 전체를 덮어쓴다. getDailyPagesForBook이 반환한(실제 기록이든
+// 균등 분배된 값이든) 배열을 그대로 넘기면, 그 시점부터는 항상 "실제 기록"으로 취급된다.
+export function setDailyPagesBulkForBook(entries: { date: string; pages: number }[], bookId: string): void {
+  if (typeof window === 'undefined') return;
+  const others = getDailyReadings().filter((d) => d.bookId !== bookId);
+  const mine = entries.filter((e) => e.pages > 0).map((e) => ({ date: e.date, pages: e.pages, bookId }));
+  localStorage.setItem(DAILY_KEY, JSON.stringify([...others, ...mine]));
+}
+
 export function getWeeklyPages(): { date: string; pages: number; label: string }[] {
   const readings = getDailyReadings();
   const result = [];
