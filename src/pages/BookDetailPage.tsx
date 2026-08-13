@@ -247,6 +247,8 @@ export default function BookDetailPage() {
 
   const days = readingDays(book.startDate, book.endDate);
   const badge = STATUS_BADGE[book.status ?? 'done'];
+  // 완독한 책은 PC(lg+)에서 표지 크게 좌측, 기록/구절 우측 6:4 분할 전체화면 레이아웃을 쓴다.
+  const isDoneSplit = book.status === 'done';
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all';
   const cardStyle = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
@@ -411,7 +413,7 @@ export default function BookDetailPage() {
   /* ─── VIEW MODE ─── */
   return (
     <div className="min-h-screen bg-[#F5F5F7]">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 page-pt"
+      <div className={`${isDoneSplit ? 'max-w-2xl lg:max-w-[1440px]' : 'max-w-2xl'} mx-auto px-4 sm:px-6 page-pt`}
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 48px)' }}>
 
         {/* Header */}
@@ -435,10 +437,12 @@ export default function BookDetailPage() {
           </div>
         </div>
 
+        <div className={isDoneSplit ? 'lg:grid lg:grid-cols-10 lg:gap-10 lg:items-start' : ''}>
+        <div className={isDoneSplit ? 'lg:col-span-6 lg:sticky lg:top-8' : ''}>
         {/* Hero */}
         <div className="rounded-3xl overflow-hidden mb-3 sm:mb-4" style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.14)' }}>
-          <div className="relative flex flex-col items-center pt-8 pb-6 px-6"
-            style={{ background: book.coverUrl ? '#0C0C18' : 'linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', minHeight: 200 }}>
+          <div className={`relative flex flex-col items-center justify-center pt-8 pb-6 px-6 min-h-[200px] ${isDoneSplit ? 'lg:min-h-[calc(100vh-160px)] lg:py-14' : ''}`}
+            style={{ background: book.coverUrl ? '#0C0C18' : 'linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
             {book.coverUrl && (
               <div className="absolute inset-0 overflow-hidden">
                 {/* 책 표지에서 뽑아낸 그라데이션 배경 (블러) */}
@@ -447,8 +451,8 @@ export default function BookDetailPage() {
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(12,12,24,0.30) 0%, rgba(12,12,24,0.55) 55%, rgba(12,12,24,0.72) 100%)' }} />
               </div>
             )}
-            <div className="relative flex-shrink-0 rounded-xl overflow-hidden"
-              style={{ width: 110, height: 160, boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 4px 16px rgba(0,0,0,0.4)' }}>
+            <div className={`relative flex-shrink-0 rounded-xl overflow-hidden w-[110px] h-[160px] ${isDoneSplit ? 'lg:w-[320px] lg:h-[460px]' : ''}`}
+              style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 4px 16px rgba(0,0,0,0.4)' }}>
               {book.coverUrl
                 ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
                 : <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-purple-800 flex items-center justify-center">
@@ -457,11 +461,11 @@ export default function BookDetailPage() {
               }
             </div>
             <div className="relative mt-4 text-center">
-              <h1 className="text-white font-bold text-lg sm:text-xl leading-snug"
+              <h1 className={`text-white font-bold text-lg sm:text-xl leading-snug ${isDoneSplit ? 'lg:text-3xl lg:mt-2' : ''}`}
                 style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
                 {book.title}
               </h1>
-              <p className="text-white/60 text-sm mt-1">{book.author}</p>
+              <p className={`text-white/60 text-sm mt-1 ${isDoneSplit ? 'lg:text-base' : ''}`}>{book.author}</p>
             </div>
           </div>
           <div className="bg-white px-5 sm:px-6 py-4">
@@ -504,7 +508,9 @@ export default function BookDetailPage() {
             )}
           </div>
         </div>
+        </div>
 
+        <div className={isDoneSplit ? 'lg:col-span-4' : ''}>
         {book.status === 'reading' && book.currentPage && book.pages && (
           <div className="bg-white rounded-2xl p-5 mb-3 sm:mb-4" style={cardStyle}>
             <h2 className="text-sm font-semibold text-[#1D1D1F] mb-3">읽기 진행률</h2>
@@ -659,6 +665,8 @@ export default function BookDetailPage() {
             </div>
           </>
         )}
+        </div>
+        </div>
 
         {/* Timer card */}
         <div className="mt-3 sm:mt-4 rounded-3xl overflow-hidden"
