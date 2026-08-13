@@ -915,24 +915,24 @@ export default function BookDetailPage() {
               <p className="text-sm text-[#AEAEB2] text-center py-8">기록이 없어요</p>
             ) : (
               <div className="overflow-x-auto -mx-1 px-1">
-                <div className="inline-flex items-end gap-3 mx-auto" style={{ height: 140 }}>
+                <div className="inline-flex items-end gap-3 mx-auto" style={{ height: 150 }}>
                   {logDraft.map((d, i) => {
                     const height = Math.max((d.pages / maxLogPages) * 96, d.pages > 0 ? 6 : 2);
                     return (
-                      <div key={d.date} className="flex flex-col items-center gap-1.5" style={{ width: 22 }}>
+                      <div key={d.date} className="flex flex-col items-center gap-1.5" style={{ width: 40 }}>
                         <input
                           type="number"
                           min={0}
                           value={d.pages}
                           onChange={(e) => updateLogDay(i, parseInt(e.target.value) || 0)}
                           onBlur={commitLog}
-                          className="w-full text-center text-[10px] font-bold text-[#1D1D1F] outline-none rounded focus:ring-2 focus:ring-[#0071E3] focus:bg-[#F5F5F7]"
+                          className="w-full text-center text-sm font-bold text-[#1D1D1F] outline-none rounded focus:ring-2 focus:ring-[#0071E3] focus:bg-[#F5F5F7]"
                           style={{ appearance: 'textfield' }}
                         />
                         <div className="w-full flex items-end justify-center" style={{ height: 96 }}>
-                          <div className="w-full rounded-lg" style={{ width: 10, height, background: d.pages > 0 ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)' : '#F0F0F5', minHeight: 2 }} />
+                          <div className="w-full rounded-lg" style={{ width: 30, height, background: d.pages > 0 ? 'linear-gradient(180deg, #4F8EF7, #3B7DE8)' : '#F0F0F5', minHeight: 2 }} />
                         </div>
-                        <span className="text-[9.5px] text-[#AEAEB2] whitespace-nowrap">{formatDateShort(d.date).slice(5)}</span>
+                        <span className="text-[10.5px] text-[#AEAEB2] whitespace-nowrap">{formatDateShort(d.date).slice(5)}</span>
                       </div>
                     );
                   })}
