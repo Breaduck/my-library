@@ -171,7 +171,7 @@ function useAuthState(): AuthApi {
         if (gd.wasSignedIn() && !reconnectRetried.current) {
           reconnectRetried.current = true;
           setState('connecting');
-          setTimeout(() => { if (!cancelled) gd.requestAccess(''); }, 1500);
+          setTimeout(() => { if (!cancelled) gd.requestAccess('', gd.getCachedProfile()?.email); }, 1500);
         } else {
           setState(gd.wasSignedIn() ? 'error' : 'idle');
         }
@@ -182,7 +182,9 @@ function useAuthState(): AuthApi {
         setState('synced');
       } else if (gd.wasSignedIn()) {
         setState('connecting');
-        gd.requestAccess('');
+        // hint로 이전 계정을 지정 — 브라우저에 구글 계정이 여러 개면 hint 없이 조용히 재연결 시도해도
+        // "어느 계정으로?" 선택 팝업이 뜬다. hint를 주면 그 계정으로 바로 조용히 재인증된다.
+        gd.requestAccess('', gd.getCachedProfile()?.email);
       }
     });
     return () => { cancelled = true; };
@@ -271,7 +273,7 @@ function useAuthState(): AuthApi {
   const syncNow = useCallback(async () => {
     if (!signedIn) return;
     // 토큰이 없으면(만료) 조용히 재연결 → 콜백이 병합 동기화 수행
-    if (!gd.getToken()) { setState('connecting'); gd.requestAccess(''); return; }
+    if (!gd.getToken()) { setState('connecting'); gd.requestAccess('', gd.getCachedProfile()?.email); return; }
     // 로컬만 올리면 원격(다른 기기)의 책이 줄 수 있으므로 항상 병합 동기화
     await onSignInSuccess();
   }, [signedIn, onSignInSuccess]);

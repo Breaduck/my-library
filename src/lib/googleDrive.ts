@@ -91,10 +91,12 @@ export function initTokenClient(
   });
 }
 
-export function requestAccess(prompt: string = '') {
+// hint(이전 로그인 이메일)를 넘기면 구글이 "어느 계정?" 팝업 없이 바로 그 계정으로 조용히 재인증을 시도한다.
+// 특히 브라우저에 구글 계정이 여러 개 로그인돼 있을 때, hint 없이는 prompt:''라도 계정 선택 팝업이 뜬다.
+export function requestAccess(prompt: string = '', hint?: string) {
   if (_tokenClient) {
-    (_tokenClient as { requestAccessToken: (opts: { prompt: string }) => void })
-      .requestAccessToken({ prompt });
+    (_tokenClient as { requestAccessToken: (opts: { prompt: string; hint?: string }) => void })
+      .requestAccessToken(hint ? { prompt, hint } : { prompt });
   }
 }
 
