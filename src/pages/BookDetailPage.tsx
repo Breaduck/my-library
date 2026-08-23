@@ -188,22 +188,25 @@ export default function BookDetailPage() {
 
   function saveEdit() {
     if (!editTitle.trim() || !id) return;
-    // '읽는중/예정'에서 '읽음'으로 바뀌는 순간 = 완독! 저장 후 축하를 띄운다
-    const justFinished = book?.status !== 'done' && editStatus === 'done';
-    // 읽음으로 표시했는데 완독일이 비어 있으면 오늘로 자동 채운다 (독서 목표 반영용)
-    const resolvedEndDate = editStatus === 'done' && !editEndDate
-      ? localDate()
-      : editEndDate;
     // 페이지 값 검증 — 음수/과대값 방지, 현재 페이지는 총 페이지 이내로 클램프
     const pagesNum = editPages ? Math.min(Math.max(parseInt(editPages) || 0, 0), 99999) || undefined : undefined;
     const curNum = editCurrentPage
       ? Math.min(Math.max(parseInt(editCurrentPage) || 0, 0), pagesNum ?? 99999) || undefined
       : undefined;
+    // 읽는중인 책의 현재 페이지가 총 페이지에 도달하면 '읽음'을 직접 고르지 않아도 자동으로 완독 처리
+    const autoFinish = editStatus === 'reading' && !!pagesNum && !!curNum && curNum >= pagesNum;
+    const finalStatus = autoFinish ? 'done' : editStatus;
+    // '읽는중/예정'에서 '읽음'으로 바뀌는 순간 = 완독! 저장 후 축하를 띄운다
+    const justFinished = book?.status !== 'done' && finalStatus === 'done';
+    // 읽음으로 표시했는데 완독일이 비어 있으면 오늘로 자동 채운다 (독서 목표 반영용)
+    const resolvedEndDate = finalStatus === 'done' && !editEndDate
+      ? localDate()
+      : editEndDate;
     updateBook(id, {
       title: editTitle.trim(),
       author: editAuthor.trim(),
       coverUrl: editCoverUrl,
-      status: editStatus,
+      status: finalStatus,
       startDate: editStartDate,
       endDate: resolvedEndDate,
       rating: editRating,

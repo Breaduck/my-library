@@ -6,9 +6,11 @@ import { addDailyPages, subtractDailyPages, logDailyPages, getWeeklyPages, getTo
 interface Props {
   readingBook?: Book;
   onClose: () => void;
+  // 오늘 기록으로 총 페이지에 도달해 '읽는중' → '완독'으로 자동 전환됐을 때 호출 (축하 UI 등에 사용)
+  onFinished?: (book: Book) => void;
 }
 
-export default function DailyReadingModal({ readingBook, onClose }: Props) {
+export default function DailyReadingModal({ readingBook, onClose, onFinished }: Props) {
   const { updateBook } = useBooks();
   const weekly = getWeeklyPages();
   const maxPages = Math.max(...weekly.map((w) => w.pages), 1);
@@ -36,7 +38,18 @@ export default function DailyReadingModal({ readingBook, onClose }: Props) {
       const delta = newCurrent - currentPage;
       if (delta > 0) addDailyPages(delta, readingBook.id);
       else if (delta < 0) subtractDailyPages(-delta, readingBook.id); // 잘못 입력했던 만큼 오늘 기록에서 되돌림
-      if (newCurrent !== currentPage) updateBook(readingBook.id, { currentPage: newCurrent });
+      // 총 페이지에 도달하면 '읽는중'에 머물러 있지 말고 자동으로 완독 처리
+      const justFinished = newCurrent >= totalPages && readingBook.status !== 'done';
+      if (newCurrent !== currentPage || justFinished) {
+        updateBook(readingBook.id, {
+          currentPage: newCurrent,
+          ...(justFinished ? { status: 'done', endDate: readingBook.endDate || localDate() } : {}),
+        });
+      }
+      markDailyPopupShown();
+      onClose();
+      if (justFinished) onFinished?.(readingBook);
+      return;
     } else if (parsedInput > 0) {
       logDailyPages(parsedInput, readingBook?.id);
     }

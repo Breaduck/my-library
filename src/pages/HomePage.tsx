@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
   useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay,
@@ -13,8 +13,9 @@ import BookStack from '@/components/BookStack';
 import EmptyState from '@/components/EmptyState';
 import AccountButton from '@/components/AccountButton';
 import DailyReadingModal from '@/components/DailyReadingModal';
+import CompletionCelebration from '@/components/CompletionCelebration';
 import { ReadingStatus, Book } from '@/types';
-import { getReadingStreak, getTodayPages, hasDoneReadingToday } from '@/lib/storage';
+import { getReadingStreak, getTodayPages, hasDoneReadingToday, localDate } from '@/lib/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { usePendingRequestCount } from '@/hooks/useFriends';
 
@@ -44,9 +45,10 @@ function SortableGridCard({ book, isDragging, index }: { book: Book; isDragging:
 }
 
 export default function HomePage() {
-  const { books, loaded, reorderBooks } = useBooks();
+  const { books, loaded, reorderBooks, updateBook } = useBooks();
   const { signedIn, displayName } = useAuth();
   const pendingRequests = usePendingRequestCount(signedIn);
+  const navigate = useNavigate();
   const libraryTitle = signedIn && displayName ? `${displayName}의 서재` : '나의 서재';
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('all');
@@ -58,6 +60,7 @@ export default function HomePage() {
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
   const [readingHidden, setReadingHidden] = useState(false);
+  const [celebrationBook, setCelebrationBook] = useState<Book | null>(null);
 
   function openDailyFor(book?: Book) {
     setDailyModalBook(book);
@@ -67,6 +70,12 @@ export default function HomePage() {
   function refreshTodayStats() {
     setStreak(getReadingStreak());
     setTodayPages(getTodayPages());
+  }
+
+  function startNextBook(next: Book) {
+    updateBook(next.id, { status: 'reading', startDate: next.startDate || localDate() });
+    setCelebrationBook(null);
+    navigate(`/book/${next.id}`);
   }
 
   function toggleReadingHidden() {
@@ -459,6 +468,19 @@ export default function HomePage() {
         <DailyReadingModal
           readingBook={dailyModalBook ?? readingBooks[0]}
           onClose={() => { setShowDailyModal(false); setDailyModalBook(undefined); refreshTodayStats(); }}
+          onFinished={(book) => setCelebrationBook(book)}
+        />
+      )}
+
+      {/* 오늘 기록으로 총 페이지에 도달해 자동 완독됐을 때 축하 */}
+      {celebrationBook && (
+        <CompletionCelebration
+          book={celebrationBook}
+          doneCount={books.filter((b) => b.status === 'done').length}
+          nextBook={books.find((b) => b.status === 'want')}
+          onShare={() => navigate(`/book/${celebrationBook.id}`)}
+          onStartNext={startNextBook}
+          onClose={() => setCelebrationBook(null)}
         />
       )}
     </div>
