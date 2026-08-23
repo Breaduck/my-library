@@ -5,7 +5,12 @@ export async function requireEmail(request: Request, clientId?: string): Promise
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token) return null;
   try {
-    const res = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`);
+    // 토큰을 쿼리스트링에 넣으면 중간 프록시/서버 로그에 남을 수 있어 POST 본문으로 전달
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/tokeninfo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ access_token: token }),
+    });
     if (!res.ok) return null;
     const data = await res.json() as { email?: string; aud?: string };
     if (!data.email) return null;

@@ -82,6 +82,8 @@ export function initTokenClient(
   _tokenClient = g.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope: SCOPES,
+    // 점진적 승인(구글 콘솔 진단 항목): 이미 승인된 스코프를 새 요청에 합산 (기본값이지만 명시)
+    include_granted_scopes: true,
     callback: (response: { access_token?: string; error?: string; expires_in?: number }) => {
       if (response.error || !response.access_token) { onError(); return; }
       setToken(response.access_token, response.expires_in);
