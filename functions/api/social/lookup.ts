@@ -1,6 +1,6 @@
 import { requireEmail, json } from '../../_lib/auth';
 
-interface Env { DB: D1Database }
+interface Env { DB: D1Database; VITE_GOOGLE_CLIENT_ID?: string }
 
 interface UserRow {
   email: string;
@@ -13,7 +13,7 @@ interface UserRow {
 // 닉네임(custom_name) 정확히 일치하는 사용자 찾기 — 친구 추가용.
 // 무작위 조회 남용을 막기 위해 부분/접두 검색은 지원하지 않고 정확히 일치할 때만 반환.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const me = await requireEmail(request);
+  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const url = new URL(request.url);

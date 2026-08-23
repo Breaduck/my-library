@@ -53,7 +53,7 @@ export default function AccountButton() {
           </svg>
         )}
         {showSpinner && (
-          <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#0071E3] animate-spin pointer-events-none" />
+          <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#3B7DE8] animate-spin pointer-events-none" />
         )}
         {state === 'error' && (
           <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white" />

@@ -1,7 +1,40 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as social from '@/lib/social';
-import { FriendsData, SharedBook, CommentEntry } from '@/lib/social';
+import { FriendsData, FriendEntry, SharedBook, CommentEntry } from '@/lib/social';
 import { ReadingStats } from '@/lib/storage';
+
+// 친구들의 최근 독서 활동 피드 — 각 친구의 공유 책을 모아 최신순 정렬
+export interface ActivityItem {
+  friend: FriendEntry;
+  book: SharedBook;
+}
+
+export function useFriendActivity(friends: FriendEntry[], limit = 8) {
+  const [items, setItems] = useState<ActivityItem[]>([]);
+
+  useEffect(() => {
+    if (friends.length === 0) { setItems([]); return; }
+    let cancelled = false;
+    Promise.all(
+      friends.map((f) =>
+        social.getFriendBooks(f.email)
+          .then((bs) => bs.map((book) => ({ friend: f, book })))
+          .catch(() => [] as ActivityItem[])
+      )
+    ).then((all) => {
+      if (cancelled) return;
+      setItems(
+        all.flat()
+          .filter((i) => i.book.updatedAt)
+          .sort((a, b) => b.book.updatedAt.localeCompare(a.book.updatedAt))
+          .slice(0, limit)
+      );
+    });
+    return () => { cancelled = true; };
+  }, [friends, limit]);
+
+  return items;
+}
 
 export function useFriendStats(email: string | undefined) {
   const [stats, setStats] = useState<ReadingStats | null>(null);

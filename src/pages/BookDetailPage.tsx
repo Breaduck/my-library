@@ -8,7 +8,8 @@ import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
 import DateField from '@/components/DateField';
 import CoverInput from '@/components/CoverInput';
-import { BookSearchResult, Quote, Postit, ReadingStatus } from '@/types';
+import CompletionCelebration from '@/components/CompletionCelebration';
+import { Book, BookSearchResult, Quote, Postit, ReadingStatus } from '@/types';
 
 interface QuoteDraft {
   id: string;
@@ -78,6 +79,7 @@ export default function BookDetailPage() {
   const [showReadingLog, setShowReadingLog] = useState(false);
   const [logDraft, setLogDraft] = useState<{ date: string; pages: number }[]>([]);
   const [editingLog, setEditingLog] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
   const [editTitle, setEditTitle] = useState('');
@@ -186,6 +188,8 @@ export default function BookDetailPage() {
 
   function saveEdit() {
     if (!editTitle.trim() || !id) return;
+    // '읽는중/예정'에서 '읽음'으로 바뀌는 순간 = 완독! 저장 후 축하를 띄운다
+    const justFinished = book?.status !== 'done' && editStatus === 'done';
     // 읽음으로 표시했는데 완독일이 비어 있으면 오늘로 자동 채운다 (독서 목표 반영용)
     const resolvedEndDate = editStatus === 'done' && !editEndDate
       ? localDate()
@@ -207,6 +211,13 @@ export default function BookDetailPage() {
       currentPage: curNum,
     });
     setIsEditing(false);
+    if (justFinished) setShowCelebration(true);
+  }
+
+  function startNextBook(next: Book) {
+    updateBook(next.id, { status: 'reading', startDate: next.startDate || localDate() });
+    setShowCelebration(false);
+    navigate(`/book/${next.id}`);
   }
 
   function handleDelete() {
@@ -243,7 +254,7 @@ export default function BookDetailPage() {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center gap-4">
         <p className="text-[#6E6E73]">책을 찾을 수 없어요.</p>
-        <Link to="/" className="text-[#0071E3] text-sm font-medium hover:underline">서재로 돌아가기</Link>
+        <Link to="/" className="text-[#3B7DE8] text-sm font-medium hover:underline">서재로 돌아가기</Link>
       </div>
     );
   }
@@ -267,7 +278,7 @@ export default function BookDetailPage() {
     if (!book || !id) return;
     setDailyPagesBulkForBook(logDraft, id);
   }
-  const inputClass = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all';
+  const inputClass = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all';
   const cardStyle = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
 
   /* ─── EDIT MODE ─── */
@@ -407,11 +418,11 @@ export default function BookDetailPage() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">제목 *</label>
-                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" autoFocus />
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" autoFocus />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">저자</label>
-                  <input type="text" value={editAuthor} onChange={(e) => setEditAuthor(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" />
+                  <input type="text" value={editAuthor} onChange={(e) => setEditAuthor(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">표지 (선택)</label>
@@ -939,7 +950,7 @@ export default function BookDetailPage() {
                             onChange={(e) => updateLogDay(i, parseInt(e.target.value.replace(/\D/g, '')) || 0)}
                             onBlur={commitLog}
                             autoFocus={i === 0}
-                            className="w-full text-center text-sm font-bold text-[#1D1D1F] outline-none rounded focus:ring-2 focus:ring-[#0071E3] focus:bg-[#F5F5F7]"
+                            className="w-full text-center text-sm font-bold text-[#1D1D1F] outline-none rounded focus:ring-2 focus:ring-[#3B7DE8] focus:bg-[#F5F5F7]"
                           />
                         ) : (
                           <span className="text-sm font-bold text-[#1D1D1F] leading-none">{d.pages > 0 ? d.pages : '-'}</span>
@@ -956,6 +967,18 @@ export default function BookDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* 완독 축하 */}
+      {showCelebration && (
+        <CompletionCelebration
+          book={book}
+          doneCount={books.filter((b) => b.status === 'done').length}
+          nextBook={books.find((b) => b.status === 'want')}
+          onShare={() => { setShowCelebration(false); setShowShareCard(true); }}
+          onStartNext={startNextBook}
+          onClose={() => setShowCelebration(false)}
+        />
       )}
 
       {/* 삭제 확인 모달 */}

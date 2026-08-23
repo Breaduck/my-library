@@ -1,6 +1,6 @@
 import { requireEmail, json } from '../../_lib/auth';
 
-interface Env { DB: D1Database }
+interface Env { DB: D1Database; VITE_GOOGLE_CLIENT_ID?: string }
 
 interface CommentRow {
   id: number;
@@ -18,7 +18,7 @@ async function areFriends(db: D1Database, a: string, b: string): Promise<boolean
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const me = await requireEmail(request);
+  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const url = new URL(request.url);
@@ -46,7 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const me = await requireEmail(request);
+  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const body = await request.json() as { owner?: string; bookId?: string; text?: string; authorName?: string };

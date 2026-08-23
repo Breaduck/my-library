@@ -58,11 +58,11 @@ export default function BookSearch({ onSelect, initialQuery = '' }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="책 제목을 검색하세요..."
-          className="w-full px-4 py-3 pr-10 text-sm rounded-xl bg-[#F5F5F7] border-0 outline-none focus:ring-2 focus:ring-[#0071E3] text-[#1D1D1F] placeholder-[#AEAEB2] transition-all"
+          className="w-full px-4 py-3 pr-10 text-sm rounded-xl bg-[#F5F5F7] border-0 outline-none focus:ring-2 focus:ring-[#3B7DE8] text-[#1D1D1F] placeholder-[#AEAEB2] transition-all"
         />
         {loading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-[#3B7DE8] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>

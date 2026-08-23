@@ -3,7 +3,7 @@ import * as gd from '@/lib/googleDrive';
 import * as social from '@/lib/social';
 import { Book } from '@/types';
 
-import { mergeBooks, getTombstones, setTombstones, prepareSharedBooks, computeReadingStats, getShareStats } from '@/lib/storage';
+import { mergeBooks, getTombstones, setTombstones, prepareSharedBooks, computeReadingStats, getShareStats, clearPersonalData } from '@/lib/storage';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const CUSTOM_PICTURE_KEY = 'social-custom-picture';
@@ -122,6 +122,8 @@ function useAuthState(): AuthApi {
       // 로컬을 병합 대상에서 제외하고 Drive(새 계정) 데이터만 사용한다.
       const owner = getLocalOwner();
       const isAccountSwitch = !!owner && !!prof && owner !== prof.email;
+      // 계정이 바뀌면 이전 계정의 일별 기록·목표·공개 설정도 새 계정에 섞이면 안 됨
+      if (isAccountSwitch) clearPersonalData();
 
       // ★ 절대 덮어쓰지 않고 합집합 병합 — 어느 쪽 책도 사라지지 않음. 삭제는 툼스톤으로 반영.
       const local = isAccountSwitch ? [] : readLocalBooks();

@@ -73,7 +73,7 @@ function CommentThread({ owner, book, myName }: { owner: string; book: SharedBoo
         <input value={text} onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), submit())}
           placeholder="댓글 남기기..."
-          className="flex-1 px-3 py-2 rounded-lg bg-[#F5F5F7] text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" />
+          className="flex-1 px-3 py-2 rounded-lg bg-[#F5F5F7] text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" />
         <button onClick={submit} disabled={busy || !text.trim()}
           className="px-3 py-2 rounded-lg bg-[#1D1D1F] text-white text-xs font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
           등록
@@ -165,7 +165,7 @@ export default function FriendDetailPage() {
     return (
       <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center gap-3">
         <p className="text-sm text-[#6E6E73]">친구가 아니거나 요청이 아직 대기 중이에요</p>
-        <Link to="/friends" className="text-sm font-semibold text-[#0071E3]">친구 목록으로</Link>
+        <Link to="/friends" className="text-sm font-semibold text-[#3B7DE8]">친구 목록으로</Link>
       </div>
     );
   }

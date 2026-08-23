@@ -1,11 +1,32 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useFriends } from '@/hooks/useFriends';
+import { useFriends, useFriendActivity } from '@/hooks/useFriends';
 import { FriendEntry, lookupByNickname } from '@/lib/social';
 import LoginModal from '@/components/LoginModal';
 
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
+
+function fmtAgo(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return '';
+  const diff = Math.floor((Date.now() - t) / 1000);
+  if (diff < 3600) return '방금 전';
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}일 전`;
+  const d = new Date(t);
+  return `${d.getMonth() + 1}.${d.getDate()}`;
+}
+
+function activityText(status: string, currentPage: number, pages: number): string {
+  if (status === 'done') return '완독했어요 🎉';
+  if (status === 'reading') {
+    const pct = pages > 0 ? Math.min(100, Math.round((currentPage / pages) * 100)) : 0;
+    return pct > 0 ? `읽는 중 · ${pct}%` : '읽기 시작했어요';
+  }
+  if (status === 'want') return '서재에 담았어요';
+  return '기록을 남겼어요';
+}
 
 function Avatar({ name, picture, size = 44 }: { name: string; picture: string; size?: number }) {
   return picture ? (
@@ -22,6 +43,7 @@ function Avatar({ name, picture, size = 44 }: { name: string; picture: string; s
 export default function FriendsPage() {
   const { signedIn, signIn } = useAuth();
   const { friends, incoming, outgoing, loading, error, invite, accept, decline } = useFriends(signedIn);
+  const activity = useFriendActivity(friends);
   const [inviteMode, setInviteMode] = useState<'email' | 'nickname'>('email');
   const [email, setEmail] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
@@ -102,6 +124,31 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* 최근 활동 피드 */}
+            {activity.length > 0 && (
+              <div className="bg-white rounded-2xl overflow-hidden" style={cs}>
+                <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] px-5 pt-5 pb-2 sm:px-6">최근 활동</h2>
+                {activity.map(({ friend, book }) => (
+                  <Link key={`${friend.email}-${book.id}`} to={`/friends/${encodeURIComponent(friend.email)}`}
+                    className="flex items-center gap-3 px-5 sm:px-6 py-3 border-t border-[#F5F5F7] hover:bg-[#FAFAFB] transition-colors">
+                    <Avatar name={friend.name} picture={friend.picture} size={34} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] text-[#1D1D1F] leading-snug">
+                        <span className="font-semibold">{friend.name}</span>님이{' '}
+                        <span className="font-semibold">《{book.title}》</span>{activityText(book.status, book.currentPage, book.pages)}
+                      </p>
+                      <p className="text-[10.5px] text-[#AEAEB2] mt-0.5">{fmtAgo(book.updatedAt)}</p>
+                    </div>
+                    {book.coverUrl && (
+                      <div className="w-8 rounded-md overflow-hidden flex-shrink-0" style={{ height: 46, boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
+                        <img src={book.coverUrl} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+
             {/* 초대 */}
             <div className="bg-white rounded-2xl p-5 sm:p-6" style={cs}>
               <div className="flex items-center justify-between mb-3">
@@ -125,7 +172,7 @@ export default function FriendsPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleInvite())}
                       placeholder="친구의 구글 이메일 주소"
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all"
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all"
                     />
                     <button onClick={handleInvite} disabled={inviteBusy || !email.trim()}
                       className="px-4 py-2.5 rounded-xl bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
@@ -145,7 +192,7 @@ export default function FriendsPage() {
                       onChange={(e) => setNickname(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleNicknameSearch())}
                       placeholder="친구의 닉네임 (정확히 입력)"
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all"
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all"
                     />
                     <button onClick={handleNicknameSearch} disabled={nicknameBusy || !nickname.trim()}
                       className="px-4 py-2.5 rounded-xl bg-[#1D1D1F] text-white text-sm font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
@@ -230,7 +277,11 @@ export default function FriendsPage() {
               {loading && friends.length === 0 ? (
                 <p className="text-sm text-[#AEAEB2] px-5 sm:px-6 py-6 text-center">불러오는 중...</p>
               ) : friends.length === 0 ? (
-                <p className="text-sm text-[#AEAEB2] px-5 sm:px-6 py-6 text-center">아직 친구가 없어요</p>
+                <div className="px-5 sm:px-6 py-8 text-center border-t border-[#F5F5F7]">
+                  <span className="text-3xl block mb-2">📚</span>
+                  <p className="text-sm font-semibold text-[#1D1D1F] mb-1">아직 친구가 없어요</p>
+                  <p className="text-[11.5px] text-[#AEAEB2] leading-relaxed">위에서 이메일이나 닉네임으로 친구를 초대하면<br />서로의 서재와 독서 기록을 구경할 수 있어요</p>
+                </div>
               ) : (
                 friends.map((f: FriendEntry) => (
                   <Link key={f.email} to={`/friends/${encodeURIComponent(f.email)}`}

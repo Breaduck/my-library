@@ -6,6 +6,7 @@ import { Book } from '@/types';
 import { getReadingStreak, getDailyReadings, setDailyPages, localDate } from '@/lib/storage';
 import MonthlyShareCard from '@/components/MonthlyShareCard';
 import GamificationCard from '@/components/GamificationCard';
+import YearlyReportCard from '@/components/YearlyReportCard';
 
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const WEEK_DAYS = ['일','월','화','수','목','금','토'];
@@ -96,6 +97,7 @@ export default function StatsPage() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(currentYear);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [showYearReport, setShowYearReport] = useState(false);
   const [savingCal, setSavingCal] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
   const [isDailyEditing, setIsDailyEditing] = useState(false);
@@ -367,6 +369,13 @@ export default function StatsPage() {
               <span className="text-lg">🔥</span>
               <p className="text-white/60 text-xs">{streak}일 연속 독서 중</p>
             </div>
+          )}
+          {yearDone.length > 0 && (
+            <button onClick={() => setShowYearReport(true)}
+              className="mt-4 w-full py-3 rounded-2xl text-sm font-semibold text-white active:scale-[0.98] transition-transform"
+              style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)', boxShadow: '0 4px 16px rgba(129,140,248,0.35)' }}>
+              🎁 {selectedYear} 독서 결산 카드 보기
+            </button>
           )}
         </div>
 
@@ -943,9 +952,26 @@ export default function StatsPage() {
         )}
 
         {books.length === 0 && (
-          <div className="text-center py-20 text-[#6E6E73] text-sm">아직 기록된 책이 없어요</div>
+          <div className="flex flex-col items-center py-16 text-center">
+            <span className="text-4xl mb-3">📊</span>
+            <p className="text-[15px] font-bold text-[#1D1D1F] mb-1">아직 통계가 없어요</p>
+            <p className="text-[12.5px] text-[#86848A] mb-6">책을 추가하고 기록을 남기면<br />여기에 나만의 독서 통계가 쌓여요</p>
+            <Link to="/add" className="px-5 py-2.5 rounded-full bg-[#1D1D1F] text-white text-sm font-semibold active:scale-[0.98] transition-transform">
+              첫 번째 책 추가하기
+            </Link>
+          </div>
         )}
       </div>
+
+      {/* 연간 결산 카드 모달 */}
+      {showYearReport && (
+        <YearlyReportCard
+          books={yearDone}
+          year={selectedYear}
+          totalReadingTime={totalReadingTime}
+          onClose={() => setShowYearReport(false)}
+        />
+      )}
 
       {/* 월별 공유 카드 모달 */}
       {showShareCard && (

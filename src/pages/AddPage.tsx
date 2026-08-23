@@ -94,7 +94,7 @@ export default function AddPage() {
     navigate('/');
   }
 
-  const inp = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all';
+  const inp = 'w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all';
   const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
   const showDates = status === 'reading' || status === 'done';
   const showReview = status === 'reading' || status === 'done';
@@ -281,11 +281,11 @@ export default function AddPage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">제목 *</label>
-                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="책 제목" className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" autoFocus />
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="책 제목" className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" autoFocus />
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">저자</label>
-                <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="저자 이름" className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" />
+                <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="저자 이름" className="w-full px-4 py-3 rounded-xl bg-[#F5F5F7] text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">표지 (선택)</label>

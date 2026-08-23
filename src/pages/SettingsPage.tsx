@@ -7,6 +7,7 @@ import { Book } from '@/types';
 import {
   exportData, importData, localDate, getVisibility, setVisibility, Visibility, getSharedBookIds, toggleSharedBookId,
   getShareReviews, setShareReviews, getShareStats, setShareStats,
+  getTombstones, setTombstones, clearReadingRecords,
 } from '@/lib/storage';
 import { resizeImageFile } from '@/lib/image';
 
@@ -147,7 +148,10 @@ export default function SettingsPage() {
   }
 
   function handleReset() {
+    // 모든 책을 툼스톤에 남겨서 Drive/다른 기기와 병합될 때 부활하지 않게 한다
+    setTombstones([...getTombstones(), ...books.map((b) => b.id)]);
     localStorage.removeItem('book-tracker');
+    clearReadingRecords();
     window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: [] }));
     window.dispatchEvent(new CustomEvent('books:changed', { detail: [] }));
     setConfirmReset(false);
@@ -202,8 +206,8 @@ export default function SettingsPage() {
                       <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
                         autoFocus maxLength={20}
-                        className="min-w-0 flex-1 px-2 py-1 rounded-lg bg-[#F5F5F7] text-[15px] font-semibold text-[#1D1D1F] outline-none focus:ring-2 focus:ring-[#0071E3]" />
-                      <button onClick={saveName} disabled={nameBusy} className="text-xs font-semibold text-[#0071E3] disabled:opacity-40 flex-shrink-0">저장</button>
+                        className="min-w-0 flex-1 px-2 py-1 rounded-lg bg-[#F5F5F7] text-[15px] font-semibold text-[#1D1D1F] outline-none focus:ring-2 focus:ring-[#3B7DE8]" />
+                      <button onClick={saveName} disabled={nameBusy} className="text-xs font-semibold text-[#3B7DE8] disabled:opacity-40 flex-shrink-0">저장</button>
                       <button onClick={() => setEditingName(false)} className="text-xs text-[#AEAEB2] flex-shrink-0">취소</button>
                     </div>
                   ) : (
@@ -228,7 +232,7 @@ export default function SettingsPage() {
                   </p>
                   {hasCustomPicture && (
                     <button type="button" onClick={handleAvatarReset} disabled={avatarBusy}
-                      className="text-[11px] text-[#0071E3] hover:text-[#0058B0] mt-1 disabled:text-[#AEAEB2]">
+                      className="text-[11px] text-[#3B7DE8] hover:text-[#2E68C5] mt-1 disabled:text-[#AEAEB2]">
                       Google 사진으로 되돌리기
                     </button>
                   )}
@@ -281,8 +285,8 @@ export default function SettingsPage() {
                 {VISIBILITY_OPTIONS.map((opt) => (
                   <button key={opt.key} onClick={() => handleVisibilityChange(opt.key)}
                     className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${visibility === opt.key ? 'bg-[#F0F6FF]' : 'hover:bg-[#FAFAFB]'}`}>
-                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${visibility === opt.key ? 'border-[#0071E3]' : 'border-[#D1D1D6]'}`}>
-                      {visibility === opt.key && <div className="w-2 h-2 rounded-full bg-[#0071E3]" />}
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${visibility === opt.key ? 'border-[#3B7DE8]' : 'border-[#D1D1D6]'}`}>
+                      {visibility === opt.key && <div className="w-2 h-2 rounded-full bg-[#3B7DE8]" />}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[#1D1D1F]">{opt.label}</p>
@@ -301,7 +305,7 @@ export default function SettingsPage() {
                       <label key={b.id} className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[#FAFAFB] cursor-pointer">
                         <input type="checkbox" checked={sharedIds.includes(b.id)}
                           onChange={(e) => handleToggleShared(b.id, e.target.checked)}
-                          className="w-4 h-4 rounded accent-[#0071E3] flex-shrink-0" />
+                          className="w-4 h-4 rounded accent-[#3B7DE8] flex-shrink-0" />
                         <span className="text-sm text-[#1D1D1F] truncate">{b.title}</span>
                       </label>
                     ))
@@ -317,7 +321,7 @@ export default function SettingsPage() {
                       <p className="text-[11px] text-[#AEAEB2]">끄면 책·평점만 보이고 작성한 글은 안 보여요</p>
                     </div>
                     <input type="checkbox" checked={shareReviews} onChange={(e) => handleToggleShareReviews(e.target.checked)}
-                      className="w-4 h-4 rounded accent-[#0071E3] flex-shrink-0" />
+                      className="w-4 h-4 rounded accent-[#3B7DE8] flex-shrink-0" />
                   </label>
                   <label className="flex items-center justify-between gap-3 px-1 py-2 cursor-pointer">
                     <div>
@@ -325,7 +329,7 @@ export default function SettingsPage() {
                       <p className="text-[11px] text-[#AEAEB2]">완독 수·평균 별점·읽은 페이지를 친구에게 보여줘요</p>
                     </div>
                     <input type="checkbox" checked={shareStats} onChange={(e) => handleToggleShareStats(e.target.checked)}
-                      className="w-4 h-4 rounded accent-[#0071E3] flex-shrink-0" />
+                      className="w-4 h-4 rounded accent-[#3B7DE8] flex-shrink-0" />
                   </label>
                 </div>
               )}
@@ -353,7 +357,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <button onClick={() => void syncNow()} disabled={state === 'saving'}
-                  className="text-xs font-semibold text-[#0071E3] hover:text-[#0058B0] disabled:text-[#AEAEB2] transition-colors">
+                  className="text-xs font-semibold text-[#3B7DE8] hover:text-[#2E68C5] disabled:text-[#AEAEB2] transition-colors">
                   지금 동기화
                 </button>
               </div>

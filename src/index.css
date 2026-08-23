@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 }
 
 * {
@@ -69,6 +69,22 @@ body {
   .page-pt-lg {
     padding-top: calc(env(safe-area-inset-top) + 56px);
   }
+}
+
+/* ── 마이크로 인터랙션 ─────────────────────────────────────────── */
+/* 책 카드가 아래에서 살짝 떠오르며 등장 */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-fade-up {
+  animation: fade-in-up 0.35s ease both;
+}
+
+/* 완독 축하 컨페티 */
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(112vh) rotate(660deg); opacity: 0.85; }
 }
 
 input[type='date']::-webkit-calendar-picker-indicator {

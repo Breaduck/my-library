@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Book } from '@/types';
 import { useBooks } from '@/hooks/useBooks';
-import { addDailyPages, logDailyPages, getWeeklyPages, getTodayPages, markDailyPopupShown, localDate } from '@/lib/storage';
+import { addDailyPages, subtractDailyPages, logDailyPages, getWeeklyPages, getTodayPages, markDailyPopupShown, localDate } from '@/lib/storage';
 
 interface Props {
   readingBook?: Book;
@@ -35,6 +35,7 @@ export default function DailyReadingModal({ readingBook, onClose }: Props) {
       const newCurrent = Math.max(0, Math.min(parsedInput, totalPages));
       const delta = newCurrent - currentPage;
       if (delta > 0) addDailyPages(delta, readingBook.id);
+      else if (delta < 0) subtractDailyPages(-delta, readingBook.id); // 잘못 입력했던 만큼 오늘 기록에서 되돌림
       if (newCurrent !== currentPage) updateBook(readingBook.id, { currentPage: newCurrent });
     } else if (parsedInput > 0) {
       logDailyPages(parsedInput, readingBook?.id);

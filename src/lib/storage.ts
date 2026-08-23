@@ -16,9 +16,19 @@ export function getBooks(): Book[] {
   }
 }
 
+let quotaWarned = false;
 export function saveBooks(books: Book[]): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY, JSON.stringify(books));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(books));
+  } catch {
+    // localStorage 용량 초과 — 조용히 삼키면 새로고침 시 기록이 사라진 것처럼 보이므로 반드시 알림.
+    // (로그인 상태라면 아래 이벤트로 Drive에는 그대로 백업되므로 데이터 자체는 지킬 수 있다)
+    if (!quotaWarned) {
+      quotaWarned = true;
+      alert('저장 공간이 가득 차서 이 브라우저에 기록을 저장하지 못했어요.\n표지 이미지가 큰 책을 지우거나, 로그인해서 Drive 백업을 켜주세요.');
+    }
+  }
   window.dispatchEvent(new CustomEvent('books:changed', { detail: books }));
 }
 
@@ -120,6 +130,19 @@ export function logDailyPages(pages: number, bookId?: string): void {
   }
   localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
   if (pages > 0) logReadingDate();
+}
+
+// 오늘 기록에서 페이지를 빼기 (현재 페이지를 실수로 크게 입력했다가 줄인 경우 보정)
+export function subtractDailyPages(amount: number, bookId?: string): void {
+  if (typeof window === 'undefined' || amount <= 0) return;
+  const date = localDate();
+  const existing = getDailyReadings();
+  const idx = existing.findIndex((d) => d.date === date && d.bookId === bookId);
+  if (idx < 0) return;
+  const next = existing[idx].pages - amount;
+  if (next > 0) existing[idx].pages = next;
+  else existing.splice(idx, 1);
+  localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
 }
 
 // Add `delta` pages to today's entry for the given (or unscoped) bookId.
@@ -309,6 +332,23 @@ export function computeReadingStats(books: Book[]): ReadingStats {
     avgRating: Math.round(avgRating * 10) / 10,
     totalPages,
   };
+}
+
+// ── 개인 기록 정리 ────────────────────────────────────────────────────
+// 일별 읽은 페이지·연속 독서 날짜·오늘 팝업 기록 삭제 (전체 초기화 시 사용)
+export function clearReadingRecords(): void {
+  if (typeof window === 'undefined') return;
+  [DAILY_KEY, DATES_KEY, 'daily-popup-date'].forEach((k) => localStorage.removeItem(k));
+}
+
+// 계정 전환 시 이전 계정의 개인 기록(일별 기록·목표·공개 설정)이 새 계정에 섞이지 않도록 정리
+export function clearPersonalData(): void {
+  if (typeof window === 'undefined') return;
+  [
+    DAILY_KEY, DATES_KEY, 'daily-popup-date',
+    'reading-goal', 'reading-goal-monthly', 'daily-page-goal',
+    VISIBILITY_KEY, SHARED_IDS_KEY, SHARE_REVIEWS_KEY, SHARE_STATS_KEY,
+  ].forEach((k) => localStorage.removeItem(k));
 }
 
 // ── 백업(내보내기) / 복원(가져오기) ───────────────────────────────────

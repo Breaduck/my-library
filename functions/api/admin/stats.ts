@@ -1,6 +1,6 @@
 import { requireEmail, json, isAdmin } from '../../_lib/auth';
 
-interface Env { DB: D1Database; ADMIN_EMAILS?: string }
+interface Env { DB: D1Database; ADMIN_EMAILS?: string; VITE_GOOGLE_CLIENT_ID?: string }
 
 interface CountRow { c: number }
 interface DayRow { day: string; c: number }
@@ -10,7 +10,7 @@ interface UserRow {
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const email = await requireEmail(request);
+  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!email) return json({ error: 'unauthorized' }, 401);
   if (!isAdmin(email, env.ADMIN_EMAILS)) return json({ error: 'forbidden' }, 403);
 

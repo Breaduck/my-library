@@ -1,6 +1,6 @@
 import { requireEmail, json } from '../../_lib/auth';
 
-interface Env { DB: D1Database }
+interface Env { DB: D1Database; VITE_GOOGLE_CLIENT_ID?: string }
 
 interface UserRow {
   email: string;
@@ -38,7 +38,7 @@ async function fetchUsers(db: D1Database, emails: string[]): Promise<Map<string,
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const email = await requireEmail(request);
+  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!email) return json({ error: 'unauthorized' }, 401);
 
   const [accepted, incoming, outgoing] = await Promise.all([
@@ -60,7 +60,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const me = await requireEmail(request);
+  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const body = await request.json() as { action?: string; email?: string };

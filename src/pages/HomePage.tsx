@@ -14,7 +14,7 @@ import EmptyState from '@/components/EmptyState';
 import AccountButton from '@/components/AccountButton';
 import DailyReadingModal from '@/components/DailyReadingModal';
 import { ReadingStatus, Book } from '@/types';
-import { getReadingStreak } from '@/lib/storage';
+import { getReadingStreak, getTodayPages, hasDoneReadingToday } from '@/lib/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { usePendingRequestCount } from '@/hooks/useFriends';
 
@@ -30,10 +30,17 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 
-function SortableGridCard({ book, isDragging }: { book: Book; isDragging: boolean }) {
+function SortableGridCard({ book, isDragging, index }: { book: Book; isDragging: boolean; index: number }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: book.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, touchAction: 'none' as const };
-  return <div ref={setNodeRef} style={style} {...attributes} {...listeners}><BookCard book={book} /></div>;
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {/* 등장 애니메이션은 안쪽 래퍼에 — dnd-kit transform과 충돌 방지 */}
+      <div className="anim-fade-up" style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}>
+        <BookCard book={book} />
+      </div>
+    </div>
+  );
 }
 
 export default function HomePage() {
@@ -45,6 +52,8 @@ export default function HomePage() {
   const [tab, setTab] = useState<Tab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [streak, setStreak] = useState(0);
+  const [todayPages, setTodayPages] = useState(0);
+  const [dailyGoal, setDailyGoal] = useState(30);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
@@ -53,6 +62,11 @@ export default function HomePage() {
   function openDailyFor(book?: Book) {
     setDailyModalBook(book);
     setShowDailyModal(true);
+  }
+
+  function refreshTodayStats() {
+    setStreak(getReadingStreak());
+    setTodayPages(getTodayPages());
   }
 
   function toggleReadingHidden() {
@@ -68,7 +82,20 @@ export default function HomePage() {
     if (saved) setViewMode(saved);
     setReadingHidden(localStorage.getItem('reading-section-hidden') === '1');
     setStreak(getReadingStreak());
+    setTodayPages(getTodayPages());
+    const g = parseInt(localStorage.getItem('daily-page-goal') || '');
+    if (g > 0) setDailyGoal(g);
   }, []);
+
+  // 하루에 한 번, 읽는중인 책이 있으면 오늘의 기록을 자연스럽게 유도
+  useEffect(() => {
+    if (!loaded || hasDoneReadingToday()) return;
+    const reading = books.filter((b) => b.status === 'reading');
+    if (reading.length === 0) return;
+    const t = setTimeout(() => openDailyFor(reading[0]), 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
 
   function toggleView(mode: ViewMode) {
@@ -116,9 +143,22 @@ export default function HomePage() {
   const showReadingSection = readingBooks.length > 0 && (tab === 'all' || tab === 'reading') && !search;
 
   if (!loaded) {
+    // 스피너 대신 스켈레톤 — 첫 화면이 덜 '깜빡'이고 빠르게 느껴진다
     return (
-      <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#1D1D1F] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#F5F5F7]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 page-pt-lg pb-28 sm:pb-16">
+          <div className="animate-pulse">
+            <div className="h-3 w-20 rounded bg-black/5 mb-3" />
+            <div className="h-9 w-44 rounded-xl bg-black/10 mb-8" />
+            <div className="h-10 w-64 rounded-xl bg-black/5 mb-4" />
+            <div className="h-12 w-full rounded-xl bg-black/5 mb-6" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="rounded-2xl sm:rounded-3xl bg-black/10" style={{ aspectRatio: '2 / 3' }} />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -163,6 +203,38 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* 오늘의 독서 위젯 — 연속 독서 + 오늘 목표 진행 */}
+        {books.length > 0 && (streak > 0 || todayPages > 0 || readingBooks.length > 0) && (
+          <Link to="/stats" className="block mb-4">
+            <div className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3.5 active:scale-[0.99] transition-transform"
+              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="text-lg leading-none">🔥</span>
+                <div>
+                  <p className="text-[15px] font-extrabold text-[#1D1D1F] leading-none tabular-nums">{streak}<span className="text-[11px] font-semibold text-[#AEAEB2] ml-0.5">일</span></p>
+                  <p className="text-[9.5px] text-[#AEAEB2] mt-0.5">연속 독서</p>
+                </div>
+              </div>
+              <div className="w-px h-8 bg-black/5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[11px] text-[#86848A]">오늘 <span className="font-bold text-[#1D1D1F] tabular-nums">{todayPages}</span> / {dailyGoal}쪽</p>
+                  {todayPages >= dailyGoal && <span className="text-[10px] font-bold text-emerald-500">목표 달성! 🎉</span>}
+                </div>
+                <div className="h-1.5 bg-[#F0F0F5] rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.round((todayPages / dailyGoal) * 100))}%`, background: todayPages >= dailyGoal ? '#34C759' : 'linear-gradient(90deg, #4F8EF7, #3B7DE8)' }} />
+                </div>
+              </div>
+              <button
+                onClick={(e) => { e.preventDefault(); openDailyFor(readingBooks[0]); }}
+                className="flex-shrink-0 px-3 py-1.5 rounded-full bg-[#1D1D1F] text-white text-[11px] font-bold active:scale-95 transition-transform">
+                + 기록
+              </button>
+            </div>
+          </Link>
+        )}
+
         {/* Status tabs — Apple segmented control 스타일, 좌측 정렬 */}
         <div className="mb-3 flex">
           <div className="inline-flex p-0.5 rounded-xl gap-0.5"
@@ -197,7 +269,7 @@ export default function HomePage() {
         <div className="flex gap-2 mb-4">
           <div className="relative flex-1">
             <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="제목이나 저자로 검색..." className="w-full pl-11 pr-4 py-3 rounded-xl bg-white text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#0071E3] transition-all" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }} />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="제목이나 저자로 검색..." className="w-full pl-11 pr-4 py-3 rounded-xl bg-white text-sm text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }} />
           </div>
           <div className="flex bg-white rounded-xl overflow-hidden flex-shrink-0" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
             {(['grid', 'list', 'shelf'] as ViewMode[]).map((mode, i) => (
@@ -343,7 +415,7 @@ export default function HomePage() {
                 ) : (
                   <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
-                      {filtered.map((book) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} />)}
+                      {filtered.map((book, i) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} index={i} />)}
                     </div>
                   </SortableContext>
                 )}
@@ -386,7 +458,7 @@ export default function HomePage() {
       {showDailyModal && (
         <DailyReadingModal
           readingBook={dailyModalBook ?? readingBooks[0]}
-          onClose={() => { setShowDailyModal(false); setDailyModalBook(undefined); }}
+          onClose={() => { setShowDailyModal(false); setDailyModalBook(undefined); refreshTodayStats(); }}
         />
       )}
     </div>

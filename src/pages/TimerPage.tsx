@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useBooks } from '@/hooks/useBooks';
 import { logReadingDate } from '@/lib/storage';
 import ClassicTimer from '@/components/timer/ClassicTimer';
@@ -28,6 +28,7 @@ function fmtTotal(s: number): string {
 
 export default function TimerPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { books, loaded, updateBook } = useBooks();
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
@@ -36,8 +37,28 @@ export default function TimerPage() {
   const [mode, setMode] = useState<Mode>('classic');
   const [showModeSheet, setShowModeSheet] = useState(false);
   const [sessionMin, setSessionMin] = useState(30);
+  // 시작 시각 기준으로 경과를 계산 — setInterval 카운트 방식은 화면이 꺼지거나
+  // 백그라운드로 가면 멈춰서 실제 읽은 시간이 크게 누락된다.
+  const startAtRef = useRef<number | null>(null);
 
   const book = books.find((b) => b.id === id);
+
+  const currentElapsed = useCallback(() => {
+    if (running && startAtRef.current != null) {
+      return Math.max(0, Math.floor((Date.now() - startAtRef.current) / 1000));
+    }
+    return elapsed;
+  }, [running, elapsed]);
+
+  function toggleRunning() {
+    if (running) {
+      setElapsed(currentElapsed());
+      setRunning(false);
+    } else {
+      startAtRef.current = Date.now() - elapsed * 1000;
+      setRunning(true);
+    }
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('timer-mode') as Mode | null;
@@ -59,8 +80,15 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!running) return;
-    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(t);
+    const sync = () => {
+      if (startAtRef.current != null) {
+        setElapsed(Math.max(0, Math.floor((Date.now() - startAtRef.current) / 1000)));
+      }
+    };
+    const t = setInterval(sync, 1000);
+    // 화면이 다시 켜지면(백그라운드 복귀) 즉시 실제 경과 시간으로 보정
+    document.addEventListener('visibilitychange', sync);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', sync); };
   }, [running]);
 
   useEffect(() => {
@@ -71,13 +99,25 @@ export default function TimerPage() {
   }, [running, elapsed]);
 
   function handleFinish() {
+    const e = currentElapsed();
     setRunning(false);
-    setSavedElapsed(elapsed);
-    if (elapsed > 0 && book && id) {
-      updateBook(id, { totalReadingTime: (book.totalReadingTime ?? 0) + elapsed });
+    setElapsed(e);
+    setSavedElapsed(e);
+    if (e > 0 && book && id) {
+      updateBook(id, { totalReadingTime: (book.totalReadingTime ?? 0) + e });
       logReadingDate();
     }
     setFinished(true);
+  }
+
+  // 뒤로가기로 나가도 기록이 사라지지 않게 저장하고 이동
+  function leaveAndSave() {
+    const e = currentElapsed();
+    if (e > 0 && book && id) {
+      updateBook(id, { totalReadingTime: (book.totalReadingTime ?? 0) + e });
+      logReadingDate();
+    }
+    navigate(`/book/${id}`);
   }
 
   if (!loaded) return (
@@ -154,13 +194,14 @@ export default function TimerPage() {
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
 
       <div className="relative flex items-center justify-between px-5 pt-5 pb-2 z-10">
-        <Link to={`/book/${id}`}
+        <button onClick={leaveAndSave}
+          title="나가기 (시간은 자동 저장돼요)"
           className="w-10 h-10 flex items-center justify-center rounded-full text-white active:opacity-60 transition-opacity"
           style={{ background: 'rgba(255,255,255,0.08)' }}>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-        </Link>
+        </button>
 
         {/* 모드 선택 버튼 */}
         <button onClick={() => setShowModeSheet(true)}
@@ -212,7 +253,7 @@ export default function TimerPage() {
 
       <div className="relative flex items-center justify-center pt-4 pb-2 z-10">
         <button
-          onClick={() => setRunning((r) => !r)}
+          onClick={toggleRunning}
           className="w-[76px] h-[76px] rounded-full bg-white flex items-center justify-center active:scale-95 transition-transform"
           style={{ boxShadow: running ? '0 0 48px rgba(129,140,248,0.5), 0 8px 24px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.6)' }}>
           {running ? (

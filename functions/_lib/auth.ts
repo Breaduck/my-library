@@ -1,6 +1,6 @@
 // Google OAuth access token(클라이언트가 이미 갖고 있는 GIS 토큰)을 검증해 이메일을 추출.
 // 별도 로그인/세션 시스템 없이 기존 프론트 로그인 흐름을 그대로 재사용한다.
-export async function requireEmail(request: Request): Promise<string | null> {
+export async function requireEmail(request: Request, clientId?: string): Promise<string | null> {
   const auth = request.headers.get('Authorization') ?? '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token) return null;
@@ -8,7 +8,10 @@ export async function requireEmail(request: Request): Promise<string | null> {
     const res = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`);
     if (!res.ok) return null;
     const data = await res.json() as { email?: string; aud?: string };
-    return data.email ? data.email.toLowerCase() : null;
+    if (!data.email) return null;
+    // aud 검증: 다른 앱에 발급된 구글 토큰으로 이 API를 호출하는 것을 차단
+    if (clientId && data.aud !== clientId) return null;
+    return data.email.toLowerCase();
   } catch {
     return null;
   }
