@@ -52,11 +52,12 @@ export default function PlaylistTimerWide({ book, elapsed, running, accumulated,
         @keyframes equalizerW { 0%,100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
       `}</style>
 
-      <div className="relative flex-1 flex min-h-0 items-stretch">
-        {/* 좌측 절반: LP판 전용 — 반쪽 안에서 가능한 한 꽉 차게, 세로로도 안 넘치게 */}
-        <div className="w-1/2 flex items-center justify-center min-w-0 px-2 sm:px-4">
+      {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치 */}
+      <div className="relative flex-1 flex min-h-0 items-center justify-center px-4 sm:px-8">
+        <div className="w-full max-w-5xl flex items-center gap-5 sm:gap-10">
+        {/* 좌측: LP판 — 덩어리의 절반을 차지, 세로로도 안 넘치게 */}
         <div className="relative flex-shrink-0"
-          style={{ width: 'min(94%, 62vh)', aspectRatio: '1 / 1' }}>
+          style={{ width: 'min(46%, 62vh)', aspectRatio: '1 / 1' }}>
           {/* 비닐 디스크 */}
           <div className="absolute inset-0 rounded-full"
             style={{
@@ -104,10 +105,9 @@ export default function PlaylistTimerWide({ book, elapsed, running, accumulated,
             </defs>
           </svg>
         </div>
-        </div>
 
-        {/* 우측 절반: 정보 + 큰 시간 — 세로 중앙 정렬 */}
-        <div className="w-1/2 min-w-0 flex flex-col justify-center pl-3 sm:pl-8 pr-5 sm:pr-12">
+        {/* 우측: 정보 + 큰 시간 — 세로 중앙 정렬 */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
           <p className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.3em] mb-2">읽는중</p>
           <h1 className="text-white font-bold leading-tight line-clamp-2 text-xl sm:text-3xl">{book.title}</h1>
           <p className="text-white/50 text-sm sm:text-base mt-1 truncate">{book.author}</p>
@@ -145,6 +145,7 @@ export default function PlaylistTimerWide({ book, elapsed, running, accumulated,
               </p>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </>
