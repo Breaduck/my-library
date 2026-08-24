@@ -107,6 +107,8 @@ function useAuthState(): AuthApi {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedJSON = useRef('');
   const reconnectRetried = useRef(false);
+  // 토큰이 없어(캐시 로그인 상태) 프로필 저장이 실패했을 때, 재연결 후 함께 저장할 대기 값.
+  const pendingProfileRef = useRef<{ customPicture?: string | null; customName?: string | null }>({});
 
   const enabled = !!CLIENT_ID;
   // idle = 완전 로그아웃. 그 외(connecting/saving/synced/error)는 "기억됨" 상태로 취급.
@@ -153,8 +155,11 @@ function useAuthState(): AuthApi {
 
       // 친구 기능용 백엔드 동기화(실패해도 Drive 백업엔 영향 없음)
       if (prof) {
-        social.saveProfile({ name: prof.name, googlePicture: prof.picture })
+        // 토큰이 없어 저장 못했던 프로필 사진/이름 변경이 있으면 이번에 함께 반영한다.
+        const pending = pendingProfileRef.current;
+        social.saveProfile({ name: prof.name, googlePicture: prof.picture, ...pending })
           .then((p) => {
+            pendingProfileRef.current = {};
             setCustomPicture(p.customPicture || null); setCachedCustomPicture(p.customPicture || null);
             setCustomName(p.customName || null); setCachedCustomName(p.customName || null);
           })
@@ -342,15 +347,31 @@ function useAuthState(): AuthApi {
   }, [signedIn, onSignInSuccess]);
 
   const updateCustomPicture = useCallback(async (dataUrl: string | null) => {
-    const p = await social.saveProfile({ customPicture: dataUrl });
-    setCustomPicture(p.customPicture || null);
-    setCachedCustomPicture(p.customPicture || null);
+    // 1) 화면 먼저 즉시 반영 — 토큰이 없어도 사진이 바로 바뀌게(캐시 로그인 상태 대응)
+    setCustomPicture(dataUrl);
+    setCachedCustomPicture(dataUrl);
+    // 2) 서버에도 저장(친구에게도 보이도록). 토큰 없으면 대기열에 넣고 조용히 재연결 → onSignInSuccess가 함께 저장.
+    try {
+      const p = await social.saveProfile({ customPicture: dataUrl });
+      setCustomPicture(p.customPicture || null);
+      setCachedCustomPicture(p.customPicture || null);
+    } catch {
+      pendingProfileRef.current = { ...pendingProfileRef.current, customPicture: dataUrl };
+      if (!gd.getToken()) gd.requestAccess('', gd.getCachedProfile()?.email);
+    }
   }, []);
 
   const updateCustomName = useCallback(async (name: string | null) => {
-    const p = await social.saveProfile({ customName: name });
-    setCustomName(p.customName || null);
-    setCachedCustomName(p.customName || null);
+    setCustomName(name);
+    setCachedCustomName(name);
+    try {
+      const p = await social.saveProfile({ customName: name });
+      setCustomName(p.customName || null);
+      setCachedCustomName(p.customName || null);
+    } catch {
+      pendingProfileRef.current = { ...pendingProfileRef.current, customName: name };
+      if (!gd.getToken()) gd.requestAccess('', gd.getCachedProfile()?.email);
+    }
   }, []);
 
   const avatarUrl = customPicture || profile?.picture || '';
