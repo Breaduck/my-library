@@ -176,43 +176,6 @@ export default function YouTubePlaylist({ running, manageOpen, onCloseManage }: 
         <div ref={hostRef} />
       </div>
 
-      {/* 나우플레잉 바 */}
-      <div className="relative z-10 mx-auto w-full max-w-sm px-6 mt-3">
-        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl"
-          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <svg className="w-4 h-4 flex-shrink-0 text-[#FF0000]" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2 31 31 0 000 12a31 31 0 00.5 5.8 3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1A31 31 0 0024 12a31 31 0 00-.5-5.8zM9.5 15.5v-7l6.3 3.5-6.3 3.5z" />
-          </svg>
-          <div className="flex-1 min-w-0">
-            {tracks.length === 0 ? (
-              <p className="text-white/45 text-xs truncate">유튜브 링크를 추가해 나만의 독서 BGM을 만들어요</p>
-            ) : (
-              <p className="text-white/85 text-xs font-medium truncate">{cur?.title || '유튜브 트랙'}</p>
-            )}
-            {tracks.length > 0 && (
-              <p className="text-white/40 text-[10px] tabular-nums">{current + 1} / {tracks.length}곡</p>
-            )}
-          </div>
-          {tracks.length > 0 && (
-            <>
-              <button onClick={togglePlay} aria-label={playing ? '일시정지' : '재생'}
-                className="w-9 h-9 flex-shrink-0 rounded-full bg-white flex items-center justify-center active:scale-95 transition-transform">
-                {playing ? (
-                  <svg className="w-4 h-4 text-[#0C0C18]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
-                ) : (
-                  <svg className="w-4 h-4 text-[#0C0C18] translate-x-px" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                )}
-              </button>
-              <button onClick={() => playIndex(current + 1)} aria-label="다음 곡"
-                className="w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center text-white active:scale-95 transition-transform"
-                style={{ background: 'rgba(255,255,255,0.12)' }}>
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* 플레이리스트 관리 시트 */}
       {manageOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -225,6 +188,32 @@ export default function YouTubePlaylist({ running, manageOpen, onCloseManage }: 
               <h3 className="text-white text-base font-bold mb-1">독서 플레이리스트</h3>
               <p className="text-white/40 text-xs">유튜브 링크를 붙여넣어 곡을 추가하세요</p>
             </div>
+
+            {/* 현재 재생 곡 + 재생/다음 */}
+            {tracks.length > 0 && (
+              <div className="px-4 pb-2">
+                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white/85 text-xs font-medium truncate">{cur?.title || '유튜브 트랙'}</p>
+                    <p className="text-white/40 text-[10px] tabular-nums">{current + 1} / {tracks.length}곡</p>
+                  </div>
+                  <button onClick={togglePlay} aria-label={playing ? '일시정지' : '재생'}
+                    className="w-9 h-9 flex-shrink-0 rounded-full bg-white flex items-center justify-center active:scale-95 transition-transform">
+                    {playing ? (
+                      <svg className="w-4 h-4 text-[#0C0C18]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-[#0C0C18] translate-x-px" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                    )}
+                  </button>
+                  <button onClick={() => playIndex(current + 1)} aria-label="다음 곡"
+                    className="w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center text-white active:scale-95 transition-transform"
+                    style={{ background: 'rgba(255,255,255,0.12)' }}>
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="px-4 pb-2">
               <div className="flex gap-2">
                 <input value={input} onChange={(e) => { setInput(e.target.value); setErr(''); }}

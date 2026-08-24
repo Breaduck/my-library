@@ -52,10 +52,10 @@ export default function PlaylistTimerWide({ book, elapsed, running, accumulated,
         @keyframes equalizerW { 0%,100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
       `}</style>
 
-      <div className="relative flex-1 flex items-center gap-5 sm:gap-10 px-5 sm:px-12">
-        {/* 좌측: 큰 LP판 (화면 절반 정도) */}
+      <div className="relative flex-1 flex items-center">
+        {/* 좌측: 큰 LP판 — 화면 왼쪽 절반을 가득 채운다 */}
         <div className="relative flex-shrink-0"
-          style={{ width: 'min(46vw, 400px)', height: 'min(46vw, 400px)' }}>
+          style={{ width: 'min(54vw, 580px)', height: 'min(54vw, 580px)', marginLeft: '-4vw' }}>
           {/* 비닐 디스크 */}
           <div className="absolute inset-0 rounded-full"
             style={{
@@ -105,7 +105,7 @@ export default function PlaylistTimerWide({ book, elapsed, running, accumulated,
         </div>
 
         {/* 우측: 정보 + 큰 시간 */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col pl-4 pr-5 sm:pr-12">
           <p className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.3em] mb-2">읽는중</p>
           <h1 className="text-white font-bold leading-tight line-clamp-2 text-xl sm:text-3xl">{book.title}</h1>
           <p className="text-white/50 text-sm sm:text-base mt-1 truncate">{book.author}</p>

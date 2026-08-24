@@ -251,6 +251,20 @@ export default function TimerPage() {
 
         <div className="flex items-center gap-2">
           {mode === 'playlist' && (
+            <div className="inline-flex p-0.5 rounded-full gap-0.5" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {([['1', '기본'], ['2', '크게']] as const).map(([v, label]) => {
+                const active = playlistLayout === v;
+                return (
+                  <button key={v} onClick={() => changeLayout(v)}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all active:scale-95"
+                    style={{ background: active ? 'rgba(255,255,255,0.95)' : 'transparent', color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)' }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {mode === 'playlist' && (
             <button onClick={() => setShowYtManage(true)} aria-label="유튜브 링크 추가"
               className="w-10 h-10 flex items-center justify-center rounded-full text-white active:opacity-70 transition-opacity"
               style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -298,24 +312,6 @@ export default function TimerPage() {
               className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 active:scale-95 transition-transform flex-shrink-0">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" /></svg>
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* 플레이리스트 레이아웃 선택 — 옵션1(기본) / 옵션2(크게) */}
-      {mode === 'playlist' && (
-        <div className="relative z-10 flex justify-center px-6 pt-2">
-          <div className="inline-flex p-0.5 rounded-full gap-0.5" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            {([['1', '기본'], ['2', '크게']] as const).map(([v, label]) => {
-              const active = playlistLayout === v;
-              return (
-                <button key={v} onClick={() => changeLayout(v)}
-                  className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
-                  style={{ background: active ? 'rgba(255,255,255,0.95)' : 'transparent', color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)' }}>
-                  {label}
-                </button>
-              );
-            })}
           </div>
         </div>
       )}
