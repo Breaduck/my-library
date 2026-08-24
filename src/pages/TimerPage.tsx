@@ -5,6 +5,7 @@ import { logReadingDate } from '@/lib/storage';
 import ClassicTimer from '@/components/timer/ClassicTimer';
 import AirplaneTimer from '@/components/timer/AirplaneTimer';
 import PlaylistTimer from '@/components/timer/PlaylistTimer';
+import YouTubePlaylist from '@/components/timer/YouTubePlaylist';
 
 const HOUR = 3600;
 const SESSION_OPTIONS = [25, 30, 45, 60]; // 트랙(세션) 길이(분)
@@ -250,6 +251,9 @@ export default function TimerPage() {
           </div>
         </div>
       )}
+
+      {/* 유튜브 음악 플레이리스트 — 타이머를 재생하면 음악도 자동으로 나온다 */}
+      {mode === 'playlist' && <YouTubePlaylist running={running} />}
 
       <div className="relative flex items-center justify-center pt-4 pb-2 z-10">
         <button

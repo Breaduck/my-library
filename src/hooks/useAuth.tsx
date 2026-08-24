@@ -328,6 +328,7 @@ function useAuthState(): AuthApi {
 
   const signOut = useCallback(() => {
     gd.signOut();
+    try { localStorage.removeItem('friends-cache-v1'); } catch { /* ignore */ }
     setProfile(null);
     setLastSync(null);
     lastSyncedJSON.current = '';

@@ -25,8 +25,9 @@ export function resizeCoverFile(file: File, maxDim = 600, quality = 0.82): Promi
   });
 }
 
-// 프로필 사진을 정사각형으로 크롭 + 리사이즈해 작은 JPEG data URL로 변환 (D1 저장용)
-export function resizeImageFile(file: File, size = 256): Promise<string> {
+// 프로필 사진을 정사각형으로 크롭 + 리사이즈해 작은 JPEG data URL로 변환 (D1 저장용).
+// 확대 팝업에서도 또렷하도록 480px로 저장한다.
+export function resizeImageFile(file: File, size = 480): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const reader = new FileReader();
