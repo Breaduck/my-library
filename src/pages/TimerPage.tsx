@@ -287,12 +287,15 @@ export default function TimerPage() {
         {mode === 'classic'  && <ClassicTimer  book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
         {mode === 'airplane' && <AirplaneTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
         {mode === 'playlist' && (playlistLayout === '2'
-          ? <PlaylistTimerWide book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60} />
+          ? <PlaylistTimerWide book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60}
+              sessionOptions={[...SESSION_OPTIONS, ...customMins]} sessionMin={sessionMin}
+              onSelectMin={changeSessionMin} onAddCustom={() => { setCustomInput(''); setShowCustomSheet(true); }}
+              onToggleRunning={toggleRunning} />
           : <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60} />)}
       </div>
 
-      {/* 플레이리스트 트랙 길이 선택 */}
-      {mode === 'playlist' && (
+      {/* 플레이리스트 트랙 길이 선택 — 옵션2(크게)에서는 우측 패널 안으로 들어간다 */}
+      {mode === 'playlist' && playlistLayout !== '2' && (
         <div className="relative z-10 flex justify-center px-6 pt-2">
           <div className="flex items-center gap-0.5 p-1 rounded-full max-w-full overflow-x-auto" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
             {[...SESSION_OPTIONS, ...customMins].map((min) => {
@@ -374,22 +377,25 @@ export default function TimerPage() {
         </div>
       )}
 
-      <div className="relative flex items-center justify-center pt-4 pb-2 z-10">
-        <button
-          onClick={toggleRunning}
-          className="w-[76px] h-[76px] rounded-full bg-white flex items-center justify-center active:scale-95 transition-transform"
-          style={{ boxShadow: running ? '0 0 48px rgba(129,140,248,0.5), 0 8px 24px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.6)' }}>
-          {running ? (
-            <svg className="w-7 h-7 text-[#0C0C18]" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
-            </svg>
-          ) : (
-            <svg className="w-7 h-7 text-[#0C0C18] translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
-        </button>
-      </div>
+      {/* 재생 버튼 — 옵션2(크게)에서는 우측 패널 안에 있으므로 숨김 */}
+      {!(mode === 'playlist' && playlistLayout === '2') && (
+        <div className="relative flex items-center justify-center pt-4 pb-2 z-10">
+          <button
+            onClick={toggleRunning}
+            className="w-[76px] h-[76px] rounded-full bg-white flex items-center justify-center active:scale-95 transition-transform"
+            style={{ boxShadow: running ? '0 0 48px rgba(129,140,248,0.5), 0 8px 24px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.6)' }}>
+            {running ? (
+              <svg className="w-7 h-7 text-[#0C0C18]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+              </svg>
+            ) : (
+              <svg className="w-7 h-7 text-[#0C0C18] translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Mode picker bottom sheet */}
       {showModeSheet && (

@@ -6,6 +6,12 @@ interface Props {
   running: boolean;
   accumulated: number;
   sessionTarget?: number;
+  // 우측 패널에 넣는 컨트롤들 (트랙 길이 선택 + 재생 버튼)
+  sessionOptions?: number[];
+  sessionMin?: number;
+  onSelectMin?: (min: number) => void;
+  onAddCustom?: () => void;
+  onToggleRunning?: () => void;
 }
 
 const HOUR = 3600;
@@ -27,7 +33,10 @@ function fmtTotal(s: number): string {
 }
 
 // 옵션 2 — LP판을 좌측에 크게(화면 절반) 두고, 우측에 시간·정보를 큼직하게 보여주는 레이아웃
-export default function PlaylistTimerWide({ book, elapsed, running, accumulated, sessionTarget = 1800 }: Props) {
+export default function PlaylistTimerWide({
+  book, elapsed, running, accumulated, sessionTarget = 1800,
+  sessionOptions, sessionMin, onSelectMin, onAddCustom, onToggleRunning,
+}: Props) {
   const SESSION_TARGET = sessionTarget;
   const sessionProgress = (elapsed % SESSION_TARGET) / SESSION_TARGET;
   const sessionRemaining = Math.max(SESSION_TARGET - (elapsed % SESSION_TARGET), 0);
@@ -54,10 +63,10 @@ export default function PlaylistTimerWide({ book, elapsed, running, accumulated,
 
       {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치 */}
       <div className="relative flex-1 flex min-h-0 items-center justify-center px-4 sm:px-8">
-        <div className="w-full max-w-5xl flex items-center gap-5 sm:gap-10">
-        {/* 좌측: LP판 — 덩어리의 절반을 차지, 세로로도 안 넘치게 */}
+        <div className="w-full max-w-6xl flex items-center gap-6 sm:gap-12">
+        {/* 좌측: LP판 — 덩어리의 절반을 크게 차지, 세로로도 안 넘치게 */}
         <div className="relative flex-shrink-0"
-          style={{ width: 'min(46%, 62vh)', aspectRatio: '1 / 1' }}>
+          style={{ width: 'min(50%, 76vh)', aspectRatio: '1 / 1' }}>
           {/* 비닐 디스크 */}
           <div className="absolute inset-0 rounded-full"
             style={{
@@ -129,8 +138,47 @@ export default function PlaylistTimerWide({ book, elapsed, running, accumulated,
             </div>
           </div>
 
-          {/* EQ + 세션/누적 */}
-          <div className="mt-5 flex items-center gap-3">
+          {/* 트랙 길이 선택 — 25/30/45/60/커스텀/+ */}
+          {sessionOptions && onSelectMin && (
+            <div className="mt-5 flex flex-wrap items-center gap-1.5">
+              {sessionOptions.map((min) => {
+                const active = sessionMin === min;
+                return (
+                  <button key={min} onClick={() => onSelectMin(min)}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                    style={{
+                      background: active ? 'linear-gradient(135deg, #1DB954, #22d3ee)' : 'rgba(255,255,255,0.08)',
+                      color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}>
+                    {min}분
+                  </button>
+                );
+              })}
+              {onAddCustom && (
+                <button onClick={onAddCustom} aria-label="직접 설정"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 active:scale-95 transition-transform"
+                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" /></svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 재생 버튼 + EQ + 세션/누적 */}
+          <div className="mt-6 flex items-center gap-4">
+            {onToggleRunning && (
+              <button
+                onClick={onToggleRunning}
+                className="w-16 h-16 rounded-full bg-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
+                style={{ boxShadow: running ? '0 0 40px rgba(129,140,248,0.5), 0 8px 24px rgba(0,0,0,0.5)' : '0 8px 28px rgba(0,0,0,0.6)' }}>
+                {running ? (
+                  <svg className="w-6 h-6 text-[#0C0C18]" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
+                ) : (
+                  <svg className="w-6 h-6 text-[#0C0C18] translate-x-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                )}
+              </button>
+            )}
             {running && (
               <div className="flex items-end gap-1 h-5">
                 {[0.2, 0.6, 0.4, 0.8, 0.3].map((delay, i) => (
