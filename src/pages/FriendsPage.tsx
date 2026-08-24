@@ -220,7 +220,7 @@ export default function FriendsPage() {
                     </div>
                   )}
                   <p className="text-[11px] text-[#AEAEB2] mt-2 leading-relaxed">
-                    닉네임은 설정 페이지에서 지정한 경우에만 검색돼요.
+                    친구의 닉네임 또는 이름과 정확히 일치해야 검색돼요.
                   </p>
                 </>
               )}

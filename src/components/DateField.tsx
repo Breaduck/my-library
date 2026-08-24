@@ -47,14 +47,14 @@ function formatFriendly(iso: string): string {
 export default function DateField({ label, value, onChange, presets = ['today', 'yesterday', 'week-ago'] }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function openPicker() {
+  function handleInputClick() {
+    // 데스크톱 브라우저에서는 입력창 아무 곳이나 눌러도 달력이 열리도록.
+    // iOS(iPad) Safari는 showPicker를 지원하지 않지만, 실제 보이는 input을
+    // 직접 탭하면 네이티브 피커가 열리므로 오버레이 방식으로 처리한다.
     const el = inputRef.current;
-    if (!el) return;
-    if (typeof el.showPicker === 'function') {
-      try { el.showPicker(); return; } catch {}
+    if (el && typeof el.showPicker === 'function') {
+      try { el.showPicker(); } catch {}
     }
-    el.focus();
-    el.click();
   }
 
   return (
@@ -78,33 +78,33 @@ export default function DateField({ label, value, onChange, presets = ['today', 
           })}
         </div>
       </div>
-      <button type="button" onClick={openPicker}
-        className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#F5F5F7] hover:bg-gray-200 active:bg-gray-300 transition-colors text-left">
+      <div className="relative w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#F5F5F7] hover:bg-gray-200 transition-colors text-left">
         <span className={`text-sm ${value ? 'text-[#1D1D1F] font-medium' : 'text-[#AEAEB2]'}`}>
           {value ? formatFriendly(value) : '날짜 선택'}
         </span>
         <div className="flex items-center gap-2">
           {value && (
-            <span
-              role="button"
+            <button
+              type="button"
               aria-label="날짜 지우기"
-              onClick={(e) => { e.stopPropagation(); onChange(''); }}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-[#AEAEB2] hover:text-[#6E6E73] hover:bg-white text-base cursor-pointer">×</span>
+              onClick={() => onChange('')}
+              className="relative z-10 w-6 h-6 flex items-center justify-center rounded-full text-[#AEAEB2] hover:text-[#6E6E73] hover:bg-white text-base cursor-pointer">×</button>
           )}
           <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-      </button>
-      <input
-        ref={inputRef}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-      />
+        {/* 실제 date input을 투명하게 박스 위에 겹쳐, 탭이 곧바로 네이티브 피커를 연다 */}
+        <input
+          ref={inputRef}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onClick={handleInputClick}
+          aria-label={label}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent border-0 m-0 p-0"
+        />
+      </div>
     </div>
   );
 }

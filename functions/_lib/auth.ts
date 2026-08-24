@@ -3,6 +3,25 @@
 // ★ 이게 없으면 '다른 앱에 발급된 구글 토큰'으로도 우리 API 인증이 통과되는 우회가 가능하다.
 const KNOWN_CLIENT_ID = '911521208153-5ev7h7ser40irv4lhfjlglr379jq9s1k.apps.googleusercontent.com';
 
+// 이메일을 하나의 표준형으로 정규화한다. 친구를 이메일로 초대할 때 상대가 실제로 로그인하는
+// 주소와 글자가 정확히 일치하지 않으면(대소문자·Gmail의 점/＋별칭) 요청이 조용히 누락된다.
+// - 공통: 앞뒤 공백 제거, 소문자화, '+태그' 제거
+// - Gmail/Googlemail: 로컬part의 '.'은 무시되므로 제거(같은 편지함으로 취급)
+export function canonicalEmail(raw: string): string {
+  const email = (raw ?? '').trim().toLowerCase();
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return email;
+  let local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const plus = local.indexOf('+');
+  if (plus >= 0) local = local.slice(0, plus);
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    local = local.replace(/\./g, '');
+    return `${local}@gmail.com`;
+  }
+  return `${local}@${domain}`;
+}
+
 // Google OAuth access token(클라이언트가 이미 갖고 있는 GIS 토큰)을 검증해 이메일을 추출.
 // 별도 로그인/세션 시스템 없이 기존 프론트 로그인 흐름을 그대로 재사용한다.
 export async function requireEmail(request: Request, clientId?: string): Promise<string | null> {
@@ -25,7 +44,7 @@ export async function requireEmail(request: Request, clientId?: string): Promise
     if (data.aud !== expectedAud) return null;
     // 미인증(email_verified=false) 계정은 이메일 소유가 확인되지 않았으므로 거부
     if (data.email_verified === 'false') return null;
-    return data.email.toLowerCase();
+    return canonicalEmail(data.email);
   } catch {
     return null;
   }

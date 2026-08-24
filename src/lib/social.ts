@@ -97,6 +97,22 @@ export async function lookupByNickname(nickname: string): Promise<FriendEntry[]>
   return data.users;
 }
 
+export interface NotificationEntry {
+  id: number;
+  bookId: string;
+  bookTitle: string;
+  coverUrl: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
+export async function getNotifications(): Promise<NotificationEntry[]> {
+  const res = await apiFetch('/notifications');
+  const data = await res.json() as { notifications: NotificationEntry[] };
+  return data.notifications;
+}
+
 export async function syncMyBooks(books: Book[]): Promise<void> {
   const payload = books.map((b) => ({
     id: b.id,

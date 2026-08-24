@@ -10,8 +10,9 @@ interface UserRow {
   custom_picture: string | null;
 }
 
-// 닉네임(custom_name) 정확히 일치하는 사용자 찾기 — 친구 추가용.
+// 닉네임/이름이 정확히 일치하는 사용자 찾기 — 친구 추가용.
 // 무작위 조회 남용을 막기 위해 부분/접두 검색은 지원하지 않고 정확히 일치할 때만 반환.
+// 사용자가 별도 닉네임(custom_name)을 지정하지 않은 경우가 많아, 화면에 보이는 이름(name)도 함께 매칭한다.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!me) return json({ error: 'unauthorized' }, 401);
@@ -21,8 +22,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!nickname) return json({ users: [] });
 
   const { results } = await env.DB.prepare(
-    'SELECT email, name, custom_name, google_picture, custom_picture FROM users WHERE custom_name = ? COLLATE NOCASE LIMIT 10'
-  ).bind(nickname).all<UserRow>();
+    'SELECT email, name, custom_name, google_picture, custom_picture FROM users WHERE custom_name = ? COLLATE NOCASE OR name = ? COLLATE NOCASE LIMIT 10'
+  ).bind(nickname, nickname).all<UserRow>();
 
   const users = (results ?? [])
     .filter((r) => r.email !== me)

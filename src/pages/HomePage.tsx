@@ -18,6 +18,7 @@ import { ReadingStatus, Book } from '@/types';
 import { getReadingStreak, getTodayPages, hasDoneReadingToday, localDate } from '@/lib/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { usePendingRequestCount } from '@/hooks/useFriends';
+import { useNotifications } from '@/hooks/useNotifications';
 
 type Tab = 'all' | ReadingStatus;
 type ViewMode = 'grid' | 'list' | 'shelf';
@@ -33,7 +34,16 @@ const TABS: { key: Tab; label: string }[] = [
 
 function SortableGridCard({ book, isDragging, index }: { book: Book; isDragging: boolean; index: number }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: book.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, touchAction: 'none' as const };
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    touchAction: 'none' as const,
+    // iOS Safari: 길게 누르면 뜨는 이미지 저장/텍스트 선택 콜아웃이 드래그를 취소시킨다 → 전부 끈다
+    WebkitTouchCallout: 'none' as const,
+    WebkitUserSelect: 'none' as const,
+    userSelect: 'none' as const,
+  };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       {/* 등장 애니메이션은 안쪽 래퍼에 — dnd-kit transform과 충돌 방지 */}
@@ -48,6 +58,7 @@ export default function HomePage() {
   const { books, loaded, reorderBooks, updateBook } = useBooks();
   const { signedIn, displayName } = useAuth();
   const pendingRequests = usePendingRequestCount(signedIn);
+  const { unread: unreadNotifs } = useNotifications(signedIn);
   const navigate = useNavigate();
   const libraryTitle = signedIn && displayName ? `${displayName}의 서재` : '나의 서재';
   const [search, setSearch] = useState('');
@@ -61,6 +72,17 @@ export default function HomePage() {
   const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
   const [readingHidden, setReadingHidden] = useState(false);
   const [celebrationBook, setCelebrationBook] = useState<Book | null>(null);
+  // 마우스가 있는 PC에서만 책 위치 바꾸기(드래그) 허용. 아이패드/폰 같은 터치 기기에서는
+  // 손가락으로 스크롤할 때 책들이 딸려 움직여서 꺼둔다. (pointer:fine + hover:hover = 정밀 포인터=마우스)
+  const [reorderEnabled, setReorderEnabled] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const apply = () => setReorderEnabled(mq.matches);
+    apply();
+    mq.addEventListener?.('change', apply);
+    return () => mq.removeEventListener?.('change', apply);
+  }, []);
 
   function openDailyFor(book?: Book) {
     setDailyModalBook(book);
@@ -195,6 +217,16 @@ export default function HomePage() {
             {books.length > 0 && (
               <Link to="/stats" className="hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-white text-[#6E6E73] hover:bg-gray-50 transition-colors" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.08)' }} title="통계">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+              </Link>
+            )}
+            {signedIn && (
+              <Link to="/notifications" className="relative hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-white text-[#6E6E73] hover:bg-gray-50 transition-colors" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.08)' }} title="알림">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                {unreadNotifs > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadNotifs > 9 ? '9+' : unreadNotifs}
+                  </span>
+                )}
               </Link>
             )}
             <Link to="/friends" className="relative hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-white text-[#6E6E73] hover:bg-gray-50 transition-colors" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.08)' }} title="친구">
@@ -414,26 +446,36 @@ export default function HomePage() {
                 {search ? `"${search}"에 해당하는 책이 없어요` : '이 탭에 책이 없어요'}
               </div>
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                {viewMode === 'shelf' ? (
-                  <div className="rounded-3xl p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
-                    <BookShelf books={filtered} />
-                  </div>
-                ) : viewMode === 'list' ? (
-                  <BookStack books={filtered} />
-                ) : (
+              viewMode === 'shelf' ? (
+                <div className="rounded-3xl p-2" style={{ background: 'linear-gradient(180deg, #f5ede3 0%, #ede0d0 100%)' }}>
+                  <BookShelf books={filtered} />
+                </div>
+              ) : viewMode === 'list' ? (
+                <BookStack books={filtered} />
+              ) : reorderEnabled ? (
+                // PC(마우스): 드래그로 책 위치 바꾸기
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                   <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
                       {filtered.map((book, i) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} index={i} />)}
                     </div>
                   </SortableContext>
-                )}
-                <DragOverlay>
-                  {activeBook ? (
-                    <div style={{ width: 140, opacity: 0.9, transform: 'rotate(3deg) scale(1.05)', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))' }}><BookCard book={activeBook} /></div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+                  <DragOverlay>
+                    {activeBook ? (
+                      <div style={{ width: 140, opacity: 0.9, transform: 'rotate(3deg) scale(1.05)', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))' }}><BookCard book={activeBook} /></div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              ) : (
+                // 터치 기기(아이패드/폰): 드래그 없이 일반 그리드 — 손가락 스크롤이 자연스럽게
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
+                  {filtered.map((book, i) => (
+                    <div key={book.id} className="anim-fade-up" style={{ animationDelay: `${Math.min(i * 35, 350)}ms` }}>
+                      <BookCard book={book} />
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </>
         )}
@@ -457,10 +499,22 @@ export default function HomePage() {
         <Link to="/add" className="w-14 h-14 bg-[#1D1D1F] text-white rounded-full flex items-center justify-center active:scale-95 transition-transform" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
           <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
         </Link>
-        <button onClick={() => openDailyFor(readingBooks[0])} className="flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-          <span className="text-[10px] font-medium">기록</span>
-        </button>
+        {signedIn ? (
+          <Link to="/notifications" className="relative flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            {unreadNotifs > 0 && (
+              <span className="absolute top-0 right-1/2 translate-x-3 min-w-[15px] h-[15px] px-0.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">
+                {unreadNotifs > 9 ? '9+' : unreadNotifs}
+              </span>
+            )}
+            <span className="text-[10px] font-medium">알림</span>
+          </Link>
+        ) : (
+          <button onClick={() => openDailyFor(readingBooks[0])} className="flex flex-col items-center gap-0.5 text-[#6E6E73] active:opacity-60 transition-opacity">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+            <span className="text-[10px] font-medium">기록</span>
+          </button>
+        )}
       </div>
 
       {/* Daily reading modal */}

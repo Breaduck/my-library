@@ -45,7 +45,8 @@ export default function BookCard({ book }: { book: Book }) {
           <img
             src={book.coverUrl}
             alt={book.title}
-            className="absolute inset-0 w-full h-full object-cover"
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-end justify-start p-3`}>

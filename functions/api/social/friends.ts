@@ -1,4 +1,4 @@
-import { requireEmail, json } from '../../_lib/auth';
+import { requireEmail, canonicalEmail, json } from '../../_lib/auth';
 
 interface Env { DB: D1Database; VITE_GOOGLE_CLIENT_ID?: string }
 
@@ -65,7 +65,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const body = await request.json() as { action?: string; email?: string };
   const action = body.action;
-  const target = body.email?.toLowerCase().trim() ?? '';
+  // 상대가 실제 로그인하는 주소와 어긋나 요청이 누락되지 않도록 표준형으로 맞춘다(대소문자·Gmail 점/별칭).
+  const target = canonicalEmail(body.email ?? '');
 
   if (!target || !EMAIL_RE.test(target)) return json({ error: 'invalid-email' }, 400);
   if (target === me) return json({ error: 'cannot-friend-self' }, 400);

@@ -1,4 +1,4 @@
-import { requireEmail, json } from '../../_lib/auth';
+import { requireEmail, canonicalEmail, json } from '../../_lib/auth';
 
 interface Env { DB: D1Database; VITE_GOOGLE_CLIENT_ID?: string }
 
@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const url = new URL(request.url);
-  const owner = url.searchParams.get('owner')?.toLowerCase().trim() ?? '';
+  const owner = canonicalEmail(url.searchParams.get('owner') ?? '');
   const bookId = url.searchParams.get('bookId') ?? '';
   if (!owner || !bookId) return json({ error: 'missing-params' }, 400);
 
@@ -50,7 +50,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const body = await request.json() as { owner?: string; bookId?: string; text?: string };
-  const owner = body.owner?.toLowerCase().trim() ?? '';
+  const owner = canonicalEmail(body.owner ?? '');
   const bookId = body.bookId ?? '';
   const text = body.text?.trim() ?? '';
   if (!owner || !bookId || !text) return json({ error: 'missing-params' }, 400);

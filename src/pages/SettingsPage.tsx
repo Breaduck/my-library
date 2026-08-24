@@ -10,6 +10,7 @@ import {
   getTombstones, setTombstones, clearReadingRecords,
 } from '@/lib/storage';
 import { resizeImageFile } from '@/lib/image';
+import { getBrowserNotifEnabled, setBrowserNotifEnabled } from '@/hooks/useNotifications';
 
 const VISIBILITY_OPTIONS: { key: Visibility; label: string; desc: string }[] = [
   { key: 'private', label: '나만 보기', desc: '친구에게 내 책과 평점을 전혀 보여주지 않아요' },
@@ -50,6 +51,31 @@ export default function SettingsPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
+  const [notifOn, setNotifOn] = useState(() => getBrowserNotifEnabled());
+  const [notifMsg, setNotifMsg] = useState('');
+
+  async function handleToggleNotif(on: boolean) {
+    setNotifMsg('');
+    if (on) {
+      if (typeof Notification === 'undefined') {
+        setNotifMsg('이 브라우저는 알림을 지원하지 않아요');
+        return;
+      }
+      let perm = Notification.permission;
+      if (perm === 'default') {
+        try { perm = await Notification.requestPermission(); } catch { /* ignore */ }
+      }
+      if (perm !== 'granted') {
+        setNotifMsg('브라우저 설정에서 알림을 허용해야 받을 수 있어요');
+        // 권한이 없으면 켜지 않음
+        setBrowserNotifEnabled(false);
+        setNotifOn(false);
+        return;
+      }
+    }
+    setBrowserNotifEnabled(on);
+    setNotifOn(on);
+  }
 
   const showSyncCard = signedIn;
 
@@ -279,6 +305,33 @@ export default function SettingsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
+          )}
+
+          {signedIn && (
+            <div className="bg-white rounded-2xl overflow-hidden" style={cs}>
+              <Link to="/notifications" className="flex items-center justify-between p-5 sm:p-6 hover:bg-[#FAFAFB] active:bg-[#F5F5F7] transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#F5F5F7] flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-[#6E6E73]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-[#1D1D1F]">알림</p>
+                </div>
+                <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+              <label className="flex items-center justify-between gap-3 p-5 sm:p-6 border-t border-[#F5F5F7] cursor-pointer">
+                <div className="min-w-0">
+                  <p className="text-sm text-[#1D1D1F]">브라우저 알림 받기</p>
+                  <p className="text-[11px] text-[#AEAEB2] mt-0.5">친구가 내 책에 댓글을 남기면 기기 알림으로 알려줘요</p>
+                </div>
+                <input type="checkbox" checked={notifOn} onChange={(e) => handleToggleNotif(e.target.checked)}
+                  className="w-4 h-4 rounded accent-[#3B7DE8] flex-shrink-0" />
+              </label>
+              {notifMsg && <p className="text-[11px] text-[#6E6E73] px-5 sm:px-6 pb-4 -mt-2">{notifMsg}</p>}
+            </div>
           )}
 
           {signedIn && (
