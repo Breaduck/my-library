@@ -140,6 +140,7 @@ export interface DrivePayload {
   dailyReadings?: unknown[];
   readingDates?: string[];
   goals?: { readingGoal?: string; monthlyGoal?: string; dailyGoal?: string };
+  personalResetAt?: string; // 개인 기록 리셋 에포크
 }
 
 // 읽기 결과를 3가지로 명확히 구분한다:
@@ -164,6 +165,7 @@ function normalizePayload(data: unknown): DrivePayload | null {
       dailyReadings: Array.isArray(d.dailyReadings) ? d.dailyReadings : undefined,
       readingDates: Array.isArray(d.readingDates) ? d.readingDates : undefined,
       goals: d.goals && typeof d.goals === 'object' ? d.goals : undefined,
+      personalResetAt: typeof d.personalResetAt === 'string' ? d.personalResetAt : undefined,
     };
   }
   return null;

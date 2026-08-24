@@ -273,10 +273,9 @@ function useAuthState(): AuthApi {
         if (!gd.getToken()) { gd.requestAccess('', gd.getCachedProfile()?.email); return; }
         setState('saving');
         try {
-          await gd.saveToDrive({
-            books: [], tombstones: getTombstones(),
-            dailyReadings: [], readingDates: [], goals: {},
-          });
+          // handleReset이 clearReadingRecords로 로컬 개인 기록을 비우고 리셋 에포크를 올린 뒤라,
+          // getPersonalData()는 {빈 기록 + 올라간 personalResetAt}을 담는다 → 다른 기기에도 전파.
+          await gd.saveToDrive({ books: [], tombstones: getTombstones(), ...getPersonalData() });
           social.syncMyBooks([]).catch(() => {});
           social.clearMyStats().catch(() => {});
           setLastSync(new Date());
