@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
+import { useAuth } from '@/hooks/useAuth';
 import { localDate, getDailyPagesForBook, setDailyPagesBulkForBook } from '@/lib/storage';
 import StarRating from '@/components/StarRating';
+import CommentThread from '@/components/CommentThread';
 import BookSearch from '@/components/BookSearch';
 import BookProgress from '@/components/BookProgress';
 import DateField from '@/components/DateField';
@@ -71,6 +73,7 @@ export default function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { books, loaded, updateBook, deleteBook } = useBooks();
+  const { signedIn, profile, displayName } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showManual, setShowManual] = useState(false);
@@ -291,7 +294,7 @@ export default function BookDetailPage() {
 
     return (
       <div className="min-h-screen bg-[#F5F5F7]">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 page-pt pb-32 sm:pb-12">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 page-pt" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 132px)' }}>
           <div className="flex items-center gap-3 mb-8">
             <button
               onClick={() => setIsEditing(false)}
@@ -736,6 +739,20 @@ export default function BookDetailPage() {
                 시작
               </Link>
             </div>
+          </div>
+        )}
+
+        {/* 댓글 — 친구가 내 책에 남긴 반응을 보고 답글을 달 수 있다(서로 대화) */}
+        {signedIn && profile?.email && (
+          <div className="mt-3 sm:mt-4 rounded-3xl bg-white p-5 sm:p-6" style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="w-4 h-4 text-[#86848A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 12h8m-8-4h8m-8 8h5M5 20l1.5-3A8 8 0 1119 9a8 8 0 01-8 8H8l-3 3z" />
+              </svg>
+              <h2 className="text-sm font-semibold text-[#1D1D1F]">댓글</h2>
+            </div>
+            <p className="text-[11px] text-[#AEAEB2] mb-1">친구가 이 책에 남긴 댓글이 여기 보여요. 답글도 남길 수 있어요.</p>
+            <CommentThread owner={profile.email} bookId={book.id} myName={displayName || profile.name} myEmail={profile.email} />
           </div>
         )}
 

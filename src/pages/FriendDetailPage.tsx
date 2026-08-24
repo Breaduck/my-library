@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useFriends, useFriendBooks, useFriendStats, useComments } from '@/hooks/useFriends';
+import { useFriends, useFriendBooks, useFriendStats } from '@/hooks/useFriends';
 import { SharedBook } from '@/lib/social';
 import StarRating from '@/components/StarRating';
+import CommentThread from '@/components/CommentThread';
+import ImageLightbox from '@/components/ImageLightbox';
 import FriendBookCard from '@/components/FriendBookCard';
 import FriendBookStack from '@/components/FriendBookStack';
 import FriendBookShelf from '@/components/FriendBookShelf';
@@ -28,62 +30,7 @@ function Avatar({ name, picture, size = 44 }: { name: string; picture: string; s
   );
 }
 
-function fmtRelative(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (diff < 60) return '방금 전';
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function CommentThread({ owner, book, myName }: { owner: string; book: SharedBook; myName: string }) {
-  const { comments, loading, add } = useComments(owner, book.id);
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    const t = text.trim();
-    if (!t) return;
-    setBusy(true);
-    try { await add(t, myName); setText(''); } finally { setBusy(false); }
-  }
-
-  return (
-    <div>
-      {loading ? (
-        <p className="text-xs text-[#AEAEB2] py-3">불러오는 중...</p>
-      ) : comments.length === 0 ? (
-        <p className="text-xs text-[#AEAEB2] py-3">아직 댓글이 없어요. 첫 댓글을 남겨보세요.</p>
-      ) : (
-        <div className="space-y-2.5 py-3">
-          {comments.map((c) => (
-            <div key={c.id} className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <span className="text-xs font-semibold text-[#1D1D1F]">{c.authorName}</span>
-                <span className="text-xs text-[#3A3A3C] ml-2 break-words">{c.text}</span>
-              </div>
-              <span className="text-[10px] text-[#AEAEB2] flex-shrink-0 mt-0.5">{fmtRelative(c.createdAt)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="flex gap-2">
-        <input value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), submit())}
-          placeholder="댓글 남기기..."
-          className="flex-1 px-3 py-2 rounded-lg bg-[#F5F5F7] text-xs text-[#1D1D1F] placeholder-[#AEAEB2] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" />
-        <button onClick={submit} disabled={busy || !text.trim()}
-          className="px-3 py-2 rounded-lg bg-[#1D1D1F] text-white text-xs font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
-          등록
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function BookOverlay({ book, owner, myName, onClose }: { book: SharedBook; owner: string; myName: string; onClose: () => void }) {
+function BookOverlay({ book, owner, myName, myEmail, onClose }: { book: SharedBook; owner: string; myName: string; myEmail?: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 sm:p-7 max-h-[85vh] overflow-y-auto"
@@ -116,7 +63,7 @@ function BookOverlay({ book, owner, myName, onClose }: { book: SharedBook; owner
 
         <div className="pt-3 border-t border-[#F5F5F7]">
           <p className="text-[11px] font-semibold text-[#AEAEB2] mb-1">댓글</p>
-          <CommentThread owner={owner} book={book} myName={myName} />
+          <CommentThread owner={owner} bookId={book.id} myName={myName} myEmail={myEmail} />
         </div>
       </div>
     </div>
@@ -136,6 +83,7 @@ export default function FriendDetailPage() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
 
   const friend = friends.find((f) => f.email === email);
   const reading = books.filter((b) => b.status === 'reading');
@@ -179,7 +127,12 @@ export default function FriendDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          {friend && <Avatar name={friend.name} picture={friend.picture} />}
+          {friend && (
+            <button type="button" onClick={() => friend.picture && setZoomSrc(friend.picture)}
+              className={friend.picture ? 'cursor-pointer' : 'cursor-default'} aria-label="프로필 사진 크게 보기">
+              <Avatar name={friend.name} picture={friend.picture} />
+            </button>
+          )}
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-[#1D1D1F] truncate">{friend?.name ?? email}</h1>
           </div>
@@ -269,7 +222,9 @@ export default function FriendDetailPage() {
         )}
       </div>
 
-      {openBook && <BookOverlay book={openBook} owner={email} myName={profile?.name ?? ''} onClose={() => setOpenBook(null)} />}
+      {openBook && <BookOverlay book={openBook} owner={email} myName={profile?.name ?? ''} myEmail={profile?.email} onClose={() => setOpenBook(null)} />}
+
+      {zoomSrc && <ImageLightbox src={zoomSrc} alt={friend?.name ?? ''} onClose={() => setZoomSrc(null)} />}
 
       {confirmRemove && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50">

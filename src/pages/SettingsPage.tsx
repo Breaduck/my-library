@@ -11,6 +11,7 @@ import {
 } from '@/lib/storage';
 import { resizeImageFile } from '@/lib/image';
 import { getBrowserNotifEnabled, setBrowserNotifEnabled } from '@/hooks/useNotifications';
+import ImageLightbox from '@/components/ImageLightbox';
 
 const VISIBILITY_OPTIONS: { key: Visibility; label: string; desc: string }[] = [
   { key: 'private', label: '나만 보기', desc: '친구에게 내 책과 평점을 전혀 보여주지 않아요' },
@@ -53,6 +54,7 @@ export default function SettingsPage() {
   const [nameBusy, setNameBusy] = useState(false);
   const [notifOn, setNotifOn] = useState(() => getBrowserNotifEnabled());
   const [notifMsg, setNotifMsg] = useState('');
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
 
   async function handleToggleNotif(on: boolean) {
     setNotifMsg('');
@@ -208,7 +210,8 @@ export default function SettingsPage() {
               <div className="flex items-center gap-4">
                 <div className="relative flex-shrink-0">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt={displayName} className="w-14 h-14 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={avatarUrl} alt={displayName} onClick={() => setZoomSrc(avatarUrl)}
+                      className="w-14 h-14 rounded-full object-cover cursor-pointer" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold text-white"
                       style={{ background: 'linear-gradient(135deg, #818CF8, #C084FC)' }}>
@@ -477,6 +480,8 @@ export default function SettingsPage() {
       </div>
 
       <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onGoogle={() => { setShowLogin(false); signIn(); }} />
+
+      {zoomSrc && <ImageLightbox src={zoomSrc} alt={displayName} onClose={() => setZoomSrc(null)} />}
 
       {confirmReset && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50">

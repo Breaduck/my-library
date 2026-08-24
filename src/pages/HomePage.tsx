@@ -67,6 +67,8 @@ export default function HomePage() {
   const [streak, setStreak] = useState(0);
   const [todayPages, setTodayPages] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(30);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalInput, setGoalInput] = useState('30');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
@@ -98,6 +100,13 @@ export default function HomePage() {
     updateBook(next.id, { status: 'reading', startDate: next.startDate || localDate() });
     setCelebrationBook(null);
     navigate(`/book/${next.id}`);
+  }
+
+  function saveDailyGoal() {
+    const n = Math.max(1, Math.min(999, parseInt(goalInput) || 30));
+    setDailyGoal(n);
+    localStorage.setItem('daily-page-goal', String(n));
+    setShowGoalModal(false);
   }
 
   function toggleReadingHidden() {
@@ -259,7 +268,16 @@ export default function HomePage() {
               <div className="w-px h-8 bg-black/5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[11px] text-[#86848A]">오늘 <span className="font-bold text-[#1D1D1F] tabular-nums">{todayPages}</span> / {dailyGoal}쪽</p>
+                  <p className="text-[11px] text-[#86848A] flex items-center">
+                    오늘 <span className="font-bold text-[#1D1D1F] tabular-nums mx-1">{todayPages}</span> / {dailyGoal}쪽
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setGoalInput(String(dailyGoal)); setShowGoalModal(true); }}
+                      aria-label="오늘 목표 수정" className="ml-1.5 text-[#C7C7CC] hover:text-[#86848A]">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </p>
                   {todayPages >= dailyGoal && <span className="text-[10px] font-bold text-emerald-500">목표 달성! 🎉</span>}
                 </div>
                 <div className="h-1.5 bg-[#F0F0F5] rounded-full overflow-hidden">
@@ -516,6 +534,30 @@ export default function HomePage() {
           </button>
         )}
       </div>
+
+      {/* 오늘의 페이지 목표 수정 */}
+      {showGoalModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50"
+          onClick={(e) => e.target === e.currentTarget && setShowGoalModal(false)}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 sm:p-8"
+            style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.18)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden" />
+            <h3 className="text-lg font-semibold text-[#1D1D1F] mb-1">오늘의 목표</h3>
+            <p className="text-[#6E6E73] text-sm mb-5">하루에 읽을 페이지 목표를 정해보세요</p>
+            <div className="flex items-center gap-2 mb-6">
+              <input type="number" inputMode="numeric" value={goalInput} min={1} max={999} autoFocus
+                onChange={(e) => setGoalInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') saveDailyGoal(); }}
+                className="flex-1 px-4 py-3 rounded-xl bg-[#F5F5F7] text-base text-[#1D1D1F] outline-none focus:ring-2 focus:ring-[#3B7DE8] transition-all" />
+              <span className="text-sm text-[#6E6E73] flex-shrink-0">쪽 / 일</span>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowGoalModal(false)} className="flex-1 py-3.5 rounded-xl bg-[#F5F5F7] text-[#1D1D1F] text-sm font-medium active:bg-gray-200 transition-colors">취소</button>
+              <button onClick={saveDailyGoal} className="flex-1 py-3.5 rounded-xl bg-[#1D1D1F] text-white text-sm font-medium hover:bg-[#3A3A3C] transition-colors">저장</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Daily reading modal */}
       {showDailyModal && (

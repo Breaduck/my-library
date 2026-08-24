@@ -124,6 +124,35 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* 친구 목록 — 최상단 */}
+            <div className="bg-white rounded-2xl overflow-hidden" style={cs}>
+              <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] px-5 pt-5 pb-2 sm:px-6">
+                친구 {friends.length > 0 && `· ${friends.length}`}
+              </h2>
+              {loading && friends.length === 0 ? (
+                <p className="text-sm text-[#AEAEB2] px-5 sm:px-6 py-6 text-center">불러오는 중...</p>
+              ) : friends.length === 0 ? (
+                <div className="px-5 sm:px-6 py-8 text-center border-t border-[#F5F5F7]">
+                  <span className="text-3xl block mb-2">📚</span>
+                  <p className="text-sm font-semibold text-[#1D1D1F] mb-1">아직 친구가 없어요</p>
+                  <p className="text-[11.5px] text-[#AEAEB2] leading-relaxed">아래에서 이메일이나 닉네임으로 친구를 초대하면<br />서로의 서재와 독서 기록을 구경할 수 있어요</p>
+                </div>
+              ) : (
+                friends.map((f: FriendEntry) => (
+                  <Link key={f.email} to={`/friends/${encodeURIComponent(f.email)}`}
+                    className="flex items-center gap-3 px-5 sm:px-6 py-3 border-t border-[#F5F5F7] hover:bg-[#FAFAFB] transition-colors">
+                    <Avatar name={f.name} picture={f.picture} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1D1D1F] truncate">{f.name}</p>
+                    </div>
+                    <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ))
+              )}
+            </div>
+
             {/* 최근 활동 피드 */}
             {activity.length > 0 && (
               <div className="bg-white rounded-2xl overflow-hidden" style={cs}>
@@ -268,35 +297,6 @@ export default function FriendsPage() {
                 ))}
               </div>
             )}
-
-            {/* 친구 목록 */}
-            <div className="bg-white rounded-2xl overflow-hidden" style={cs}>
-              <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] px-5 pt-5 pb-2 sm:px-6">
-                친구 {friends.length > 0 && `· ${friends.length}`}
-              </h2>
-              {loading && friends.length === 0 ? (
-                <p className="text-sm text-[#AEAEB2] px-5 sm:px-6 py-6 text-center">불러오는 중...</p>
-              ) : friends.length === 0 ? (
-                <div className="px-5 sm:px-6 py-8 text-center border-t border-[#F5F5F7]">
-                  <span className="text-3xl block mb-2">📚</span>
-                  <p className="text-sm font-semibold text-[#1D1D1F] mb-1">아직 친구가 없어요</p>
-                  <p className="text-[11.5px] text-[#AEAEB2] leading-relaxed">위에서 이메일이나 닉네임으로 친구를 초대하면<br />서로의 서재와 독서 기록을 구경할 수 있어요</p>
-                </div>
-              ) : (
-                friends.map((f: FriendEntry) => (
-                  <Link key={f.email} to={`/friends/${encodeURIComponent(f.email)}`}
-                    className="flex items-center gap-3 px-5 sm:px-6 py-3 border-t border-[#F5F5F7] hover:bg-[#FAFAFB] transition-colors">
-                    <Avatar name={f.name} picture={f.picture} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1D1D1F] truncate">{f.name}</p>
-                    </div>
-                    <svg className="w-4 h-4 text-[#AEAEB2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                ))
-              )}
-            </div>
 
             {error && <p className="text-[11px] text-red-500 text-center">{error}</p>}
           </div>
