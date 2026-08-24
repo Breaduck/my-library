@@ -61,6 +61,7 @@ interface AuthApi {
   enabled: boolean;            // whether OAuth client is configured at all
   state: SyncState;
   signedIn: boolean;
+  scopeMissing: boolean;       // 로그인은 됐지만 Drive(백업) 권한 체크를 빼먹은 상태
   profile: gd.UserProfile | null;
   lastSync: Date | null;
   avatarUrl: string;
@@ -103,6 +104,10 @@ function useAuthState(): AuthApi {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [customPicture, setCustomPicture] = useState<string | null>(() => getCachedCustomPicture());
   const [customName, setCustomName] = useState<string | null>(() => getCachedCustomName());
+  const [scopeMissing, setScopeMissing] = useState(false);
+  // 자동(무제스처) 재연결은 세션당 1회만 — 실패하는 환경(iPad ITP 등)에서 저장할 때마다
+  // 구글 팝업이 반짝 열렸다 닫히는 걸 반복하지 않기 위함. 수동 동기화/로그인은 제한 없음.
+  const autoReconnectTried = useRef(false);
   const tokenClientReady = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedJSON = useRef('');
@@ -116,9 +121,20 @@ function useAuthState(): AuthApi {
 
   const onSignInSuccess = useCallback(async () => {
     setState('saving');
+    autoReconnectTried.current = false; // 연결 성공 → 다음 만료 때 자동 재연결 1회 재허용
     try {
-      const [driveResult, prof] = await Promise.all([gd.loadFromDrive(), gd.fetchUserProfile()]);
+      // 새 기기 첫 로그인에서 구글 동의화면의 'Drive' 체크박스를 빼먹으면 백업을 전혀 못 읽는다.
+      // 이 상태를 감지해 UI에 안내 배너를 띄운다(데이터가 없는 게 아니라 권한이 없는 것).
+      setScopeMissing(!gd.hasDriveScope());
+
+      let [driveResult, prof] = await Promise.all([gd.loadFromDrive(), gd.fetchUserProfile()]);
       if (prof) setProfile(prof);
+
+      // 일시적 네트워크 오류로 첫 진입에서 서재가 '빈 것처럼' 보이지 않게 짧게 재시도
+      for (let attempt = 0; driveResult.status === 'error' && attempt < 2; attempt++) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        driveResult = await gd.loadFromDrive();
+      }
 
       // ★ 읽기 실패('error')면 Drive 상태를 알 수 없으므로 절대 덮어쓰지 않는다.
       // 로컬 데이터는 그대로 안전하고, 다음 변경/수동 동기화 때 다시 시도된다.
@@ -222,10 +238,17 @@ function useAuthState(): AuthApi {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       setState('saving');
       debounceRef.current = setTimeout(async () => {
-        // 토큰이 없으면(첫 진입 후 아직 재연결 안 됐거나 만료) 이 시점에 조용히 재연결 시도 —
-        // 성공하면 onSignInSuccess가 최신 로컬 데이터를 병합해서 알아서 동기화한다.
+        // 토큰이 없으면(첫 진입 후 아직 재연결 안 됐거나 만료) 조용히 재연결을 시도하되,
+        // ★ 세션당 1회만. 재연결 자체가 구글 팝업을 순간적으로 열었다 닫아서(특히 iPad),
+        // 저장할 때마다 팝업이 반짝이는 문제가 있었다. 실패하면 로컬에만 두고,
+        // 다음 앱 실행이나 '지금 동기화' 버튼(사용자 제스처)에서 다시 연결한다.
         if (!gd.getToken()) {
-          gd.requestAccess('', gd.getCachedProfile()?.email);
+          if (!autoReconnectTried.current) {
+            autoReconnectTried.current = true;
+            gd.requestAccess('', gd.getCachedProfile()?.email);
+          } else {
+            setState('error'); // 로컬은 안전 — 설정의 '지금 동기화'로 언제든 백업 가능
+          }
           return;
         }
         try {
@@ -336,6 +359,7 @@ function useAuthState(): AuthApi {
     setCachedCustomPicture(null);
     setCustomName(null);
     setCachedCustomName(null);
+    setScopeMissing(false);
     setState('idle');
   }, []);
 
@@ -378,7 +402,7 @@ function useAuthState(): AuthApi {
   const avatarUrl = customPicture || profile?.picture || '';
   const displayName = customName || profile?.name || '';
 
-  return { enabled, state, signedIn, profile, lastSync, avatarUrl, displayName, updateCustomPicture, updateCustomName, signIn, signOut, syncNow };
+  return { enabled, state, signedIn, scopeMissing, profile, lastSync, avatarUrl, displayName, updateCustomPicture, updateCustomName, signIn, signOut, syncNow };
 }
 
 // Context로 감싸서 앱 전체에 단 하나의 인스턴스만 존재하게 한다.

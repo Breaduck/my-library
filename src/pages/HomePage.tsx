@@ -56,7 +56,7 @@ function SortableGridCard({ book, isDragging, index }: { book: Book; isDragging:
 
 export default function HomePage() {
   const { books, loaded, reorderBooks, updateBook } = useBooks();
-  const { signedIn, displayName } = useAuth();
+  const { signedIn, displayName, state: syncState, scopeMissing, signIn, syncNow } = useAuth();
   const pendingRequests = usePendingRequestCount(signedIn);
   const { unread: unreadNotifs } = useNotifications(signedIn);
   const navigate = useNavigate();
@@ -252,6 +252,28 @@ export default function HomePage() {
             <AccountButton />
           </div>
         </div>
+
+        {/* 백업 연결 문제 안내 — 새 기기에서 데이터가 '없는 것처럼' 보일 때 원인과 해결책을 바로 보여준다 */}
+        {signedIn && (scopeMissing || syncState === 'error') && (
+          <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
+            <span className="text-lg flex-shrink-0">⚠️</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12.5px] font-semibold text-[#8a6d1a] leading-snug">
+                {scopeMissing ? '백업 접근 권한이 꺼져 있어요' : '백업을 불러오지 못했어요'}
+              </p>
+              <p className="text-[11px] text-[#a08a3f] mt-0.5 leading-relaxed">
+                {scopeMissing
+                  ? '다시 로그인하면서 Google Drive 항목에 꼭 체크해주세요. 기록은 안전하게 보관돼 있어요.'
+                  : '네트워크 문제일 수 있어요. 다시 시도하면 기록을 불러와요.'}
+              </p>
+            </div>
+            <button
+              onClick={() => (scopeMissing ? signIn() : void syncNow())}
+              className="flex-shrink-0 px-3.5 py-2 rounded-full bg-[#1D1D1F] text-white text-[11px] font-bold active:scale-95 transition-transform">
+              {scopeMissing ? '권한 허용' : '다시 시도'}
+            </button>
+          </div>
+        )}
 
         {/* 오늘의 독서 위젯 — 연속 독서 + 오늘 목표 진행 */}
         {books.length > 0 && (streak > 0 || todayPages > 0 || readingBooks.length > 0) && (

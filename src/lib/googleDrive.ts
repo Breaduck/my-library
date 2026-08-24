@@ -50,6 +50,15 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
 let _token: string | null = null;
 let _tokenClient: unknown = null;
 let _tokenExpiresAt: number | null = null;
+// 이번 토큰에 실제로 승인된 스코프 목록. 새 기기 첫 로그인 때 구글이 권한별 체크박스를
+// 보여주는데, 사용자가 Drive 체크를 빼먹으면 백업을 전혀 못 읽는다 — 이를 감지하기 위함.
+let _grantedScopes = '';
+
+export function hasDriveScope(): boolean {
+  // scope 정보가 없으면(구버전 응답 등) 막지 않고 통과시킨다 — 실제 실패는 API 호출이 알려줌
+  if (!_grantedScopes) return true;
+  return _grantedScopes.includes('drive.appdata');
+}
 
 export function getToken() { return _token; }
 export function getTokenExpiresAt() { return _tokenExpiresAt; }
@@ -84,8 +93,9 @@ export function initTokenClient(
     scope: SCOPES,
     // 점진적 승인(구글 콘솔 진단 항목): 이미 승인된 스코프를 새 요청에 합산 (기본값이지만 명시)
     include_granted_scopes: true,
-    callback: (response: { access_token?: string; error?: string; expires_in?: number }) => {
+    callback: (response: { access_token?: string; error?: string; expires_in?: number; scope?: string }) => {
       if (response.error || !response.access_token) { onError(); return; }
+      _grantedScopes = response.scope ?? '';
       setToken(response.access_token, response.expires_in);
       onSuccess(response.access_token);
     },
