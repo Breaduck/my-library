@@ -49,7 +49,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
   if (!me) return json({ error: 'unauthorized' }, 401);
 
-  const body = await request.json() as { owner?: string; bookId?: string; text?: string; authorName?: string };
+  const body = await request.json() as { owner?: string; bookId?: string; text?: string };
   const owner = body.owner?.toLowerCase().trim() ?? '';
   const bookId = body.bookId ?? '';
   const text = body.text?.trim() ?? '';
@@ -60,10 +60,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ error: 'not-friends' }, 403);
   }
 
+  // ★ 표시 이름은 클라이언트가 보낸 값을 믿지 않고 서버가 users 테이블에서 직접 조회한다.
+  // (예전엔 body.authorName을 그대로 저장해 아무 이름이나 사칭 가능했음)
+  const meRow = await env.DB.prepare('SELECT name, custom_name FROM users WHERE email = ?')
+    .bind(me).first<{ name: string; custom_name: string | null }>();
+  const authorName = (meRow?.custom_name || meRow?.name || me);
+
   const createdAt = new Date().toISOString();
   await env.DB.prepare(
     `INSERT INTO comments (owner_email, book_id, author_email, author_name, text, created_at) VALUES (?, ?, ?, ?, ?, ?)`
-  ).bind(owner, bookId, me, body.authorName ?? me, text, createdAt).run();
+  ).bind(owner, bookId, me, authorName, text, createdAt).run();
 
   return json({ ok: true, createdAt });
 };

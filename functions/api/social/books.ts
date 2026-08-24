@@ -72,7 +72,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const body = await request.json() as { books?: SyncBook[] };
-  const books = Array.isArray(body.books) ? body.books : [];
+  // 저장소 남용 방지를 위한 상한 — 개수·문자열 길이·수치 범위를 서버에서 강제한다.
+  const MAX_BOOKS = 1000;
+  const books = (Array.isArray(body.books) ? body.books : []).slice(0, MAX_BOOKS);
+
+  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+  const num = (v: unknown, min: number, max: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.min(Math.max(Math.round(v), min), max) : min;
+  // 표지 URL은 http(s)만 허용(javascript:/data: 등 차단), 그 외엔 빈 값으로
+  const safeUrl = (v: unknown) => {
+    const s = typeof v === 'string' ? v.slice(0, 2000) : '';
+    return /^https?:\/\//i.test(s) ? s : '';
+  };
 
   const db = env.DB;
   const statements = [db.prepare('DELETE FROM shared_books WHERE email = ?').bind(me)];
@@ -83,8 +94,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         `INSERT INTO shared_books (email, book_id, title, author, cover_url, status, rating, current_page, pages, review, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
-        me, b.id, b.title, b.author ?? '', b.coverUrl ?? '', b.status ?? '', b.rating ?? 0,
-        b.currentPage ?? 0, b.pages ?? 0, b.review ?? '', b.updatedAt ?? new Date().toISOString()
+        me, str(b.id, 128), str(b.title, 500), str(b.author, 300), safeUrl(b.coverUrl),
+        str(b.status, 32), num(b.rating, 0, 5), num(b.currentPage, 0, 1_000_000),
+        num(b.pages, 0, 1_000_000), str(b.review, 20_000), str(b.updatedAt, 40) || new Date().toISOString()
       )
     );
   }

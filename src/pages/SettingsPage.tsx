@@ -399,7 +399,7 @@ export default function SettingsPage() {
               className="w-full flex items-center justify-between px-5 sm:px-6 py-4 hover:bg-red-50/50 active:bg-red-50 transition-colors text-left border-t border-[#F5F5F7]">
               <div>
                 <p className="text-sm font-medium text-red-500">모든 책 기록 초기화</p>
-                <p className="text-[11px] text-[#AEAEB2] mt-0.5">이 브라우저의 로컬 기록을 모두 삭제</p>
+                <p className="text-[11px] text-[#AEAEB2] mt-0.5">{signedIn ? 'Drive·다른 기기 포함 모든 기록 삭제' : '이 브라우저의 모든 기록을 삭제'}</p>
               </div>
               <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
