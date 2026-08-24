@@ -5,6 +5,7 @@ import { logReadingDate } from '@/lib/storage';
 import ClassicTimer from '@/components/timer/ClassicTimer';
 import AirplaneTimer from '@/components/timer/AirplaneTimer';
 import PlaylistTimer from '@/components/timer/PlaylistTimer';
+import PlaylistTimerWide from '@/components/timer/PlaylistTimerWide';
 import YouTubePlaylist from '@/components/timer/YouTubePlaylist';
 
 const HOUR = 3600;
@@ -38,6 +39,13 @@ export default function TimerPage() {
   const [mode, setMode] = useState<Mode>('classic');
   const [showModeSheet, setShowModeSheet] = useState(false);
   const [sessionMin, setSessionMin] = useState(30);
+  const [customMins, setCustomMins] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem('playlist-custom-sessions') || '[]'); } catch { return []; }
+  });
+  const [showCustomSheet, setShowCustomSheet] = useState(false);
+  const [customInput, setCustomInput] = useState('');
+  const [showYtManage, setShowYtManage] = useState(false);
+  const [playlistLayout, setPlaylistLayout] = useState<'1' | '2'>('1');
   // 시작 시각 기준으로 경과를 계산 — setInterval 카운트 방식은 화면이 꺼지거나
   // 백그라운드로 가면 멈춰서 실제 읽은 시간이 크게 누락된다.
   const startAtRef = useRef<number | null>(null);
@@ -65,12 +73,39 @@ export default function TimerPage() {
     const saved = localStorage.getItem('timer-mode') as Mode | null;
     if (saved && MODES.some((m) => m.key === saved)) setMode(saved);
     const savedMin = parseInt(localStorage.getItem('playlist-session-min') || '');
-    if (SESSION_OPTIONS.includes(savedMin)) setSessionMin(savedMin);
+    if (savedMin > 0) setSessionMin(savedMin);
+    const savedLayout = localStorage.getItem('playlist-layout');
+    if (savedLayout === '1' || savedLayout === '2') setPlaylistLayout(savedLayout);
   }, []);
+
+  function changeLayout(v: '1' | '2') {
+    setPlaylistLayout(v);
+    localStorage.setItem('playlist-layout', v);
+  }
 
   function changeSessionMin(min: number) {
     setSessionMin(min);
     localStorage.setItem('playlist-session-min', String(min));
+  }
+
+  function addCustomMin() {
+    const n = Math.max(1, Math.min(600, parseInt(customInput) || 0));
+    if (!n) return;
+    if (![...SESSION_OPTIONS, ...customMins].includes(n)) {
+      const next = [...customMins, n].sort((a, b) => a - b);
+      setCustomMins(next);
+      localStorage.setItem('playlist-custom-sessions', JSON.stringify(next));
+    }
+    changeSessionMin(n);
+    setCustomInput('');
+    setShowCustomSheet(false);
+  }
+
+  function removeCustomMin(n: number) {
+    const next = customMins.filter((m) => m !== n);
+    setCustomMins(next);
+    localStorage.setItem('playlist-custom-sessions', JSON.stringify(next));
+    if (sessionMin === n) changeSessionMin(30);
   }
 
   function changeMode(m: Mode) {
@@ -214,32 +249,43 @@ export default function TimerPage() {
           </svg>
         </button>
 
-        {elapsed > 0 ? (
-          <button onClick={handleFinish}
-            className="px-4 py-2 rounded-full text-white/80 text-xs font-medium border border-white/10 active:opacity-70 transition-opacity"
-            style={{ background: 'rgba(255,255,255,0.08)' }}>
-            종료 & 저장
-          </button>
-        ) : (
-          <div className="w-10" />
-        )}
+        <div className="flex items-center gap-2">
+          {mode === 'playlist' && (
+            <button onClick={() => setShowYtManage(true)} aria-label="유튜브 링크 추가"
+              className="w-10 h-10 flex items-center justify-center rounded-full text-white active:opacity-70 transition-opacity"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <svg className="w-5 h-5 text-[#FF0000]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2 31 31 0 000 12a31 31 0 00.5 5.8 3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1A31 31 0 0024 12a31 31 0 00-.5-5.8zM9.5 15.5v-7l6.3 3.5-6.3 3.5z" />
+              </svg>
+            </button>
+          )}
+          {elapsed > 0 ? (
+            <button onClick={handleFinish}
+              className="px-4 py-2 rounded-full text-white/80 text-xs font-medium border border-white/10 active:opacity-70 transition-opacity"
+              style={{ background: 'rgba(255,255,255,0.08)' }}>
+              종료 & 저장
+            </button>
+          ) : (mode !== 'playlist' && <div className="w-10" />)}
+        </div>
       </div>
 
       <div className="relative flex-1 flex flex-col">
         {mode === 'classic'  && <ClassicTimer  book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
         {mode === 'airplane' && <AirplaneTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
-        {mode === 'playlist' && <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60} />}
+        {mode === 'playlist' && (playlistLayout === '2'
+          ? <PlaylistTimerWide book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60} />
+          : <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60} />)}
       </div>
 
       {/* 플레이리스트 트랙 길이 선택 */}
       {mode === 'playlist' && (
         <div className="relative z-10 flex justify-center px-6 pt-2">
-          <div className="flex items-center gap-0.5 p-1 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            {SESSION_OPTIONS.map((min) => {
+          <div className="flex items-center gap-0.5 p-1 rounded-full max-w-full overflow-x-auto" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {[...SESSION_OPTIONS, ...customMins].map((min) => {
               const active = sessionMin === min;
               return (
                 <button key={min} onClick={() => changeSessionMin(min)}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 flex-shrink-0"
                   style={{
                     background: active ? 'linear-gradient(135deg, #1DB954, #22d3ee)' : 'transparent',
                     color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)',
@@ -248,12 +294,89 @@ export default function TimerPage() {
                 </button>
               );
             })}
+            <button onClick={() => { setCustomInput(''); setShowCustomSheet(true); }} aria-label="직접 설정"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 active:scale-95 transition-transform flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 플레이리스트 레이아웃 선택 — 옵션1(기본) / 옵션2(크게) */}
+      {mode === 'playlist' && (
+        <div className="relative z-10 flex justify-center px-6 pt-2">
+          <div className="inline-flex p-0.5 rounded-full gap-0.5" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {([['1', '기본'], ['2', '크게']] as const).map(([v, label]) => {
+              const active = playlistLayout === v;
+              return (
+                <button key={v} onClick={() => changeLayout(v)}
+                  className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                  style={{ background: active ? 'rgba(255,255,255,0.95)' : 'transparent', color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)' }}>
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* 유튜브 음악 플레이리스트 — 타이머를 재생하면 음악도 자동으로 나온다 */}
-      {mode === 'playlist' && <YouTubePlaylist running={running} />}
+      {mode === 'playlist' && (
+        <YouTubePlaylist running={running} manageOpen={showYtManage} onCloseManage={() => setShowYtManage(false)} />
+      )}
+
+      {/* 트랙 길이 직접 설정 */}
+      {showCustomSheet && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+          onClick={(e) => e.target === e.currentTarget && setShowCustomSheet(false)}>
+          <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden"
+            style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0c0c18 100%)', border: '1px solid rgba(255,255,255,0.08)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-2 sm:hidden" />
+            <div className="px-6 pt-3 pb-3">
+              <h3 className="text-white text-base font-bold mb-1">트랙 길이 직접 설정</h3>
+              <p className="text-white/40 text-xs">원하는 시간(분)을 정해 나만의 트랙을 만들어요</p>
+            </div>
+            <div className="px-4 pb-2">
+              <div className="flex gap-2">
+                <input type="number" inputMode="numeric" value={customInput} min={1} max={600} autoFocus
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomMin())}
+                  placeholder="예) 50"
+                  className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/30 outline-none"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                <button onClick={addCustomMin} disabled={!customInput.trim()}
+                  className="px-4 py-2.5 rounded-xl bg-white text-[#0C0C18] text-sm font-semibold disabled:opacity-40 active:scale-95 transition-transform flex-shrink-0">
+                  추가
+                </button>
+              </div>
+            </div>
+            {customMins.length > 0 && (
+              <div className="px-4 pt-2 pb-1">
+                <p className="text-white/35 text-[11px] mb-1.5 px-1">내가 추가한 시간</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {customMins.map((m) => (
+                    <span key={m} className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-full text-white/85 text-xs"
+                      style={{ background: 'rgba(255,255,255,0.08)' }}>
+                      {m}분
+                      <button onClick={() => removeCustomMin(m)} aria-label={`${m}분 삭제`}
+                        className="w-5 h-5 flex items-center justify-center rounded-full text-white/50 hover:text-red-400 transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="px-4 pt-3">
+              <button onClick={() => setShowCustomSheet(false)}
+                className="w-full py-3 rounded-xl text-white/80 text-sm font-medium" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative flex items-center justify-center pt-4 pb-2 z-10">
         <button

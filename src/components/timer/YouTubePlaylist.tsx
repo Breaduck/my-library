@@ -51,14 +51,16 @@ function saveTracks(t: Track[]) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(t)); } catch { /* ignore */ }
 }
 
-export default function YouTubePlaylist({ running }: { running: boolean }) {
+export default function YouTubePlaylist({ running, manageOpen, onCloseManage }: { running: boolean; manageOpen: boolean; onCloseManage: () => void }) {
   const [tracks, setTracks] = useState<Track[]>(loadTracks);
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [ready, setReady] = useState(false);
-  const [showManage, setShowManage] = useState(false);
   const [input, setInput] = useState('');
   const [err, setErr] = useState('');
+
+  // 편집 시트를 열 때마다 이전 오류 메시지 초기화
+  useEffect(() => { if (manageOpen) setErr(''); }, [manageOpen]);
 
   const playerRef = useRef<any>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -208,19 +210,14 @@ export default function YouTubePlaylist({ running }: { running: boolean }) {
               </button>
             </>
           )}
-          <button onClick={() => { setShowManage(true); setErr(''); }} aria-label="플레이리스트 편집"
-            className="w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center text-white active:scale-95 transition-transform"
-            style={{ background: 'rgba(255,255,255,0.12)' }}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          </button>
         </div>
       </div>
 
       {/* 플레이리스트 관리 시트 */}
-      {showManage && (
+      {manageOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
-          onClick={(e) => e.target === e.currentTarget && setShowManage(false)}>
+          onClick={(e) => e.target === e.currentTarget && onCloseManage()}>
           <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden"
             style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0c0c18 100%)', border: '1px solid rgba(255,255,255,0.08)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
             <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-2 sm:hidden" />
@@ -262,7 +259,7 @@ export default function YouTubePlaylist({ running }: { running: boolean }) {
               )}
             </div>
             <div className="px-4 pt-1">
-              <button onClick={() => setShowManage(false)}
+              <button onClick={onCloseManage}
                 className="w-full py-3 rounded-xl text-white/80 text-sm font-medium" style={{ background: 'rgba(255,255,255,0.08)' }}>
                 닫기
               </button>
