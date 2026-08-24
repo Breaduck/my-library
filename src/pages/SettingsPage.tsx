@@ -152,6 +152,9 @@ export default function SettingsPage() {
     setTombstones([...getTombstones(), ...books.map((b) => b.id)]);
     localStorage.removeItem('book-tracker');
     clearReadingRecords();
+    // ★ 먼저 권위 있는 초기화를 알린다 — 이걸 books:replace보다 앞서 보내야
+    // 뒤따르는 books:changed('[]')가 병합 저장을 건너뛰어 개인 기록이 되살아나지 않는다.
+    window.dispatchEvent(new CustomEvent('account:wipe'));
     window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: [] }));
     window.dispatchEvent(new CustomEvent('books:changed', { detail: [] }));
     setConfirmReset(false);

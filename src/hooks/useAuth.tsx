@@ -3,7 +3,7 @@ import * as gd from '@/lib/googleDrive';
 import * as social from '@/lib/social';
 import { Book } from '@/types';
 
-import { mergeBooks, getTombstones, setTombstones, prepareSharedBooks, computeReadingStats, getShareStats, clearPersonalData } from '@/lib/storage';
+import { mergeBooks, getTombstones, setTombstones, prepareSharedBooks, computeReadingStats, getShareStats, clearPersonalData, applyPersonalData, getPersonalData } from '@/lib/storage';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const CUSTOM_PICTURE_KEY = 'social-custom-picture';
@@ -115,8 +115,13 @@ function useAuthState(): AuthApi {
   const onSignInSuccess = useCallback(async () => {
     setState('saving');
     try {
-      const [driveBooks, prof] = await Promise.all([gd.loadFromDrive(), gd.fetchUserProfile()]);
+      const [driveResult, prof] = await Promise.all([gd.loadFromDrive(), gd.fetchUserProfile()]);
       if (prof) setProfile(prof);
+
+      // ★ 읽기 실패('error')면 Drive 상태를 알 수 없으므로 절대 덮어쓰지 않는다.
+      // 로컬 데이터는 그대로 안전하고, 다음 변경/수동 동기화 때 다시 시도된다.
+      if (driveResult.status === 'error') { setState('error'); return; }
+      const remotePayload = driveResult.status === 'ok' ? driveResult.payload : null;
 
       // 이 브라우저의 로컬 데이터가 다른 계정 소유라면(계정 전환) 섞이면 안 되므로
       // 로컬을 병합 대상에서 제외하고 Drive(새 계정) 데이터만 사용한다.
@@ -127,11 +132,15 @@ function useAuthState(): AuthApi {
 
       // ★ 절대 덮어쓰지 않고 합집합 병합 — 어느 쪽 책도 사라지지 않음. 삭제는 툼스톤으로 반영.
       const local = isAccountSwitch ? [] : readLocalBooks();
-      const remote = (driveBooks?.books ?? []) as Book[];
+      const remote = (remotePayload?.books ?? []) as Book[];
       const tombs = isAccountSwitch
-        ? Array.from(new Set(driveBooks?.tombstones ?? []))
-        : Array.from(new Set([...getTombstones(), ...(driveBooks?.tombstones ?? [])]));
+        ? Array.from(new Set(remotePayload?.tombstones ?? []))
+        : Array.from(new Set([...getTombstones(), ...(remotePayload?.tombstones ?? [])]));
       setTombstones(tombs);
+
+      // 일별 기록·연속 독서·목표도 원격과 병합해 로컬에 반영(어떤 기록도 잃지 않음)
+      applyPersonalData(remotePayload ?? undefined);
+
       const merged = mergeBooks(local, remote, tombs);
       const mergedJSON = JSON.stringify(merged);
       if (prof) setLocalOwner(prof.email);
@@ -140,7 +149,7 @@ function useAuthState(): AuthApi {
       if (mergedJSON !== JSON.stringify(local)) {
         window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: merged }));
       }
-      await gd.saveToDrive({ books: merged, tombstones: tombs });
+      await gd.saveToDrive({ books: merged, tombstones: tombs, ...getPersonalData() });
 
       // 친구 기능용 백엔드 동기화(실패해도 Drive 백업엔 영향 없음)
       if (prof) {
@@ -215,10 +224,28 @@ function useAuthState(): AuthApi {
           return;
         }
         try {
-          await gd.saveToDrive({ books, tombstones: getTombstones() });
-          social.syncMyBooks(prepareSharedBooks(books)).catch(() => {});
-          syncStats(books);
-          lastSyncedJSON.current = json;
+          // ★ 통째로 덮어쓰지 않는다: 먼저 원격을 읽어 합집합 병합한 뒤 저장한다.
+          // (다른 기기가 올린 최신 백업을 이 기기의 오래된 로컬이 덮어쓰는 사고 방지)
+          const remote = await gd.loadFromDrive();
+          if (remote.status === 'error') { setState('error'); return; } // 읽기 실패 → 덮어쓰기 금지
+          const rp = remote.status === 'ok' ? remote.payload : null;
+
+          const tombs = Array.from(new Set([...getTombstones(), ...(rp?.tombstones ?? [])]));
+          setTombstones(tombs);
+          applyPersonalData(rp ?? undefined);
+
+          const merged = mergeBooks(books, (rp?.books ?? []) as Book[], tombs);
+          const mergedJSON = JSON.stringify(merged);
+          // dispatch 전에 먼저 표시해야, books:replace→books:changed 재진입이 즉시 단락됨(중복 저장 방지)
+          lastSyncedJSON.current = mergedJSON;
+          if (mergedJSON !== JSON.stringify(books)) {
+            // 원격에만 있던 책을 로컬에도 반영
+            window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: merged }));
+          }
+
+          await gd.saveToDrive({ books: merged, tombstones: tombs, ...getPersonalData() });
+          social.syncMyBooks(prepareSharedBooks(merged)).catch(() => {});
+          syncStats(merged);
           setLastSync(new Date());
           setState('synced');
         } catch {
@@ -232,6 +259,35 @@ function useAuthState(): AuthApi {
       window.removeEventListener('books:changed', handler);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+  }, [signedIn]);
+
+  // "모든 기록 초기화"는 삭제이므로 병합 저장(합집합)으로는 표현할 수 없다
+  // (개인 기록은 툼스톤이 없어 합치면 원격에서 다시 딸려온다). 그래서 초기화는
+  // 병합을 건너뛰고 빈 페이로드로 Drive를 '권위 있게' 덮어쓴다.
+  useEffect(() => {
+    if (!signedIn) return;
+    const handler = () => {
+      // 동기적으로 먼저 세팅 → 뒤이어 오는 books:changed('[]')가 병합 저장을 건너뛰게 함
+      lastSyncedJSON.current = '[]';
+      void (async () => {
+        if (!gd.getToken()) { gd.requestAccess('', gd.getCachedProfile()?.email); return; }
+        setState('saving');
+        try {
+          await gd.saveToDrive({
+            books: [], tombstones: getTombstones(),
+            dailyReadings: [], readingDates: [], goals: {},
+          });
+          social.syncMyBooks([]).catch(() => {});
+          social.clearMyStats().catch(() => {});
+          setLastSync(new Date());
+          setState('synced');
+        } catch {
+          setState('error');
+        }
+      })();
+    };
+    window.addEventListener('account:wipe', handler);
+    return () => window.removeEventListener('account:wipe', handler);
   }, [signedIn]);
 
   // 공개 범위(나만 보기/전체/일부) 설정이 바뀌면 즉시 친구용 백엔드에 다시 반영

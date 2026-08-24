@@ -133,23 +133,60 @@ async function findFileId(): Promise<string | null> {
   return data.files?.[0]?.id ?? null;
 }
 
-export interface DrivePayload { books: unknown[]; tombstones: string[] }
+export interface DrivePayload {
+  books: unknown[];
+  tombstones: string[];
+  // 일별 독서 기록·연속 독서 날짜·목표도 함께 백업 (없을 수 있음 — 구버전 호환)
+  dailyReadings?: unknown[];
+  readingDates?: string[];
+  goals?: { readingGoal?: string; monthlyGoal?: string; dailyGoal?: string };
+}
 
-export async function loadFromDrive(): Promise<DrivePayload | null> {
+// 읽기 결과를 3가지로 명확히 구분한다:
+//  - 'ok'    : 파일을 정상적으로 읽음(payload 있음)
+//  - 'empty' : appDataFolder에 백업 파일이 아직 없음(첫 동기화 — 덮어써도 안전)
+//  - 'error' : 네트워크/구글 API 오류 등으로 읽기 실패(★ 절대 덮어쓰면 안 됨)
+// 예전 loadFromDrive는 'empty'와 'error'를 똑같이 null로 반환해서, 읽기 실패 시
+// "백업이 비었다"고 오판하고 로컬로 Drive를 덮어써 백업 전체가 날아갈 수 있었다.
+export type LoadResult =
+  | { status: 'ok'; payload: DrivePayload }
+  | { status: 'empty' }
+  | { status: 'error' };
+
+function normalizePayload(data: unknown): DrivePayload | null {
+  // 구버전(책 배열) 호환 + 신버전({books, tombstones, ...})
+  if (Array.isArray(data)) return { books: data, tombstones: [] };
+  if (data && typeof data === 'object' && Array.isArray((data as DrivePayload).books)) {
+    const d = data as DrivePayload;
+    return {
+      books: d.books,
+      tombstones: Array.isArray(d.tombstones) ? d.tombstones : [],
+      dailyReadings: Array.isArray(d.dailyReadings) ? d.dailyReadings : undefined,
+      readingDates: Array.isArray(d.readingDates) ? d.readingDates : undefined,
+      goals: d.goals && typeof d.goals === 'object' ? d.goals : undefined,
+    };
+  }
+  return null;
+}
+
+export async function loadFromDrive(): Promise<LoadResult> {
+  let fileId: string | null;
   try {
-    const fileId = await findFileId();
-    if (!fileId) return null;
+    fileId = await findFileId();
+  } catch {
+    return { status: 'error' }; // 목록 조회 실패 = 상태 불명 → 덮어쓰기 금지
+  }
+  if (!fileId) return { status: 'empty' }; // 파일 없음 = 첫 동기화(정상)
+
+  try {
     const res = await apiFetch(`/drive/v3/files/${fileId}?alt=media`);
     const data: unknown = await res.json();
-    // 구버전(책 배열) 호환 + 신버전({books, tombstones})
-    if (Array.isArray(data)) return { books: data, tombstones: [] };
-    if (data && typeof data === 'object' && Array.isArray((data as DrivePayload).books)) {
-      const d = data as DrivePayload;
-      return { books: d.books, tombstones: Array.isArray(d.tombstones) ? d.tombstones : [] };
-    }
-    return null;
+    const payload = normalizePayload(data);
+    // 파일은 있는데 JSON이 깨졌거나 형식이 이상함 → 덮어쓰면 원본이 사라지므로 error로 취급
+    if (!payload) return { status: 'error' };
+    return { status: 'ok', payload };
   } catch {
-    return null;
+    return { status: 'error' }; // 파일은 존재하지만 읽기 실패 → 덮어쓰기 금지
   }
 }
 

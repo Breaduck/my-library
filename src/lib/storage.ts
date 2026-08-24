@@ -72,6 +72,14 @@ export function mergeBooks(local: Book[], remote: Book[], tombstones: string[] =
 }
 
 const DATES_KEY = 'reading-dates';
+const GOAL_KEY = 'reading-goal';
+const GOAL_MONTHLY_KEY = 'reading-goal-monthly';
+const DAILY_GOAL_KEY = 'daily-page-goal';
+
+export function getReadingDates(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(DATES_KEY) || '[]'); } catch { return []; }
+}
 
 export function logReadingDate(): void {
   if (typeof window === 'undefined') return;
@@ -349,6 +357,75 @@ export function clearPersonalData(): void {
     'reading-goal', 'reading-goal-monthly', 'daily-page-goal',
     VISIBILITY_KEY, SHARED_IDS_KEY, SHARE_REVIEWS_KEY, SHARE_STATS_KEY,
   ].forEach((k) => localStorage.removeItem(k));
+}
+
+// ── Drive 백업에 실을 개인 기록(일별 기록·연속 독서·목표) ─────────────────
+export interface PersonalData {
+  dailyReadings: DailyReading[];
+  readingDates: string[];
+  goals: { readingGoal?: string; monthlyGoal?: string; dailyGoal?: string };
+}
+
+export function getPersonalData(): PersonalData {
+  const goals: PersonalData['goals'] = {};
+  if (typeof window !== 'undefined') {
+    const g = localStorage.getItem(GOAL_KEY); if (g) goals.readingGoal = g;
+    const m = localStorage.getItem(GOAL_MONTHLY_KEY); if (m) goals.monthlyGoal = m;
+    const d = localStorage.getItem(DAILY_GOAL_KEY); if (d) goals.dailyGoal = d;
+  }
+  return { dailyReadings: getDailyReadings(), readingDates: getReadingDates(), goals };
+}
+
+// 일별 기록: date|bookId 키로 합집합. 같은 키가 양쪽에 있으면 페이지 수가 큰 쪽을 남긴다
+// (타임스탬프가 없어 '진도를 잃지 않는' 쪽을 안전 기본값으로).
+export function mergeDailyReadings(local: DailyReading[], remote: DailyReading[]): DailyReading[] {
+  const k = (r: DailyReading) => `${r.date}|${r.bookId ?? ''}`;
+  const map = new Map<string, DailyReading>();
+  for (const r of local) map.set(k(r), r);
+  for (const r of remote) {
+    const ex = map.get(k(r));
+    if (!ex || r.pages > ex.pages) map.set(k(r), r);
+  }
+  return [...map.values()];
+}
+
+// 신뢰할 수 없는(JSON) 배열을 DailyReading[]로 안전 변환
+function sanitizeDailyReadings(arr: unknown[]): DailyReading[] {
+  const out: DailyReading[] = [];
+  for (const r of arr) {
+    if (r && typeof r === 'object') {
+      const o = r as Record<string, unknown>;
+      if (typeof o.date === 'string' && typeof o.pages === 'number') {
+        out.push({ date: o.date, pages: o.pages, bookId: typeof o.bookId === 'string' ? o.bookId : undefined });
+      }
+    }
+  }
+  return out;
+}
+
+// 원격 개인 기록을 로컬에 병합 반영. 어떤 기록도 지우지 않는다(합집합).
+export function applyPersonalData(remote: {
+  dailyReadings?: unknown[];
+  readingDates?: unknown[];
+  goals?: { readingGoal?: string; monthlyGoal?: string; dailyGoal?: string };
+} | undefined): void {
+  if (typeof window === 'undefined' || !remote) return;
+
+  if (Array.isArray(remote.dailyReadings)) {
+    const merged = mergeDailyReadings(getDailyReadings(), sanitizeDailyReadings(remote.dailyReadings));
+    localStorage.setItem(DAILY_KEY, JSON.stringify(merged));
+  }
+  if (Array.isArray(remote.readingDates)) {
+    const dates = remote.readingDates.filter((d): d is string => typeof d === 'string');
+    const merged = Array.from(new Set([...getReadingDates(), ...dates]));
+    localStorage.setItem(DATES_KEY, JSON.stringify(merged));
+  }
+  // 목표는 로컬에 값이 없을 때만 원격 값으로 채운다(현재 기기의 설정을 우선).
+  if (remote.goals) {
+    if (remote.goals.readingGoal && !localStorage.getItem(GOAL_KEY)) localStorage.setItem(GOAL_KEY, remote.goals.readingGoal);
+    if (remote.goals.monthlyGoal && !localStorage.getItem(GOAL_MONTHLY_KEY)) localStorage.setItem(GOAL_MONTHLY_KEY, remote.goals.monthlyGoal);
+    if (remote.goals.dailyGoal && !localStorage.getItem(DAILY_GOAL_KEY)) localStorage.setItem(DAILY_GOAL_KEY, remote.goals.dailyGoal);
+  }
 }
 
 // ── 백업(내보내기) / 복원(가져오기) ───────────────────────────────────
