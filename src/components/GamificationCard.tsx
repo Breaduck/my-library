@@ -20,6 +20,7 @@ interface Props {
   books: Book[];
   dailyReadings: DailyReading[];
   streak: number;
+  freezes?: number; // 연속 독서 보호막 개수
 }
 
 // 레벨 정의 — 누적 XP 기준
@@ -34,7 +35,7 @@ const LEVELS = [
   { xp: 12000, title: '독서 마스터',  emoji: '👑' },
 ];
 
-export default function GamificationCard({ books, dailyReadings, streak }: Props) {
+export default function GamificationCard({ books, dailyReadings, streak, freezes = 0 }: Props) {
   const done = books.filter((b) => b.status === 'done');
   // XP: 읽은 페이지 1p = 1XP, 완독 1권 = 100XP 보너스
   const pagesFromDaily = dailyReadings.reduce((s, r) => s + r.pages, 0);
@@ -209,6 +210,28 @@ export default function GamificationCard({ books, dailyReadings, streak }: Props
               </div>
               <span className="text-[10px] font-semibold" style={{ color: d.isToday ? '#3B7DE8' : '#AEAEB2' }}>{d.label}</span>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 연속 보호막(스트릭 프리즈) — 하루 빠져도 기록을 지켜준다 */}
+      <div className="relative mt-4 rounded-2xl px-3.5 py-3 flex items-center gap-3"
+        style={{ background: 'linear-gradient(135deg, rgba(56,189,248,0.14), rgba(59,125,232,0.10))', border: '1px solid rgba(59,125,232,0.15)' }}>
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-lg"
+          style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.05)' }}>❄️</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-bold text-[#1D1D1F] leading-tight">
+            연속 보호막 {freezes > 0 ? `${freezes}개 보유` : '없음'}
+          </p>
+          <p className="text-[11px] text-[#6E6E73] mt-0.5 leading-snug">
+            {freezes > 0
+              ? '하루 빠뜨려도 연속 기록이 끊기지 않아요. 5일 연속마다 1개씩 쌓여요.'
+              : '5일 연속 읽으면 보호막이 생겨요. 하루쯤 놓쳐도 안심!'}
+          </p>
+        </div>
+        <div className="flex gap-1 flex-shrink-0">
+          {[0, 1].map((i) => (
+            <span key={i} className="text-[15px] leading-none" style={{ opacity: i < freezes ? 1 : 0.25, filter: i < freezes ? 'none' : 'grayscale(1)' }}>❄️</span>
           ))}
         </div>
       </div>

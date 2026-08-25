@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { useBooks } from '@/hooks/useBooks';
 import { Book } from '@/types';
-import { getReadingStreak, getDailyReadings, setDailyPages, localDate } from '@/lib/storage';
+import { getReadingStreak, getDailyReadings, setDailyPages, getStreakFreezes, reconcileStreakFreeze, localDate } from '@/lib/storage';
 import MonthlyShareCard from '@/components/MonthlyShareCard';
 import GamificationCard from '@/components/GamificationCard';
 import YearlyReportCard from '@/components/YearlyReportCard';
@@ -181,7 +181,9 @@ export default function StatsPage() {
   const reading = books.filter((b) => b.status === 'reading');
   const want = books.filter((b) => b.status === 'want');
   const stopped = books.filter((b) => b.status === 'stopped');
+  reconcileStreakFreeze();
   const streak = getReadingStreak();
+  const freezes = getStreakFreezes();
 
   // 완독일(endDate)이 없으면 추가일(createdAt)을 기준으로 연/월을 판단 → 읽음 처리가 목표에 반영됨
   const doneYM = (b: Book) => getYearMonth(b.endDate) ?? getYearMonth(b.createdAt);
@@ -399,7 +401,7 @@ export default function StatsPage() {
 
         {/* 게이미피케이션 — 게임 모드 ON일 때만 */}
         {books.length > 0 && gameMode && (
-          <GamificationCard books={books} dailyReadings={dailyReadings} streak={streak} />
+          <GamificationCard books={books} dailyReadings={dailyReadings} streak={streak} freezes={freezes} />
         )}
 
         {/* 상태별 현황 — 유리 카드 */}

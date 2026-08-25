@@ -9,7 +9,7 @@ import PlaylistTimerWide from '@/components/timer/PlaylistTimerWide';
 import YouTubePlaylist from '@/components/timer/YouTubePlaylist';
 
 const HOUR = 3600;
-const SESSION_OPTIONS = [25, 30, 45, 60]; // 트랙(세션) 길이(분)
+const SESSION_OPTIONS = [10, 30, 60]; // 트랙(세션) 길이(분) — 10분 / 30분 / 1시간
 type Mode = 'classic' | 'airplane' | 'playlist';
 
 const MODES: { key: Mode; label: string; desc: string }[] = [
@@ -39,12 +39,8 @@ export default function TimerPage() {
   const [mode, setMode] = useState<Mode>('classic');
   const [showModeSheet, setShowModeSheet] = useState(false);
   const [sessionMin, setSessionMin] = useState(30);
-  const [customMins, setCustomMins] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem('playlist-custom-sessions') || '[]'); } catch { return []; }
-  });
-  const [showCustomSheet, setShowCustomSheet] = useState(false);
-  const [customInput, setCustomInput] = useState('');
   const [showYtManage, setShowYtManage] = useState(false);
+  const [showBookPicker, setShowBookPicker] = useState(false);
   const [playlistLayout, setPlaylistLayout] = useState<'1' | '2'>('1');
   // 시작 시각 기준으로 경과를 계산 — setInterval 카운트 방식은 화면이 꺼지거나
   // 백그라운드로 가면 멈춰서 실제 읽은 시간이 크게 누락된다.
@@ -86,26 +82,6 @@ export default function TimerPage() {
   function changeSessionMin(min: number) {
     setSessionMin(min);
     localStorage.setItem('playlist-session-min', String(min));
-  }
-
-  function addCustomMin() {
-    const n = Math.max(1, Math.min(600, parseInt(customInput) || 0));
-    if (!n) return;
-    if (![...SESSION_OPTIONS, ...customMins].includes(n)) {
-      const next = [...customMins, n].sort((a, b) => a - b);
-      setCustomMins(next);
-      localStorage.setItem('playlist-custom-sessions', JSON.stringify(next));
-    }
-    changeSessionMin(n);
-    setCustomInput('');
-    setShowCustomSheet(false);
-  }
-
-  function removeCustomMin(n: number) {
-    const next = customMins.filter((m) => m !== n);
-    setCustomMins(next);
-    localStorage.setItem('playlist-custom-sessions', JSON.stringify(next));
-    if (sessionMin === n) changeSessionMin(30);
   }
 
   function changeMode(m: Mode) {
@@ -154,6 +130,21 @@ export default function TimerPage() {
       logReadingDate();
     }
     navigate(`/book/${id}`);
+  }
+
+  // 플레이리스트에서 LP를 눌러 다른 책으로 전환 — 현재까지 읽은 시간은 지금 책에 저장하고,
+  // 타이머를 0부터 새로 시작한다(재생 중이면 새 책도 이어서 재생).
+  function switchBook(newId: string) {
+    setShowBookPicker(false);
+    if (newId === id) return;
+    const e = currentElapsed();
+    if (e > 0 && book && id) {
+      updateBook(id, { totalReadingTime: (book.totalReadingTime ?? 0) + e });
+      logReadingDate();
+    }
+    setElapsed(0);
+    startAtRef.current = running ? Date.now() : null;
+    navigate(`/timer/${newId}`, { replace: true });
   }
 
   if (!loaded) return (
@@ -288,33 +279,30 @@ export default function TimerPage() {
         {mode === 'airplane' && <AirplaneTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} />}
         {mode === 'playlist' && (playlistLayout === '2'
           ? <PlaylistTimerWide book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60}
-              sessionOptions={[...SESSION_OPTIONS, ...customMins]} sessionMin={sessionMin}
-              onSelectMin={changeSessionMin} onAddCustom={() => { setCustomInput(''); setShowCustomSheet(true); }}
+              sessionOptions={SESSION_OPTIONS} sessionMin={sessionMin}
+              onSelectMin={changeSessionMin} onPickBook={() => setShowBookPicker(true)}
               onToggleRunning={toggleRunning} />
-          : <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60} />)}
+          : <PlaylistTimer book={book} elapsed={elapsed} running={running} accumulated={accumulated} sessionTarget={sessionMin * 60}
+              onPickBook={() => setShowBookPicker(true)} />)}
       </div>
 
       {/* 플레이리스트 트랙 길이 선택 — 옵션2(크게)에서는 우측 패널 안으로 들어간다 */}
       {mode === 'playlist' && playlistLayout !== '2' && (
         <div className="relative z-10 flex justify-center px-6 pt-2">
           <div className="flex items-center gap-0.5 p-1 rounded-full max-w-full overflow-x-auto" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            {[...SESSION_OPTIONS, ...customMins].map((min) => {
+            {SESSION_OPTIONS.map((min) => {
               const active = sessionMin === min;
               return (
                 <button key={min} onClick={() => changeSessionMin(min)}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 flex-shrink-0"
+                  className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 flex-shrink-0"
                   style={{
                     background: active ? 'linear-gradient(135deg, #1DB954, #22d3ee)' : 'transparent',
                     color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)',
                   }}>
-                  {min}분
+                  {min === 60 ? '1시간' : `${min}분`}
                 </button>
               );
             })}
-            <button onClick={() => { setCustomInput(''); setShowCustomSheet(true); }} aria-label="직접 설정"
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 active:scale-95 transition-transform flex-shrink-0">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" /></svg>
-            </button>
           </div>
         </div>
       )}
@@ -324,51 +312,56 @@ export default function TimerPage() {
         <YouTubePlaylist running={running} manageOpen={showYtManage} onCloseManage={() => setShowYtManage(false)} />
       )}
 
-      {/* 트랙 길이 직접 설정 */}
-      {showCustomSheet && (
+      {/* 책 선택 — 플레이리스트에서 LP를 눌러 다른 책으로 전환 */}
+      {showBookPicker && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
-          onClick={(e) => e.target === e.currentTarget && setShowCustomSheet(false)}>
-          <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden"
-            style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0c0c18 100%)', border: '1px solid rgba(255,255,255,0.08)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-2 sm:hidden" />
-            <div className="px-6 pt-3 pb-3">
-              <h3 className="text-white text-base font-bold mb-1">트랙 길이 직접 설정</h3>
-              <p className="text-white/40 text-xs">원하는 시간(분)을 정해 나만의 트랙을 만들어요</p>
+          onClick={(e) => e.target === e.currentTarget && setShowBookPicker(false)}>
+          <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col"
+            style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #0c0c18 100%)', border: '1px solid rgba(255,255,255,0.08)', maxHeight: '80vh', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-2 sm:hidden flex-shrink-0" />
+            <div className="px-6 pt-3 pb-3 flex-shrink-0">
+              <h3 className="text-white text-base font-bold mb-1">다른 책 재생하기</h3>
+              <p className="text-white/40 text-xs">표지를 선택하면 그 책으로 이어서 읽어요 · 지금까지 읽은 시간은 자동 저장돼요</p>
             </div>
-            <div className="px-4 pb-2">
-              <div className="flex gap-2">
-                <input type="number" inputMode="numeric" value={customInput} min={1} max={600} autoFocus
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomMin())}
-                  placeholder="예) 50"
-                  className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/30 outline-none"
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
-                <button onClick={addCustomMin} disabled={!customInput.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-white text-[#0C0C18] text-sm font-semibold disabled:opacity-40 active:scale-95 transition-transform flex-shrink-0">
-                  추가
-                </button>
-              </div>
-            </div>
-            {customMins.length > 0 && (
-              <div className="px-4 pt-2 pb-1">
-                <p className="text-white/35 text-[11px] mb-1.5 px-1">내가 추가한 시간</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {customMins.map((m) => (
-                    <span key={m} className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-full text-white/85 text-xs"
-                      style={{ background: 'rgba(255,255,255,0.08)' }}>
-                      {m}분
-                      <button onClick={() => removeCustomMin(m)} aria-label={`${m}분 삭제`}
-                        className="w-5 h-5 flex items-center justify-center rounded-full text-white/50 hover:text-red-400 transition-colors">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            <div className="px-4 pb-2 overflow-y-auto">
+              <div className="grid grid-cols-3 gap-3">
+                {[...books]
+                  .sort((a, b) => {
+                    // 읽는 중인 책을 먼저, 그다음 최근 갱신 순
+                    const order = (s: string) => (s === 'reading' ? 0 : s === 'want' ? 1 : 2);
+                    if (order(a.status) !== order(b.status)) return order(a.status) - order(b.status);
+                    return (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '');
+                  })
+                  .map((b) => {
+                    const current = b.id === id;
+                    return (
+                      <button key={b.id} onClick={() => switchBook(b.id)}
+                        className="group flex flex-col gap-1.5 active:scale-95 transition-transform text-left">
+                        <div className="relative rounded-xl overflow-hidden aspect-[2/3]"
+                          style={{ boxShadow: '0 6px 20px rgba(0,0,0,0.5)', border: current ? '2px solid #22d3ee' : '1px solid rgba(255,255,255,0.08)' }}>
+                          {b.coverUrl ? (
+                            <img src={b.coverUrl} alt={b.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center p-1"
+                              style={{ background: 'linear-gradient(135deg, #6366f1, #ec4899)' }}>
+                              <span className="text-white text-sm font-black text-center line-clamp-3">{b.title}</span>
+                            </div>
+                          )}
+                          {current && (
+                            <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(12,12,24,0.55)' }}>
+                              <span className="px-2 py-0.5 rounded-full bg-cyan-400 text-[#0C0C18] text-[10px] font-bold">재생 중</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-white/80 text-[11px] leading-tight line-clamp-2 px-0.5">{b.title}</p>
                       </button>
-                    </span>
-                  ))}
-                </div>
+                    );
+                  })}
               </div>
-            )}
-            <div className="px-4 pt-3">
-              <button onClick={() => setShowCustomSheet(false)}
+            </div>
+            <div className="px-4 pt-3 flex-shrink-0">
+              <button onClick={() => setShowBookPicker(false)}
                 className="w-full py-3 rounded-xl text-white/80 text-sm font-medium" style={{ background: 'rgba(255,255,255,0.08)' }}>
                 닫기
               </button>

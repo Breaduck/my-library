@@ -10,7 +10,7 @@ interface Props {
   sessionOptions?: number[];
   sessionMin?: number;
   onSelectMin?: (min: number) => void;
-  onAddCustom?: () => void;
+  onPickBook?: () => void; // LP를 눌러 다른 책으로 전환
   onToggleRunning?: () => void;
 }
 
@@ -35,7 +35,7 @@ function fmtTotal(s: number): string {
 // 옵션 2 — LP판을 좌측에 크게(화면 절반) 두고, 우측에 시간·정보를 큼직하게 보여주는 레이아웃
 export default function PlaylistTimerWide({
   book, elapsed, running, accumulated, sessionTarget = 1800,
-  sessionOptions, sessionMin, onSelectMin, onAddCustom, onToggleRunning,
+  sessionOptions, sessionMin, onSelectMin, onPickBook, onToggleRunning,
 }: Props) {
   const SESSION_TARGET = sessionTarget;
   const sessionProgress = (elapsed % SESSION_TARGET) / SESSION_TARGET;
@@ -64,8 +64,9 @@ export default function PlaylistTimerWide({
       {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치 */}
       <div className="relative flex-1 flex min-h-0 items-center justify-center px-4 sm:px-8">
         <div className="w-full max-w-6xl flex items-center gap-6 sm:gap-12">
-        {/* 좌측: LP판 — 덩어리의 절반을 크게 차지, 세로로도 안 넘치게 */}
-        <div className="relative flex-shrink-0"
+        {/* 좌측: LP판 — 덩어리의 절반을 크게 차지, 세로로도 안 넘치게. 누르면 다른 책으로 전환 */}
+        <button type="button" onClick={onPickBook} aria-label="다른 책 선택"
+          className="relative flex-shrink-0 active:scale-[0.98] transition-transform"
           style={{ width: 'min(50%, 76vh)', aspectRatio: '1 / 1' }}>
           {/* 비닐 디스크 */}
           <div className="absolute inset-0 rounded-full"
@@ -113,7 +114,16 @@ export default function PlaylistTimerWide({
               </linearGradient>
             </defs>
           </svg>
-        </div>
+
+          {/* 다른 책 전환 힌트 */}
+          {onPickBook && (
+            <span className="absolute bottom-[2%] left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-1 rounded-full text-white/80 text-[10px] font-medium pointer-events-none whitespace-nowrap"
+              style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(4px)' }}>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
+              다른 책
+            </span>
+          )}
+        </button>
 
         {/* 우측: 정보 + 큰 시간 — 세로 중앙 정렬 */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -138,30 +148,23 @@ export default function PlaylistTimerWide({
             </div>
           </div>
 
-          {/* 트랙 길이 선택 — 25/30/45/60/커스텀/+ */}
+          {/* 트랙 길이 선택 — 10분 / 30분 / 1시간 */}
           {sessionOptions && onSelectMin && (
             <div className="mt-5 flex flex-wrap items-center gap-1.5">
               {sessionOptions.map((min) => {
                 const active = sessionMin === min;
                 return (
                   <button key={min} onClick={() => onSelectMin(min)}
-                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                    className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
                     style={{
                       background: active ? 'linear-gradient(135deg, #1DB954, #22d3ee)' : 'rgba(255,255,255,0.08)',
                       color: active ? '#0C0C18' : 'rgba(255,255,255,0.55)',
                       border: '1px solid rgba(255,255,255,0.08)',
                     }}>
-                    {min}분
+                    {min === 60 ? '1시간' : `${min}분`}
                   </button>
                 );
               })}
-              {onAddCustom && (
-                <button onClick={onAddCustom} aria-label="직접 설정"
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 active:scale-95 transition-transform"
-                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" /></svg>
-                </button>
-              )}
             </div>
           )}
 

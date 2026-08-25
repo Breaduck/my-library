@@ -67,6 +67,8 @@ export default function YouTubePlaylist({ running, manageOpen, onCloseManage }: 
   const tracksRef = useRef(tracks);
   const currentRef = useRef(current);
   const prevRunning = useRef(running);
+  // 일시정지한 지점(초)을 기억했다가 재생 시 그 위치로 이어서 재생 — 처음부터 되감기는 문제 방지
+  const positionRef = useRef(0);
   tracksRef.current = tracks;
   currentRef.current = current;
 
@@ -75,7 +77,33 @@ export default function YouTubePlaylist({ running, manageOpen, onCloseManage }: 
     if (!playerRef.current || list.length === 0) return;
     const i = ((idx % list.length) + list.length) % list.length;
     setCurrent(i);
+    positionRef.current = 0; // 새 곡 로드 — 이전 곡의 위치로 되감기지 않게 초기화
     try { playerRef.current.loadVideoById(list[i].vid); } catch { /* ignore */ }
+  }, []);
+
+  // 저장된 위치에서 이어재생. 아직 곡이 안 실렸으면(-1/5) 처음 로드.
+  const resumePlayback = useCallback(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      const st = p.getPlayerState?.();
+      if (st === -1 || st === 5 || st === undefined) { playIndex(currentRef.current); return; }
+      p.playVideo();
+      const pos = positionRef.current;
+      // playVideo가 처음으로 되감기는 환경 보정 — 기억한 위치로 다시 맞춘다
+      if (pos > 1) { try { p.seekTo(pos, true); } catch { /* ignore */ } }
+    } catch { /* ignore */ }
+  }, [playIndex]);
+
+  // 현재 재생 위치를 기억해두고 일시정지
+  const pausePlayback = useCallback(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      const t = p.getCurrentTime?.();
+      if (typeof t === 'number' && t > 0) positionRef.current = t;
+      p.pauseVideo();
+    } catch { /* ignore */ }
   }, []);
 
   // 플레이어 생성 (숨김 — 오디오만 사용)
@@ -98,6 +126,8 @@ export default function YouTubePlaylist({ running, manageOpen, onCloseManage }: 
               setPlaying(true);
             } else if (e.data === YT.PlayerState.PAUSED) {
               setPlaying(false);
+              // 일시정지 지점 기억 — 어떤 경로로 멈추든 위치를 잃지 않게
+              try { const t = e.target.getCurrentTime?.(); if (typeof t === 'number' && t > 0) positionRef.current = t; } catch { /* ignore */ }
             }
           },
         },
@@ -113,30 +143,17 @@ export default function YouTubePlaylist({ running, manageOpen, onCloseManage }: 
     const paused = !running && prevRunning.current;
     prevRunning.current = running;
     if (started && tracksRef.current.length > 0) {
-      const p = playerRef.current;
-      try {
-        const st = p.getPlayerState?.();
-        // 아직 아무 곡도 안 실렸으면 현재 곡을 로드(자동재생), 이미 있으면 이어재생
-        if (st === -1 || st === 5 || st === undefined) playIndex(currentRef.current);
-        else p.playVideo();
-      } catch { /* ignore */ }
+      resumePlayback();
     } else if (paused) {
-      try { playerRef.current?.pauseVideo(); } catch { /* ignore */ }
+      pausePlayback();
     }
-  }, [running, ready, playIndex]);
+  }, [running, ready, resumePlayback, pausePlayback]);
 
   function togglePlay() {
     const p = playerRef.current;
     if (!p || tracks.length === 0) return;
-    if (playing) {
-      try { p.pauseVideo(); } catch { /* ignore */ }
-    } else {
-      try {
-        const st = p.getPlayerState?.();
-        if (st === -1 || st === 5 || st === undefined) playIndex(current);
-        else p.playVideo();
-      } catch { /* ignore */ }
-    }
+    if (playing) pausePlayback();
+    else resumePlayback();
   }
 
   function addTrack() {

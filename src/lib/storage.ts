@@ -102,11 +102,44 @@ export function logReadingDate(): void {
     existing.push(date);
     localStorage.setItem(DATES_KEY, JSON.stringify(existing));
   }
+  // 연속 독서 단계 달성 시 보호막 자동 적립
+  try { awardFreezesIfEarned(); } catch { /* ignore */ }
 }
 
+// 오늘 실제로 책을 읽었는지(타이머·페이지 기록 어느 쪽이든 날짜가 남으면 true)
+export function hasReadToday(): boolean {
+  if (typeof window === 'undefined') return false;
+  return getReadingDates().includes(localDate());
+}
+
+// ── 스트릭 프리즈(연속 독서 보호막) — 듀오링고식 ────────────────────────────
+// 하루 빠뜨려도 보호막이 있으면 연속 기록이 끊기지 않는다. 5·10·15…일 연속마다 1개씩
+// 자동 적립(최대 2개). 로컬 전용(기기별) — 핵심 독서 데이터 동기화에는 영향을 주지 않는다.
+const FREEZE_KEY = 'streak-freezes';
+const FROZEN_DATES_KEY = 'streak-frozen-dates';
+const FREEZE_LEVEL_KEY = 'streak-freeze-level';   // 이미 적립 처리한 최고 (streak/5) 단계
+const FREEZE_CHECK_KEY = 'streak-freeze-checked';  // 하루 1회만 보호막 정산
+const MAX_FREEZES = 2;
+
+export function getStreakFreezes(): number {
+  if (typeof window === 'undefined') return 0;
+  try { return Math.max(0, parseInt(localStorage.getItem(FREEZE_KEY) || '0', 10) || 0); } catch { return 0; }
+}
+function setStreakFreezes(n: number): void {
+  localStorage.setItem(FREEZE_KEY, String(Math.max(0, Math.min(MAX_FREEZES, n))));
+}
+function getFrozenDates(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(FROZEN_DATES_KEY) || '[]'); } catch { return []; }
+}
+function setFrozenDates(a: string[]): void {
+  localStorage.setItem(FROZEN_DATES_KEY, JSON.stringify(Array.from(new Set(a))));
+}
+
+// 연속 독서일 — 실제로 읽은 날 + 보호막으로 메운 날을 함께 계산.
 export function getReadingStreak(): number {
   if (typeof window === 'undefined') return 0;
-  const dates: string[] = JSON.parse(localStorage.getItem(DATES_KEY) || '[]');
+  const dates = Array.from(new Set([...getReadingDates(), ...getFrozenDates()]));
   if (dates.length === 0) return 0;
   const sorted = [...dates].sort().reverse();
   const today = localDate();
@@ -118,6 +151,35 @@ export function getReadingStreak(): number {
     if (diff === 1) streak++; else break;
   }
   return streak;
+}
+
+// 스트릭 단계(5일마다)를 넘길 때 보호막 1개 적립. logReadingDate 이후 호출된다.
+function awardFreezesIfEarned(): void {
+  const streak = getReadingStreak();
+  const level = Math.floor(streak / 5);
+  const prev = parseInt(localStorage.getItem(FREEZE_LEVEL_KEY) || '0', 10) || 0;
+  if (level > prev) {
+    setStreakFreezes(getStreakFreezes() + (level - prev));
+    localStorage.setItem(FREEZE_LEVEL_KEY, String(level));
+  }
+}
+
+// 앱을 열 때 하루 1회 실행 — 어제 안 읽었는데 그저께까지 연속이 살아 있었고 보호막이 있으면
+// 어제를 보호막으로 메워 연속 기록을 살린다. 반환값: 이번에 보호막을 실제로 쓴 경우 true.
+export function reconcileStreakFreeze(): boolean {
+  if (typeof window === 'undefined') return false;
+  const today = localDate();
+  if (localStorage.getItem(FREEZE_CHECK_KEY) === today) return false;
+  localStorage.setItem(FREEZE_CHECK_KEY, today);
+  const covered = new Set([...getReadingDates(), ...getFrozenDates()]);
+  const yesterday = localDate(new Date(Date.now() - 86400000));
+  const dayBefore = localDate(new Date(Date.now() - 2 * 86400000));
+  if (!covered.has(yesterday) && covered.has(dayBefore) && getStreakFreezes() > 0) {
+    setFrozenDates([...getFrozenDates(), yesterday]);
+    setStreakFreezes(getStreakFreezes() - 1);
+    return true;
+  }
+  return false;
 }
 
 export interface DailyReading {

@@ -6,6 +6,7 @@ interface Props {
   running: boolean;
   accumulated: number;
   sessionTarget?: number; // 한 트랙(세션) 길이(초)
+  onPickBook?: () => void; // LP를 눌러 다른 책으로 전환
 }
 
 const HOUR = 3600;
@@ -26,7 +27,7 @@ function fmtTotal(s: number): string {
   return `${m}분`;
 }
 
-export default function PlaylistTimer({ book, elapsed, running, accumulated, sessionTarget = 1800 }: Props) {
+export default function PlaylistTimer({ book, elapsed, running, accumulated, sessionTarget = 1800, onPickBook }: Props) {
   const SESSION_TARGET = sessionTarget;
   // 현재 트랙 진행률 — 트랙 길이마다 리셋 (선택한 길이 기준)
   const sessionProgress = (elapsed % SESSION_TARGET) / SESSION_TARGET;
@@ -63,8 +64,9 @@ export default function PlaylistTimer({ book, elapsed, running, accumulated, ses
       <div className="relative flex flex-col items-center px-6 mt-4">
         <p className="text-white/40 text-[10px] uppercase tracking-[0.3em] mb-1">읽는중</p>
 
-        {/* 비닐/표지 */}
-        <div className="relative my-6" style={{ width: 240, height: 240 }}>
+        {/* 비닐/표지 — 누르면 다른 책으로 전환 */}
+        <button type="button" onClick={onPickBook} aria-label="다른 책 선택"
+          className="relative my-6 active:scale-95 transition-transform" style={{ width: 240, height: 240 }}>
           {/* 비닐 디스크 (뒷쪽, 회전) */}
           <div className="absolute inset-0 rounded-full"
             style={{
@@ -119,7 +121,16 @@ export default function PlaylistTimer({ book, elapsed, running, accumulated, ses
               </linearGradient>
             </defs>
           </svg>
-        </div>
+
+          {/* 다른 책 전환 힌트 */}
+          {onPickBook && (
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-1 rounded-full text-white/80 text-[10px] font-medium pointer-events-none"
+              style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(4px)' }}>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
+              다른 책
+            </span>
+          )}
+        </button>
 
         {/* 곡 정보 */}
         <p className="text-white text-lg font-bold text-center leading-tight max-w-[280px] line-clamp-1">{book.title}</p>

@@ -15,7 +15,7 @@ import AccountButton from '@/components/AccountButton';
 import DailyReadingModal from '@/components/DailyReadingModal';
 import CompletionCelebration from '@/components/CompletionCelebration';
 import { ReadingStatus, Book } from '@/types';
-import { getReadingStreak, getTodayPages, hasDoneReadingToday, localDate } from '@/lib/storage';
+import { getReadingStreak, getTodayPages, hasDoneReadingToday, hasReadToday, getStreakFreezes, reconcileStreakFreeze, localDate } from '@/lib/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { usePendingRequestCount } from '@/hooks/useFriends';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -66,6 +66,8 @@ export default function HomePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [streak, setStreak] = useState(0);
   const [todayPages, setTodayPages] = useState(0);
+  const [freezes, setFreezes] = useState(0);
+  const [readToday, setReadToday] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(30);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalInput, setGoalInput] = useState('30');
@@ -92,8 +94,11 @@ export default function HomePage() {
   }
 
   function refreshTodayStats() {
+    reconcileStreakFreeze(); // 하루 1회 — 어제 놓친 날을 보호막으로 메워 연속 기록 보호
     setStreak(getReadingStreak());
     setTodayPages(getTodayPages());
+    setFreezes(getStreakFreezes());
+    setReadToday(hasReadToday());
   }
 
   function startNextBook(next: Book) {
@@ -121,8 +126,7 @@ export default function HomePage() {
     const saved = localStorage.getItem('view-mode') as ViewMode | null;
     if (saved) setViewMode(saved);
     setReadingHidden(localStorage.getItem('reading-section-hidden') === '1');
-    setStreak(getReadingStreak());
-    setTodayPages(getTodayPages());
+    refreshTodayStats();
     const g = parseInt(localStorage.getItem('daily-page-goal') || '');
     if (g > 0) setDailyGoal(g);
   }, []);
@@ -275,46 +279,81 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 오늘의 독서 위젯 — 연속 독서 + 오늘 목표 진행 */}
-        {books.length > 0 && (streak > 0 || todayPages > 0 || readingBooks.length > 0) && (
-          <Link to="/stats" className="block mb-4">
-            <div className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3.5 active:scale-[0.99] transition-transform"
-              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <span className="text-lg leading-none">🔥</span>
-                <div>
-                  <p className="text-[15px] font-extrabold text-[#1D1D1F] leading-none tabular-nums">{streak}<span className="text-[11px] font-semibold text-[#AEAEB2] ml-0.5">일</span></p>
-                  <p className="text-[9.5px] text-[#AEAEB2] mt-0.5">연속 독서</p>
+        {/* 오늘의 독서 위젯 — 듀오링고식 연속 독서(스트릭) + 오늘 목표 */}
+        {books.length > 0 && (streak > 0 || todayPages > 0 || readingBooks.length > 0) && (() => {
+          const goalMet = todayPages >= dailyGoal;
+          const atRisk = !readToday && streak > 0;         // 오늘 아직 — 불씨가 꺼질 위험
+          const lit = readToday || goalMet;                // 오늘 완료 → 불꽃 활활
+          const msg = goalMet
+            ? '오늘 목표 달성! 내일도 이어가요 🎉'
+            : readToday
+              ? (streak > 0 ? `오늘 독서 완료! ${streak}일 연속 유지 중` : '오늘 독서 완료! 좋은 시작이에요')
+              : atRisk
+                ? `오늘 읽으면 ${streak + 1}일째! 불씨를 지켜요`
+                : '오늘 첫 장을 펴고 연속 기록을 시작해요';
+          const flameBg = lit
+            ? 'linear-gradient(135deg,#FFB020,#FF6A00)'
+            : atRisk ? 'linear-gradient(135deg,#FF9F45,#FF5A5A)' : '#E5E5EA';
+          const ctaRead = !readToday;
+          return (
+          <div className="mb-4">
+            <div className="bg-white rounded-2xl overflow-hidden"
+              style={{ boxShadow: atRisk ? '0 2px 16px rgba(255,120,60,0.20)' : '0 1px 8px rgba(0,0,0,0.06)', border: atRisk ? '1px solid rgba(255,120,60,0.28)' : '1px solid transparent' }}>
+              <div className="px-4 py-3.5 flex items-center gap-3.5">
+                {/* 스트릭 불꽃 */}
+                <Link to="/stats" className="flex-shrink-0 relative" aria-label="통계 보기">
+                  <div className="w-[52px] h-[52px] rounded-2xl flex flex-col items-center justify-center relative"
+                    style={{ background: flameBg, boxShadow: lit ? '0 4px 14px rgba(255,110,0,0.35)' : atRisk ? '0 4px 14px rgba(255,90,90,0.28)' : 'none' }}>
+                    {atRisk && <span className="absolute inset-0 rounded-2xl animate-ping" style={{ background: 'rgba(255,120,60,0.35)' }} />}
+                    <span className="text-[20px] leading-none relative" style={{ filter: lit || atRisk ? 'none' : 'grayscale(1)', opacity: lit || atRisk ? 1 : 0.5 }}>🔥</span>
+                    <span className="text-white text-[13px] font-extrabold leading-none tabular-nums relative mt-0.5"
+                      style={{ color: lit || atRisk ? '#fff' : '#8E8E93' }}>{streak}</span>
+                  </div>
+                  {freezes > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white text-[9px] font-bold text-[#3B7DE8]"
+                      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.18)' }} title="연속 보호막 — 하루 빠져도 기록이 유지돼요">
+                      ❄️{freezes}
+                    </span>
+                  )}
+                </Link>
+
+                {/* 메시지 + 오늘 목표 진행 */}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[12px] font-bold leading-tight mb-1.5 ${atRisk ? 'text-[#E8590C]' : goalMet ? 'text-emerald-600' : 'text-[#1D1D1F]'}`}>{msg}</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10.5px] text-[#86848A] flex items-center">
+                      오늘 <span className="font-bold text-[#1D1D1F] tabular-nums mx-1">{todayPages}</span> / {dailyGoal}쪽
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setGoalInput(String(dailyGoal)); setShowGoalModal(true); }}
+                        aria-label="오늘 목표 수정" className="ml-1.5 text-[#C7C7CC] hover:text-[#86848A]">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </p>
+                  </div>
+                  <div className="h-1.5 bg-[#F0F0F5] rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.round((todayPages / dailyGoal) * 100))}%`, background: goalMet ? '#34C759' : 'linear-gradient(90deg, #4F8EF7, #3B7DE8)' }} />
+                  </div>
                 </div>
+
+                {/* CTA — 오늘 아직이면 '지금 읽기', 완료했으면 '+ 기록' */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (ctaRead && readingBooks[0]) navigate(`/timer/${readingBooks[0].id}`);
+                    else openDailyFor(readingBooks[0]);
+                  }}
+                  className="flex-shrink-0 px-3.5 py-2 rounded-full text-white text-[11px] font-bold active:scale-95 transition-transform"
+                  style={{ background: ctaRead ? 'linear-gradient(135deg,#FF8A3D,#FF5A2C)' : '#1D1D1F' }}>
+                  {ctaRead ? '지금 읽기' : '+ 기록'}
+                </button>
               </div>
-              <div className="w-px h-8 bg-black/5 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-[11px] text-[#86848A] flex items-center">
-                    오늘 <span className="font-bold text-[#1D1D1F] tabular-nums mx-1">{todayPages}</span> / {dailyGoal}쪽
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setGoalInput(String(dailyGoal)); setShowGoalModal(true); }}
-                      aria-label="오늘 목표 수정" className="ml-1.5 text-[#C7C7CC] hover:text-[#86848A]">
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  </p>
-                  {todayPages >= dailyGoal && <span className="text-[10px] font-bold text-emerald-500">목표 달성! 🎉</span>}
-                </div>
-                <div className="h-1.5 bg-[#F0F0F5] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.round((todayPages / dailyGoal) * 100))}%`, background: todayPages >= dailyGoal ? '#34C759' : 'linear-gradient(90deg, #4F8EF7, #3B7DE8)' }} />
-                </div>
-              </div>
-              <button
-                onClick={(e) => { e.preventDefault(); openDailyFor(readingBooks[0]); }}
-                className="flex-shrink-0 px-3 py-1.5 rounded-full bg-[#1D1D1F] text-white text-[11px] font-bold active:scale-95 transition-transform">
-                + 기록
-              </button>
             </div>
-          </Link>
-        )}
+          </div>
+          );
+        })()}
 
         {/* Status tabs — Apple segmented control 스타일, 좌측 정렬 */}
         <div className="mb-3 flex">

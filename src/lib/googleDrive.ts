@@ -7,6 +7,13 @@ const SCOPES = [
 ].join(' ');
 const WAS_SIGNED_IN_KEY = 'gd-was-signed-in';
 const PROFILE_KEY = 'gd-profile';
+// 액세스 토큰 자체를 저장해 앱을 다시 열어도(같은 토큰 유효시간 내: ~1시간) 재인증 없이 바로 동기화된다.
+// 토큰은 짧은 수명(휘발성)이라 저장해도 위험이 낮고, 만료되면 자동으로 폐기한다.
+const TOKEN_KEY = 'gd-token';
+const TOKEN_EXP_KEY = 'gd-token-exp';
+const TOKEN_SCOPES_KEY = 'gd-token-scopes';
+// 만료 임박 판정 여유(초) — 실제 만료 직전엔 미리 무효로 취급해 401을 줄인다.
+const EXPIRY_MARGIN_MS = 60_000;
 
 export interface UserProfile {
   email: string;
@@ -54,13 +61,38 @@ let _tokenExpiresAt: number | null = null;
 // 보여주는데, 사용자가 Drive 체크를 빼먹으면 백업을 전혀 못 읽는다 — 이를 감지하기 위함.
 let _grantedScopes = '';
 
+// 모듈 로드 시 저장된 토큰을 복원 — 아직 유효하면(만료 여유 이내) 재인증 없이 즉시 사용.
+(function restoreToken() {
+  if (typeof window === 'undefined') return;
+  try {
+    const t = localStorage.getItem(TOKEN_KEY);
+    const expRaw = localStorage.getItem(TOKEN_EXP_KEY);
+    const exp = expRaw ? parseInt(expRaw, 10) : 0;
+    if (t && exp && Date.now() < exp - EXPIRY_MARGIN_MS) {
+      _token = t;
+      _tokenExpiresAt = exp;
+      _grantedScopes = localStorage.getItem(TOKEN_SCOPES_KEY) || '';
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_EXP_KEY);
+      localStorage.removeItem(TOKEN_SCOPES_KEY);
+    }
+  } catch { /* ignore */ }
+})();
+
 export function hasDriveScope(): boolean {
   // scope 정보가 없으면(구버전 응답 등) 막지 않고 통과시킨다 — 실제 실패는 API 호출이 알려줌
   if (!_grantedScopes) return true;
   return _grantedScopes.includes('drive.appdata');
 }
 
-export function getToken() { return _token; }
+export function getToken() {
+  // 만료(여유 포함)된 토큰은 즉시 폐기 — 있으나 마나 401을 유발하므로 없는 것으로 취급.
+  if (_token && _tokenExpiresAt && Date.now() >= _tokenExpiresAt - EXPIRY_MARGIN_MS) {
+    setToken(null);
+  }
+  return _token;
+}
 export function getTokenExpiresAt() { return _tokenExpiresAt; }
 
 // 액세스 토큰(수명 ~1시간, 휘발성)과 "로그인 기억" 플래그를 분리한다.
@@ -68,7 +100,20 @@ export function getTokenExpiresAt() { return _tokenExpiresAt; }
 function setToken(t: string | null, expiresInSec?: number) {
   _token = t;
   _tokenExpiresAt = t && expiresInSec ? Date.now() + expiresInSec * 1000 : null;
-  if (t) localStorage.setItem(WAS_SIGNED_IN_KEY, '1');
+  try {
+    if (t) {
+      localStorage.setItem(WAS_SIGNED_IN_KEY, '1');
+      // 토큰을 저장해 앱 재실행 시 유효시간 내라면 재인증 없이 즉시 동기화되게 한다.
+      localStorage.setItem(TOKEN_KEY, t);
+      if (_tokenExpiresAt) localStorage.setItem(TOKEN_EXP_KEY, String(_tokenExpiresAt));
+      localStorage.setItem(TOKEN_SCOPES_KEY, _grantedScopes);
+    } else {
+      // 토큰 만료 — 캐시 토큰만 제거(기억 플래그는 유지 → 로그아웃 아님, 조용히 재연결 대상).
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_EXP_KEY);
+      localStorage.removeItem(TOKEN_SCOPES_KEY);
+    }
+  } catch { /* ignore */ }
   // t === null 일 때는 기억 플래그를 지우지 않는다 (만료일 뿐 로그아웃 아님).
 }
 
