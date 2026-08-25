@@ -174,10 +174,10 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
   const [showLevels, setShowLevels] = useState(false);
   const [showAllBadges, setShowAllBadges] = useState(false);
 
-  // 미리보기: 획득한 배지를 전부 보여줘 카운트(획득 수)와 화면이 일치하게 한다.
-  // 아직 하나도 없으면 잠긴 배지 몇 개를 맛보기로 보여준다. 나머지는 '더보기' 타일 → 전체 모달.
-  const earnedList = badges.filter((b) => b.earned);
-  const previewBadges = earnedList.length > 0 ? earnedList : badges.slice(0, 7);
+  // 미리보기: 복잡하지 않게 7개 + '더보기' 타일(총 8칸)만. 획득한 배지를 앞에 배치.
+  // 전체는 '전체보기' 모달에서 확인.
+  const orderedBadges = [...badges].sort((a, b) => Number(b.earned) - Number(a.earned));
+  const previewBadges = orderedBadges.slice(0, 7);
   const remainingCount = badges.length - previewBadges.length;
 
   const badgeButton = (b: Badge) => (
@@ -450,6 +450,29 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
+
+            {/* XP 적립 기준 안내 — 어떻게 XP가 쌓이는지 직관적으로 */}
+            <div className="mx-4 mb-3 rounded-2xl p-3.5 flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.14), rgba(245,158,11,0.10))', border: '1px solid rgba(245,158,11,0.22)' }}>
+              <p className="text-[12px] font-bold text-[#92700C] mb-2">XP는 이렇게 쌓여요</p>
+              <div className="flex gap-2">
+                <div className="flex-1 rounded-xl px-3 py-2 text-center" style={{ background: 'rgba(255,255,255,0.7)' }}>
+                  <p className="text-[16px] leading-none">📖</p>
+                  <p className="text-[13px] font-extrabold text-[#1D1D1F] mt-1">1쪽 = 1 XP</p>
+                  <p className="text-[10px] text-[#8E8E93] mt-0.5">읽은 페이지만큼</p>
+                </div>
+                <div className="flex-1 rounded-xl px-3 py-2 text-center" style={{ background: 'rgba(255,255,255,0.7)' }}>
+                  <p className="text-[16px] leading-none">✅</p>
+                  <p className="text-[13px] font-extrabold text-[#1D1D1F] mt-1">완독 = +100 XP</p>
+                  <p className="text-[10px] text-[#8E8E93] mt-0.5">책 1권 다 읽으면</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-[#92700C] mt-2 tabular-nums">
+                내 XP <span className="font-bold">{xp.toLocaleString()}</span>
+                <span className="text-[#B4820C] font-normal"> = 누적 {totalPages.toLocaleString()}쪽 + 완독 {done.length}권×100</span>
+              </p>
+            </div>
+
             <div className="px-4 pb-4 overflow-y-auto">
               {LEVELS.map((lv, i) => {
                 const isCurrent = i === levelIdx;
@@ -497,9 +520,6 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
                   </div>
                 );
               })}
-              <p className="text-[11px] text-[#AEAEB2] text-center mt-2 leading-relaxed px-4">
-                XP는 읽은 페이지 1쪽 = 1XP, 완독 1권 = 100XP로 쌓여요.
-              </p>
             </div>
           </div>
         </div>
