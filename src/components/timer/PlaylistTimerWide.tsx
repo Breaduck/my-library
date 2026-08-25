@@ -62,13 +62,14 @@ export default function PlaylistTimerWide({
         @keyframes equalizerW { 0%,100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
       `}</style>
 
-      {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치 */}
-      <div className="relative flex-1 flex min-h-0 items-center justify-center px-4 sm:px-8">
-        <div className="flex items-center justify-center gap-6 sm:gap-10 w-full max-w-4xl mx-auto">
+      {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치. LP는 더 왼쪽, 정보는 더 오른쪽으로
+          간격을 넉넉히 벌려 여백을 살린다 */}
+      <div className="relative flex-1 flex min-h-0 items-center justify-center px-6 sm:px-10">
+        <div className="flex items-center justify-center gap-10 sm:gap-24 w-full max-w-5xl mx-auto">
         {/* 좌측: LP판 — 크게, 세로로도 안 넘치게. 누르면 다른 책으로 전환 */}
         <button type="button" onClick={onPickBook} aria-label="다른 책 선택"
           className="relative flex-shrink-0 active:scale-[0.98] transition-transform"
-          style={{ width: 'min(44%, 72vh)', aspectRatio: '1 / 1' }}>
+          style={{ width: 'min(42%, 70vh)', aspectRatio: '1 / 1' }}>
           {/* 비닐 디스크 */}
           <div className="absolute inset-0 rounded-full"
             style={{
