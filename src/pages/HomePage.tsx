@@ -16,8 +16,6 @@ import DailyReadingModal from '@/components/DailyReadingModal';
 import CompletionCelebration from '@/components/CompletionCelebration';
 import { ReadingStatus, Book } from '@/types';
 import { getReadingStreak, getTodayPages, hasDoneReadingToday, hasReadToday, getStreakFreezes, reconcileStreakFreeze, localDate } from '@/lib/storage';
-import { getGameMode, setGameMode } from '@/lib/game';
-import DailyQuests from '@/components/DailyQuests';
 import { useAuth } from '@/hooks/useAuth';
 import { usePendingRequestCount } from '@/hooks/useFriends';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -70,7 +68,6 @@ export default function HomePage() {
   const [todayPages, setTodayPages] = useState(0);
   const [freezes, setFreezes] = useState(0);
   const [readToday, setReadToday] = useState(false);
-  const [gameMode, setGameModeState] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(30);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalInput, setGoalInput] = useState('30');
@@ -102,12 +99,6 @@ export default function HomePage() {
     setTodayPages(getTodayPages());
     setFreezes(getStreakFreezes());
     setReadToday(hasReadToday());
-    setGameModeState(getGameMode());
-  }
-
-  function toggleGameMode(on: boolean) {
-    setGameMode(on);
-    setGameModeState(on);
   }
 
   function startNextBook(next: Book) {
@@ -363,24 +354,6 @@ export default function HomePage() {
           </div>
           );
         })()}
-
-        {/* 게임 모드 — 일일 퀘스트·보석·상점 (듀오링고식) */}
-        {books.length > 0 && (
-          gameMode ? (
-            <DailyQuests onChanged={refreshTodayStats} onTurnOff={() => toggleGameMode(false)} />
-          ) : (
-            <button onClick={() => toggleGameMode(true)}
-              className="mb-4 w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left active:scale-[0.99] transition-transform"
-              style={{ background: 'linear-gradient(135deg, #1E2A4A, #2B2154)', boxShadow: '0 2px 14px rgba(30,42,74,0.30)' }}>
-              <span className="text-xl leading-none flex-shrink-0">🎮</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-[13px] font-bold">게임 모드 켜기</p>
-                <p className="text-white/45 text-[11px] mt-0.5">매일 퀘스트 깨고 💎 보석 모아 ❄️ 보호막 사기</p>
-              </div>
-              <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </button>
-          )
-        )}
 
         {/* Status tabs — Apple segmented control 스타일, 좌측 정렬 */}
         <div className="mb-3 flex">

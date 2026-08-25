@@ -6,6 +6,7 @@ import { Book } from '@/types';
 import { getReadingStreak, getDailyReadings, setDailyPages, getStreakFreezes, reconcileStreakFreeze, localDate } from '@/lib/storage';
 import MonthlyShareCard from '@/components/MonthlyShareCard';
 import GamificationCard from '@/components/GamificationCard';
+import DailyQuests from '@/components/DailyQuests';
 import YearlyReportCard from '@/components/YearlyReportCard';
 
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -90,6 +91,8 @@ export default function StatsPage() {
       return n;
     });
   }
+  // 퀘스트 보상/상점 구매로 보석·보호막이 바뀌면 페이지를 다시 그린다
+  const [, setGameTick] = useState(0);
   const [calDisplayYear, setCalDisplayYear] = useState(currentYear);
   const [calDisplayMonth, setCalDisplayMonth] = useState(currentMonth);
   const [calSelectedDay, setCalSelectedDay] = useState<number | null>(null);
@@ -399,9 +402,12 @@ export default function StatsPage() {
           </div>
         )}
 
-        {/* 게이미피케이션 — 게임 모드 ON일 때만 */}
+        {/* 게이미피케이션 — 게임 모드 ON일 때만 (일일 퀘스트 + 레벨/업적 카드) */}
         {books.length > 0 && gameMode && (
-          <GamificationCard books={books} dailyReadings={dailyReadings} streak={streak} freezes={freezes} />
+          <>
+            <DailyQuests onChanged={() => setGameTick((n) => n + 1)} />
+            <GamificationCard books={books} dailyReadings={dailyReadings} streak={streak} freezes={freezes} />
+          </>
         )}
 
         {/* 상태별 현황 — 유리 카드 */}
