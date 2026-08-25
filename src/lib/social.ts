@@ -184,6 +184,10 @@ export interface AdminStats {
   totalSharedBooks: number;
   signupsByDay: { day: string; c: number }[];
   recentUsers: { email: string; name: string; createdAt: string; lastSeenAt: string; activeMinutes: number }[];
+  readingTotals: { totalBooks: number; doneBooks: number; totalPages: number; avgRating: number };
+  statusBreakdown: { status: string; count: number }[];
+  streakLeaders: { email: string; name: string; streak: number; level: number; levelTitle: string }[];
+  recentComments: { id: number; ownerEmail: string; bookId: string; authorName: string; text: string; createdAt: string }[];
 }
 
 export async function getAdminStats(): Promise<AdminStats> {

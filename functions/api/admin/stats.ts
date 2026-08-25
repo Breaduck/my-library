@@ -8,6 +8,10 @@ interface UserRow {
   email: string; name: string; custom_name: string | null;
   created_at: string | null; last_seen_at: string | null; total_active_seconds: number;
 }
+interface ReadingTotalsRow { totalBooks: number; doneBooks: number; totalPages: number; avgRating: number }
+interface StatusRow { status: string | null; c: number }
+interface StreakRow { email: string; display_name: string | null; streak: number; level: number; level_title: string | null }
+interface CommentRow { id: number; owner_email: string; book_id: string; author_name: string | null; text: string; created_at: string }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
@@ -21,6 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const [
     totalUsers, newUsers7d, newUsers30d, active7d, active30d,
     totalFriendships, totalComments, totalSharedBooks, signupsByDay, recentUsers,
+    readingTotals, statusBreakdown, streakLeaders, recentComments,
   ] = await Promise.all([
     db.prepare('SELECT COUNT(*) as c FROM users').first<CountRow>(),
     db.prepare('SELECT COUNT(*) as c FROM users WHERE created_at >= ?').bind(sevenDaysAgo).first<CountRow>(),
@@ -38,6 +43,21 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       `SELECT email, name, custom_name, created_at, last_seen_at, total_active_seconds
        FROM users ORDER BY created_at DESC LIMIT 20`
     ).all<UserRow>(),
+    db.prepare(
+      `SELECT COALESCE(SUM(total_books),0) as totalBooks, COALESCE(SUM(done_books),0) as doneBooks,
+              COALESCE(SUM(total_pages),0) as totalPages,
+              COALESCE(AVG(CASE WHEN avg_rating > 0 THEN avg_rating END), 0) as avgRating
+       FROM reading_stats`
+    ).first<ReadingTotalsRow>(),
+    db.prepare(`SELECT status, COUNT(*) as c FROM shared_books GROUP BY status`).all<StatusRow>(),
+    db.prepare(
+      `SELECT email, display_name, streak, level, level_title FROM widget_data
+       WHERE streak > 0 ORDER BY streak DESC LIMIT 5`
+    ).all<StreakRow>(),
+    db.prepare(
+      `SELECT id, owner_email, book_id, author_name, text, created_at
+       FROM comments ORDER BY created_at DESC LIMIT 6`
+    ).all<CommentRow>(),
   ]);
 
   return json({
@@ -56,6 +76,28 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       createdAt: r.created_at,
       lastSeenAt: r.last_seen_at,
       activeMinutes: Math.round((r.total_active_seconds ?? 0) / 60),
+    })),
+    readingTotals: {
+      totalBooks: readingTotals?.totalBooks ?? 0,
+      doneBooks: readingTotals?.doneBooks ?? 0,
+      totalPages: readingTotals?.totalPages ?? 0,
+      avgRating: Math.round((readingTotals?.avgRating ?? 0) * 10) / 10,
+    },
+    statusBreakdown: (statusBreakdown.results ?? []).map((r) => ({ status: r.status ?? 'unknown', count: r.c })),
+    streakLeaders: (streakLeaders.results ?? []).map((r) => ({
+      email: r.email,
+      name: r.display_name || r.email.split('@')[0],
+      streak: r.streak,
+      level: r.level,
+      levelTitle: r.level_title ?? '',
+    })),
+    recentComments: (recentComments.results ?? []).map((r) => ({
+      id: r.id,
+      ownerEmail: r.owner_email,
+      bookId: r.book_id,
+      authorName: r.author_name ?? '',
+      text: r.text,
+      createdAt: r.created_at,
     })),
   });
 };

@@ -80,7 +80,21 @@ const ICONS = {
   friends: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v2h12v-2c0-2.5-3-4-6-4z" /></svg>,
   comment: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 10h8M8 14h5m-9 6l3-3h9a3 3 0 003-3V7a3 3 0 00-3-3H6a3 3 0 00-3 3v13z" /></svg>,
   book: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.5C10.5 5.5 8 5 5 5v12c3 0 5.5.5 7 1.5 1.5-1 4-1.5 7-1.5V5c-3 0-5.5.5-7 1.5zm0 0V18" /></svg>,
+  pages: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4h11l5 5v11a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1zM14 4v6h6M8 13h8M8 17h5" /></svg>,
+  star: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1L6.6 19.3l1.3-6-4.6-4.1 6.1-.6L12 3z" /></svg>,
+  fire: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 22c4 0 7-2.7 7-6.5 0-3-2-5-3-7-.3 2-1.3 3-2 3 .5-3-1-6-4-7.5.5 2.5-.5 4.5-2 6-1.2 1.3-2 3-2 5.5C6 19.3 8 22 12 22z" /></svg>,
 };
+
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  done: { label: '완독', color: '#34D399' },
+  reading: { label: '읽는 중', color: '#60A5FA' },
+  want: { label: '읽고 싶어요', color: '#A78BFA' },
+  stopped: { label: '중단', color: '#C7C7CC' },
+};
+
+function statusMeta(status: string): { label: string; color: string } {
+  return STATUS_META[status] ?? { label: status || '기타', color: '#C7C7CC' };
+}
 
 export default function AdminPage() {
   const { signedIn, state } = useAuth();
@@ -168,6 +182,65 @@ export default function AdminPage() {
           <StatCard icon={ICONS.pulse} accent="#34C759" label="최근 7일 활동" value={stats.active7d} sub="다시 접속한 유저" />
           <StatCard icon={ICONS.pulse} accent="#30B0C7" label="최근 30일 활동" value={stats.active30d} sub="다시 접속한 유저" />
         </div>
+
+        {/* 독서 활동 */}
+        <p className="text-[13px] font-semibold text-[#6E6E73] px-1 mb-2 mt-6">독서 활동</p>
+        <div className="grid grid-cols-2 gap-3 mb-2">
+          <StatCard icon={ICONS.book} accent="#3B7DE8" label="등록된 도서" value={stats.readingTotals.totalBooks} sub={`완독 ${stats.readingTotals.doneBooks}권`} />
+          <StatCard icon={ICONS.pages} accent="#30B0C7" label="누적 읽은 페이지" value={stats.readingTotals.totalPages.toLocaleString()} />
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+          <StatCard icon={ICONS.star} accent="#FF9500" label="평균 별점" value={stats.readingTotals.avgRating > 0 ? stats.readingTotals.avgRating.toFixed(1) : '-'} sub="완독 도서 기준" />
+        </div>
+
+        {/* 도서 상태 분포 */}
+        {stats.statusBreakdown.length > 0 && (
+          <div className="bg-white rounded-2xl p-5 sm:p-6 mt-4" style={cardShadow}>
+            <h2 className="text-sm font-semibold text-[#1D1D1F] mb-4">도서 상태 분포</h2>
+            {(() => {
+              const total = stats.statusBreakdown.reduce((s, d) => s + d.count, 0) || 1;
+              return (
+                <>
+                  <div className="w-full h-3 rounded-full overflow-hidden flex bg-[#F2F2F4]">
+                    {stats.statusBreakdown.map((d) => (
+                      <div key={d.status} style={{ width: `${(d.count / total) * 100}%`, background: statusMeta(d.status).color }} />
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
+                    {stats.statusBreakdown.map((d) => (
+                      <div key={d.status} className="flex items-center gap-1.5 text-[12px] text-[#6E6E73]">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: statusMeta(d.status).color }} />
+                        {statusMeta(d.status).label} <span className="text-[#AEAEB2]">{d.count}권</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* 스트릭 리더보드 */}
+        {stats.streakLeaders.length > 0 && (
+          <div className="bg-white rounded-2xl overflow-hidden mt-4" style={cardShadow}>
+            <div className="flex items-center gap-2 px-5 sm:px-6 pt-5 pb-3">
+              <span style={{ color: '#FF9500' }}>{ICONS.fire}</span>
+              <h2 className="text-sm font-semibold text-[#1D1D1F]">스트릭 리더보드</h2>
+            </div>
+            <div className="divide-y divide-[#F2F2F4]">
+              {stats.streakLeaders.map((u, i) => (
+                <div key={u.email} className="flex items-center gap-3 px-5 sm:px-6 py-3">
+                  <span className="w-6 text-center text-[13px] font-bold text-[#AEAEB2] flex-shrink-0">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold text-[#1D1D1F] truncate">{u.name}</p>
+                    <p className="text-[11px] text-[#AEAEB2] truncate">Lv.{u.level}{u.levelTitle ? ` · ${u.levelTitle}` : ''}</p>
+                  </div>
+                  <span className="text-[13px] font-bold flex-shrink-0" style={{ color: '#FF9500' }}>🔥 {u.streak}일</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 소셜 지표 */}
         <p className="text-[13px] font-semibold text-[#6E6E73] px-1 mb-2 mt-6">소셜</p>
@@ -258,6 +331,27 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+
+        {/* 최근 댓글 */}
+        {stats.recentComments.length > 0 && (
+          <div className="bg-white rounded-2xl overflow-hidden mt-6" style={cardShadow}>
+            <div className="flex items-center justify-between px-5 sm:px-6 pt-5 pb-3">
+              <h2 className="text-sm font-semibold text-[#1D1D1F]">최근 댓글</h2>
+              <span className="text-[12px] text-[#AEAEB2]">최신 {stats.recentComments.length}건</span>
+            </div>
+            <div className="divide-y divide-[#F2F2F4]">
+              {stats.recentComments.map((c) => (
+                <div key={c.id} className="px-5 sm:px-6 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[13px] font-semibold text-[#1D1D1F] truncate">{c.authorName || c.ownerEmail}</p>
+                    <span className="text-[11px] text-[#AEAEB2] flex-shrink-0">{fmtRelative(c.createdAt)}</span>
+                  </div>
+                  <p className="text-[13px] text-[#6E6E73] mt-1 line-clamp-2">{c.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <p className="text-[11px] text-[#AEAEB2] text-center mt-4 leading-relaxed">
           우측 점은 최근 접속 상태예요 (초록 24시간 · 주황 7일 이내).<br />
