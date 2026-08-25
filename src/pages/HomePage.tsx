@@ -16,6 +16,7 @@ import DailyReadingModal from '@/components/DailyReadingModal';
 import CompletionCelebration from '@/components/CompletionCelebration';
 import { ReadingStatus, Book } from '@/types';
 import { getReadingStreak, getTodayPages, hasDoneReadingToday, hasReadToday, getStreakFreezes, reconcileStreakFreeze, localDate } from '@/lib/storage';
+import { pushWidgetIfEnabled } from '@/lib/widget';
 import { useAuth } from '@/hooks/useAuth';
 import { usePendingRequestCount } from '@/hooks/useFriends';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -90,6 +91,8 @@ export default function HomePage() {
     setTodayPages(getTodayPages());
     setFreezes(getStreakFreezes());
     setReadToday(hasReadToday());
+    // 홈화면 위젯을 켠 적이 있으면 최신 통계를 조용히 서버에 반영
+    void pushWidgetIfEnabled(displayName || '나의 서재');
   }
 
   function startNextBook(next: Book) {

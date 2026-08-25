@@ -12,6 +12,7 @@ import {
 import { resizeImageFile } from '@/lib/image';
 import { getBrowserNotifEnabled, setBrowserNotifEnabled } from '@/hooks/useNotifications';
 import ImageLightbox from '@/components/ImageLightbox';
+import WidgetSetupCard from '@/components/WidgetSetupCard';
 
 const VISIBILITY_OPTIONS: { key: Visibility; label: string; desc: string }[] = [
   { key: 'private', label: '나만 보기', desc: '친구에게 내 책과 평점을 전혀 보여주지 않아요' },
@@ -425,6 +426,9 @@ export default function SettingsPage() {
               </p>
             </div>
           )}
+
+          {/* 홈화면 위젯 (Scriptable) */}
+          <WidgetSetupCard />
 
           {/* 데이터 관리 */}
           <div className="bg-white rounded-2xl overflow-hidden" style={cs}>

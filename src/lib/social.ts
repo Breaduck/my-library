@@ -71,6 +71,18 @@ export async function getProfile(): Promise<ServerProfile | null> {
   return data.profile;
 }
 
+// ── 홈화면 위젯(Scriptable)용 통계 업로드 ──────────────────────────
+export interface WidgetPayload {
+  streak: number; xp: number; level: number; levelTitle: string;
+  todayPages: number; dailyGoal: number; freezes: number; readToday: boolean; displayName: string;
+}
+// 성공 시 개인 위젯 토큰을 반환(최초엔 서버가 발급, 이후엔 동일 토큰 유지)
+export async function syncWidget(payload: WidgetPayload): Promise<string> {
+  const res = await authFetch('/api/widget/sync', { method: 'POST', body: JSON.stringify(payload) });
+  const data = await res.json() as { token?: string };
+  return data.token ?? '';
+}
+
 export async function saveProfile(fields: { name?: string; googlePicture?: string; customPicture?: string | null; customName?: string | null }): Promise<ServerProfile> {
   const res = await apiFetch('/profile', { method: 'POST', body: JSON.stringify(fields) });
   const data = await res.json() as { profile: ServerProfile };
