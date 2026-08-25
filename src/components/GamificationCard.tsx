@@ -174,9 +174,11 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
   const [showLevels, setShowLevels] = useState(false);
   const [showAllBadges, setShowAllBadges] = useState(false);
 
-  // 미리보기: 획득한 배지를 앞에, 그다음 잠긴 배지 순으로 최대 7개 + '더보기' 타일
-  const orderedBadges = [...badges].sort((a, b) => Number(b.earned) - Number(a.earned));
-  const previewBadges = orderedBadges.slice(0, 7);
+  // 미리보기: 획득한 배지를 전부 보여줘 카운트(획득 수)와 화면이 일치하게 한다.
+  // 아직 하나도 없으면 잠긴 배지 몇 개를 맛보기로 보여준다. 나머지는 '더보기' 타일 → 전체 모달.
+  const earnedList = badges.filter((b) => b.earned);
+  const previewBadges = earnedList.length > 0 ? earnedList : badges.slice(0, 7);
+  const remainingCount = badges.length - previewBadges.length;
 
   const badgeButton = (b: Badge) => (
     <button key={b.label} onClick={() => setSelectedBadge(b)}
@@ -372,22 +374,27 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
       {/* 업적 배지 — 미리보기 7개 + 더보기(전체 모달) */}
       <div className="relative mt-5">
         <div className="flex items-center justify-between mb-2.5">
-          <p className="text-[13px] font-bold text-[#1D1D1F]">업적</p>
+          <div className="flex items-baseline gap-1.5">
+            <p className="text-[13px] font-bold text-[#1D1D1F]">업적</p>
+            <span className="text-[11px] font-semibold text-[#6E6E73] tabular-nums">{earnedCount}/{badges.length} 획득</span>
+          </div>
           <button onClick={() => setShowAllBadges(true)} className="text-[11px] font-semibold text-[#3B7DE8] active:opacity-60 transition-opacity">
-            {earnedCount}/{badges.length} · 전체보기
+            전체보기
           </button>
         </div>
         <div className="grid grid-cols-4 gap-y-3 gap-x-2">
           {previewBadges.map((b) => badgeButton(b))}
-          {/* 더보기 타일 */}
-          <button onClick={() => setShowAllBadges(true)}
-            className="flex flex-col items-center gap-1.5 transition-transform active:scale-90">
-            <div className="w-[52px] h-[52px] rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.6)', border: '1px dashed rgba(0,0,0,0.18)' }}>
-              <span className="text-[18px] font-bold text-[#8E8E93] leading-none">+{badges.length - previewBadges.length}</span>
-            </div>
-            <span className="text-[9.5px] font-semibold leading-tight text-center text-[#6E6E73]">더보기</span>
-          </button>
+          {/* 더보기 타일 — 아직 못 깬 배지가 남아 있을 때만 */}
+          {remainingCount > 0 && (
+            <button onClick={() => setShowAllBadges(true)}
+              className="flex flex-col items-center gap-1.5 transition-transform active:scale-90">
+              <div className="w-[52px] h-[52px] rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.6)', border: '1px dashed rgba(0,0,0,0.18)' }}>
+                <span className="text-[15px] font-bold text-[#8E8E93] leading-none">+{remainingCount}</span>
+              </div>
+              <span className="text-[9.5px] font-semibold leading-tight text-center text-[#6E6E73]">더보기</span>
+            </button>
+          )}
         </div>
       </div>
 
