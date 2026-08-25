@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  DndContext, closestCenter, PointerSensor, TouchSensor,
+  DndContext, closestCenter, MouseSensor, TouchSensor,
   useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
@@ -38,7 +38,9 @@ function SortableGridCard({ book, isDragging, index }: { book: Book; isDragging:
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
-    touchAction: 'none' as const,
+    // pan-y: 평소엔 세로 스크롤 허용, 2초 롱프레스가 활성화되면 dnd가 이동을 가로챈다.
+    // (touch-action:none으로 두면 아이패드에서 그리드 위 스크롤 자체가 막힌다)
+    touchAction: 'pan-y' as const,
     // iOS Safari: 길게 누르면 뜨는 이미지 저장/텍스트 선택 콜아웃이 드래그를 취소시킨다 → 전부 끈다
     WebkitTouchCallout: 'none' as const,
     WebkitUserSelect: 'none' as const,
@@ -76,17 +78,6 @@ export default function HomePage() {
   const [dailyModalBook, setDailyModalBook] = useState<Book | undefined>(undefined);
   const [readingHidden, setReadingHidden] = useState(false);
   const [celebrationBook, setCelebrationBook] = useState<Book | null>(null);
-  // 마우스가 있는 PC에서만 책 위치 바꾸기(드래그) 허용. 아이패드/폰 같은 터치 기기에서는
-  // 손가락으로 스크롤할 때 책들이 딸려 움직여서 꺼둔다. (pointer:fine + hover:hover = 정밀 포인터=마우스)
-  const [reorderEnabled, setReorderEnabled] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
-    const apply = () => setReorderEnabled(mq.matches);
-    apply();
-    mq.addEventListener?.('change', apply);
-    return () => mq.removeEventListener?.('change', apply);
-  }, []);
 
   function openDailyFor(book?: Book) {
     setDailyModalBook(book);
@@ -147,9 +138,10 @@ export default function HomePage() {
     localStorage.setItem('view-mode', mode);
   }
 
+  // PC: 마우스로 8px 이상 끌면 바로 드래그. 아이패드/폰: 2초 롱프레스 후 드래그(그 전엔 스크롤).
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 2000, tolerance: 8 } }),
   );
 
   function handleDragStart(event: DragStartEvent) { setActiveId(String(event.active.id)); }
@@ -531,8 +523,8 @@ export default function HomePage() {
                 </div>
               ) : viewMode === 'list' ? (
                 <BookStack books={filtered} />
-              ) : reorderEnabled ? (
-                // PC(마우스): 드래그로 책 위치 바꾸기
+              ) : (
+                // PC는 마우스로 바로, 아이패드/폰은 2초 롱프레스 후 드래그로 책 위치 바꾸기
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                   <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
@@ -545,15 +537,6 @@ export default function HomePage() {
                     ) : null}
                   </DragOverlay>
                 </DndContext>
-              ) : (
-                // 터치 기기(아이패드/폰): 드래그 없이 일반 그리드 — 손가락 스크롤이 자연스럽게
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
-                  {filtered.map((book, i) => (
-                    <div key={book.id} className="anim-fade-up" style={{ animationDelay: `${Math.min(i * 35, 350)}ms` }}>
-                      <BookCard book={book} />
-                    </div>
-                  ))}
-                </div>
               )
             )}
           </>
