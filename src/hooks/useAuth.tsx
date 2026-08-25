@@ -210,11 +210,12 @@ function useAuthState(): AuthApi {
       });
       tokenClientReady.current = true;
       // 이미 토큰이 있으면(세션 내 재마운트 또는 저장된 토큰 복원) 재요청하지 않음 — 팝업/깜빡임 방지.
-      // ★ 저장된 토큰이 아직 유효하면 앱을 다시 열어도 재로그인이 전혀 필요 없고, 그 토큰으로
-      //   다른 기기의 최신 백업을 조용히 병합해 최신 상태로 맞춘다(팝업 없음 — 기존 토큰 재사용).
+      // ★ 저장된 토큰이 아직 유효하면 앱을 다시 열어도 재로그인이 전혀 필요 없다.
+      //   여기서 즉시 병합 동기화(onSignInSuccess)를 돌리면 'saving'/'error'로 상태가 출렁여
+      //   홈으로 돌아올 때 재연결 배너가 잠깐 깜빡였다 → 조용히 'synced'만 유지하고,
+      //   실제 동기화는 책 변경(debounced save)이나 '지금 동기화'에서 처리한다.
       if (gd.getToken()) {
         setState('synced');
-        void onSignInSuccess();
       } else if (gd.wasSignedIn()) {
         // 앱을 새로 열 때마다 조용히 재연결을 시도하면, hint를 줘도 구글 팝업창이 순간적으로
         // 열렸다 닫히는 게 보인다(완전히 안 보이게 만드는 옵션은 구글 API에 없음). 그래서 여기서는

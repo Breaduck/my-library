@@ -10,6 +10,7 @@ interface Props {
   sessionOptions?: number[];
   sessionMin?: number;
   onSelectMin?: (min: number) => void;
+  onAddCustom?: () => void; // 트랙 길이 직접 추가
   onPickBook?: () => void; // LP를 눌러 다른 책으로 전환
   onToggleRunning?: () => void;
 }
@@ -35,7 +36,7 @@ function fmtTotal(s: number): string {
 // 옵션 2 — LP판을 좌측에 크게(화면 절반) 두고, 우측에 시간·정보를 큼직하게 보여주는 레이아웃
 export default function PlaylistTimerWide({
   book, elapsed, running, accumulated, sessionTarget = 1800,
-  sessionOptions, sessionMin, onSelectMin, onPickBook, onToggleRunning,
+  sessionOptions, sessionMin, onSelectMin, onAddCustom, onPickBook, onToggleRunning,
 }: Props) {
   const SESSION_TARGET = sessionTarget;
   const sessionProgress = (elapsed % SESSION_TARGET) / SESSION_TARGET;
@@ -63,11 +64,11 @@ export default function PlaylistTimerWide({
 
       {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치 */}
       <div className="relative flex-1 flex min-h-0 items-center justify-center px-4 sm:px-8">
-        <div className="w-full max-w-6xl flex items-center gap-6 sm:gap-12">
-        {/* 좌측: LP판 — 덩어리의 절반을 크게 차지, 세로로도 안 넘치게. 누르면 다른 책으로 전환 */}
+        <div className="flex items-center justify-center gap-6 sm:gap-10 w-full max-w-4xl mx-auto">
+        {/* 좌측: LP판 — 크게, 세로로도 안 넘치게. 누르면 다른 책으로 전환 */}
         <button type="button" onClick={onPickBook} aria-label="다른 책 선택"
           className="relative flex-shrink-0 active:scale-[0.98] transition-transform"
-          style={{ width: 'min(50%, 76vh)', aspectRatio: '1 / 1' }}>
+          style={{ width: 'min(44%, 72vh)', aspectRatio: '1 / 1' }}>
           {/* 비닐 디스크 */}
           <div className="absolute inset-0 rounded-full"
             style={{
@@ -125,8 +126,8 @@ export default function PlaylistTimerWide({
           )}
         </button>
 
-        {/* 우측: 정보 + 큰 시간 — 세로 중앙 정렬 */}
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
+        {/* 우측: 정보 + 큰 시간 — 세로 중앙 정렬. max-w로 폭을 제한해 LP와 함께 화면 정중앙에 모이게 한다 */}
+        <div className="flex-1 min-w-0 max-w-sm flex flex-col justify-center">
           <p className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.3em] mb-2">읽는중</p>
           <h1 className="text-white font-bold leading-tight line-clamp-2 text-xl sm:text-3xl">{book.title}</h1>
           <p className="text-white/50 text-sm sm:text-base mt-1 truncate">{book.author}</p>
@@ -148,7 +149,7 @@ export default function PlaylistTimerWide({
             </div>
           </div>
 
-          {/* 트랙 길이 선택 — 10분 / 30분 / 1시간 */}
+          {/* 트랙 길이 선택 — 10분 / 30분 / 1시간 + 직접 추가 */}
           {sessionOptions && onSelectMin && (
             <div className="mt-5 flex flex-wrap items-center gap-1.5">
               {sessionOptions.map((min) => {
@@ -165,6 +166,13 @@ export default function PlaylistTimerWide({
                   </button>
                 );
               })}
+              {onAddCustom && (
+                <button onClick={onAddCustom} aria-label="트랙 길이 직접 설정"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 active:scale-95 transition-transform"
+                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" /></svg>
+                </button>
+              )}
             </div>
           )}
 
