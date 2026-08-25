@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Book } from '@/types';
 import { DailyReading, localDate } from '@/lib/storage';
+import { checkLevelUp, LEVELUP_BONUS } from '@/lib/game';
 
 const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -90,6 +91,12 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
   type Badge = typeof badges[number];
   const earnedCount = badges.filter((b) => b.earned).length;
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+
+  // 레벨업 축하 — 처음 도달한 레벨이면 1회 연출(+보석 보너스)
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  useEffect(() => {
+    if (checkLevelUp(levelIdx) != null) setShowLevelUp(true);
+  }, [levelIdx]);
 
   // 오늘의 목표 (하루 페이지 목표)
   const [dailyGoal, setDailyGoal] = useState(30);
@@ -280,6 +287,42 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
           ))}
         </div>
       </div>
+
+      {/* 레벨업 축하 연출 */}
+      {showLevelUp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+          onClick={() => setShowLevelUp(false)}>
+          <style>{`
+            @keyframes lvPop{0%{transform:scale(0.6);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+            @keyframes lvRay{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+            @keyframes lvConfetti{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(120px) rotate(300deg);opacity:0}}
+          `}</style>
+          <div className="w-full max-w-[320px] rounded-3xl p-8 text-center relative overflow-hidden"
+            style={{ background: 'linear-gradient(160deg,#FFFBEB,#FEF3C7)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)', animation: 'lvPop 0.35s ease-out' }}
+            onClick={(e) => e.stopPropagation()}>
+            {/* 빛살 */}
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 pointer-events-none opacity-30"
+              style={{ background: 'conic-gradient(from 0deg, transparent 0deg, #FBBF24 15deg, transparent 30deg, transparent 45deg, #FBBF24 60deg, transparent 75deg, transparent 90deg, #FBBF24 105deg, transparent 120deg, transparent 135deg, #FBBF24 150deg, transparent 165deg, transparent 180deg, #FBBF24 195deg, transparent 210deg, transparent 225deg, #FBBF24 240deg, transparent 255deg, transparent 270deg, #FBBF24 285deg, transparent 300deg, transparent 315deg, #FBBF24 330deg, transparent 345deg)', animation: 'lvRay 14s linear infinite' }} />
+            {/* 색종이 */}
+            {['🎉', '✨', '🎊', '⭐', '✨', '🎉'].map((c, i) => (
+              <span key={i} className="absolute text-lg pointer-events-none"
+                style={{ left: `${10 + i * 15}%`, top: 12, animation: `lvConfetti ${1.2 + (i % 3) * 0.4}s ease-in ${i * 0.15}s infinite` }}>{c}</span>
+            ))}
+            <p className="relative text-[12px] font-bold text-amber-600 tracking-[0.2em] uppercase mb-2">Level Up!</p>
+            <div className="relative mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-4"
+              style={{ background: 'radial-gradient(circle at 30% 25%, #FDE68A 0%, #F59E0B 60%, #B45309 100%)', boxShadow: '0 12px 32px rgba(245,158,11,0.45)' }}>
+              <span className="text-5xl leading-none">{level.emoji}</span>
+            </div>
+            <h3 className="relative text-[22px] font-extrabold text-[#1D1D1F] tracking-tight">LV.{levelIdx + 1} {level.title}</h3>
+            <p className="relative text-[13px] text-[#92700C] mt-2 font-semibold">보너스 💎 {LEVELUP_BONUS} 획득!</p>
+            <button onClick={() => setShowLevelUp(false)}
+              className="relative mt-6 w-full py-3 rounded-2xl bg-[#1D1D1F] text-white text-sm font-bold active:scale-[0.98] transition-transform">
+              계속 읽기
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 배지 상세 팝업 카드 */}
       {selectedBadge && (

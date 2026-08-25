@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useBooks } from '@/hooks/useBooks';
 import { logReadingDate } from '@/lib/storage';
+import { logTimerSeconds } from '@/lib/game';
 import ClassicTimer from '@/components/timer/ClassicTimer';
 import AirplaneTimer from '@/components/timer/AirplaneTimer';
 import PlaylistTimer from '@/components/timer/PlaylistTimer';
@@ -143,6 +144,7 @@ export default function TimerPage() {
     if (e > 0 && book && id) {
       updateBook(id, { totalReadingTime: (book.totalReadingTime ?? 0) + e });
       logReadingDate();
+      logTimerSeconds(e); // 게임 모드 타이머 퀘스트 진행도
     }
     setFinished(true);
   }
@@ -153,6 +155,7 @@ export default function TimerPage() {
     if (e > 0 && book && id) {
       updateBook(id, { totalReadingTime: (book.totalReadingTime ?? 0) + e });
       logReadingDate();
+      logTimerSeconds(e);
     }
     navigate(`/book/${id}`);
   }
@@ -166,6 +169,7 @@ export default function TimerPage() {
     if (e > 0 && book && id) {
       updateBook(id, { totalReadingTime: (book.totalReadingTime ?? 0) + e });
       logReadingDate();
+      logTimerSeconds(e);
     }
     setElapsed(0);
     startAtRef.current = running ? Date.now() : null;

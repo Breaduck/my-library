@@ -128,6 +128,13 @@ export function getStreakFreezes(): number {
 function setStreakFreezes(n: number): void {
   localStorage.setItem(FREEZE_KEY, String(Math.max(0, Math.min(MAX_FREEZES, n))));
 }
+// 보석 상점 등 외부에서 보호막 추가(최대 개수 초과 시 실패)
+export function addStreakFreeze(n = 1): boolean {
+  const cur = getStreakFreezes();
+  if (cur >= MAX_FREEZES) return false;
+  setStreakFreezes(cur + n);
+  return true;
+}
 function getFrozenDates(): string[] {
   if (typeof window === 'undefined') return [];
   try { return JSON.parse(localStorage.getItem(FROZEN_DATES_KEY) || '[]'); } catch { return []; }
