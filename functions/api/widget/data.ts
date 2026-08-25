@@ -5,7 +5,7 @@ interface Env { DB: D1Database }
 interface Row {
   streak: number; xp: number; level: number; level_title: string | null;
   today_pages: number; daily_goal: number; freezes: number; read_today: number;
-  display_name: string | null; updated_at: string;
+  display_name: string | null; week_read: string | null; week_today: number | null; updated_at: string;
 }
 
 function jsonCors(data: unknown, status = 200): Response {
@@ -43,6 +43,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     freezes: row.freezes,
     readToday: !!row.read_today,
     displayName: row.display_name ?? '',
+    weekRead: row.week_read ?? '0000000',
+    weekToday: row.week_today ?? 0,
     updatedAt: row.updated_at,
   });
 };

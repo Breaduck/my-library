@@ -1,5 +1,5 @@
 // 홈화면 위젯(Scriptable) 연동 — 앱의 독서 통계를 서버에 올리고, 개인 토큰/URL을 관리한다.
-import { getBooks, getDailyReadings, getReadingStreak, getTodayPages, getStreakFreezes, hasReadToday } from './storage';
+import { getBooks, getDailyReadings, getReadingStreak, getTodayPages, getStreakFreezes, hasReadToday, getReadingDates, localDate } from './storage';
 import { levelFromXp } from './levels';
 import { syncWidget, WidgetPayload } from './social';
 
@@ -29,6 +29,19 @@ export function computeWidgetStats(displayName: string): WidgetPayload {
   const xp = totalPages + done.length * 100;
   const lv = levelFromXp(xp);
   const dailyGoal = parseInt(localStorage.getItem('daily-page-goal') || '30', 10) || 30;
+
+  // 이번 주(일~토) 요일별 독서 여부
+  const readSet = new Set(getReadingDates());
+  const now = new Date();
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - now.getDay());
+  let weekRead = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    weekRead += readSet.has(localDate(d)) ? '1' : '0';
+  }
+
   return {
     streak: getReadingStreak(),
     xp,
@@ -39,6 +52,8 @@ export function computeWidgetStats(displayName: string): WidgetPayload {
     freezes: getStreakFreezes(),
     readToday: hasReadToday(),
     displayName,
+    weekRead,
+    weekToday: now.getDay(),
   };
 }
 

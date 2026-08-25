@@ -14,9 +14,16 @@ const OPEN_URL = "__OPEN__";
 let r = null;
 try { r = await new Request(DATA_URL).loadJSON(); } catch (e) { r = null; }
 
+const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
 const w = new ListWidget();
-w.backgroundColor = new Color("#FFFFFF");
-w.setPadding(18, 18, 18, 18);
+const bg = new LinearGradient();
+bg.colors = [new Color("#FFFFFF"), new Color("#E9F0FF")];
+bg.locations = [0, 1];
+bg.startPoint = new Point(0, 0);
+bg.endPoint = new Point(1, 1);
+w.backgroundGradient = bg;
+w.setPadding(16, 18, 16, 18);
 w.url = OPEN_URL;
 
 if (!r) {
@@ -24,51 +31,87 @@ if (!r) {
   t.textColor = new Color("#8E8E93");
   t.font = Font.systemFont(13);
 } else {
-  const top = w.addStack();
-  top.centerAlignContent();
-  const fire = top.addText("🔥");
-  fire.font = Font.systemFont(18);
-  top.addSpacer(5);
-  const streak = top.addText(String(r.streak) + "일 연속");
-  streak.font = Font.boldSystemFont(18);
-  streak.textColor = new Color("#1D1D1F");
-  top.addSpacer();
-  const nm = top.addText(r.displayName ? r.displayName : "나의 서재");
-  nm.font = Font.systemFont(11);
-  nm.textColor = new Color("#AEAEB2");
+  const small = config.widgetFamily === "small";
 
-  w.addSpacer(12);
-  const msg = w.addText(r.readToday ? "오늘 독서 완료!" : "오늘 아직이에요 - 읽어요!");
-  msg.font = Font.semiboldSystemFont(14);
+  const top = w.addStack();
+  top.bottomAlignContent();
+  const fire = top.addText("🔥");
+  fire.font = Font.systemFont(small ? 18 : 22);
+  top.addSpacer(6);
+  const streak = top.addText(String(r.streak));
+  streak.font = Font.boldSystemFont(small ? 26 : 30);
+  streak.textColor = new Color("#1D1D1F");
+  top.addSpacer(3);
+  const unit = top.addText("일 연속");
+  unit.font = Font.semiboldSystemFont(small ? 13 : 15);
+  unit.textColor = new Color("#8E8E93");
+
+  w.addSpacer(3);
+  const msg = w.addText(r.readToday ? "오늘 완료! 계속 이어가요" : "오늘 읽고 불씨를 지켜요");
+  msg.font = Font.mediumSystemFont(12);
   msg.textColor = r.readToday ? new Color("#0E9F6E") : new Color("#E8590C");
 
-  w.addSpacer(10);
+  if (!small) {
+    w.addSpacer(13);
+    const week = w.addStack();
+    week.centerAlignContent();
+    const wr = String(r.weekRead || "0000000");
+    for (let i = 0; i < 7; i++) {
+      if (i > 0) week.addSpacer();
+      dayCell(week, DAYS[i], wr[i] === "1", i === r.weekToday);
+    }
+  }
+
+  w.addSpacer(small ? 10 : 13);
   const pct = Math.max(0, Math.min(1, r.todayPages / Math.max(1, r.dailyGoal)));
   const bar = w.addImage(drawBar(pct, r.readToday));
-  bar.imageSize = new Size(320, 10);
-  bar.cornerRadius = 5;
+  bar.imageSize = new Size(320, 8);
+  bar.cornerRadius = 4;
   w.addSpacer(6);
   const goal = w.addText("오늘 " + r.todayPages + " / " + r.dailyGoal + "쪽");
-  goal.font = Font.systemFont(12);
+  goal.font = Font.systemFont(11);
   goal.textColor = new Color("#8E8E93");
 }
 
+function dayCell(row, letter, read, isToday) {
+  const col = row.addStack();
+  col.layoutVertically();
+  col.centerAlignContent();
+  const dot = col.addStack();
+  dot.size = new Size(24, 24);
+  dot.cornerRadius = 12;
+  dot.centerAlignContent();
+  if (read) {
+    dot.backgroundColor = new Color("#34C759");
+    const ck = dot.addText("✓");
+    ck.font = Font.boldSystemFont(12);
+    ck.textColor = Color.white();
+  } else {
+    dot.backgroundColor = new Color("#000000", 0.05);
+    if (isToday) { dot.borderWidth = 2; dot.borderColor = new Color("#3B7DE8"); }
+  }
+  col.addSpacer(5);
+  const l = col.addText(letter);
+  l.font = Font.mediumSystemFont(9);
+  l.textColor = isToday ? new Color("#3B7DE8") : new Color("#AEAEB2");
+}
+
 function drawBar(p, done) {
-  const W = 320, H = 10;
+  const W = 320, H = 8;
   const dc = new DrawContext();
   dc.size = new Size(W, H);
   dc.opaque = false;
   dc.respectScreenScale = true;
-  const bg = new Path();
-  bg.addRoundedRect(new Rect(0, 0, W, H), 5, 5);
-  dc.setFillColor(new Color("#000000", 0.08));
-  dc.addPath(bg);
+  const track = new Path();
+  track.addRoundedRect(new Rect(0, 0, W, H), 4, 4);
+  dc.setFillColor(new Color("#000000", 0.07));
+  dc.addPath(track);
   dc.fillPath();
-  const fw = Math.max(W * p, 8);
-  const fp = new Path();
-  fp.addRoundedRect(new Rect(0, 0, fw, H), 5, 5);
+  const fw = Math.max(W * p, 6);
+  const fill = new Path();
+  fill.addRoundedRect(new Rect(0, 0, fw, H), 4, 4);
   dc.setFillColor(done ? new Color("#34C759") : new Color("#3B7DE8"));
-  dc.addPath(fp);
+  dc.addPath(fill);
   dc.fillPath();
   return dc.getImage();
 }

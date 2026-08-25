@@ -75,6 +75,8 @@ export async function getProfile(): Promise<ServerProfile | null> {
 export interface WidgetPayload {
   streak: number; xp: number; level: number; levelTitle: string;
   todayPages: number; dailyGoal: number; freezes: number; readToday: boolean; displayName: string;
+  weekRead: string;   // 이번 주 일~토 독서 여부, '1'/'0' 7자리
+  weekToday: number;  // 오늘 요일 인덱스 0(일)~6(토)
 }
 // 성공 시 개인 위젯 토큰을 반환(최초엔 서버가 발급, 이후엔 동일 토큰 유지)
 export async function syncWidget(payload: WidgetPayload): Promise<string> {
