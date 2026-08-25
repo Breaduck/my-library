@@ -91,6 +91,7 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
   type Badge = typeof badges[number];
   const earnedCount = badges.filter((b) => b.earned).length;
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  const [showLevels, setShowLevels] = useState(false);
 
   // 레벨업 축하 — 처음 도달한 레벨이면 1회 연출(+보석 보너스)
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -129,8 +130,9 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
         background: 'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, transparent 100%)',
       }} />
 
-      {/* 레벨 헤더 */}
-      <div className="relative flex items-center gap-3.5">
+      {/* 레벨 헤더 — 누르면 전체 등급표 */}
+      <button onClick={() => setShowLevels(true)}
+        className="relative flex items-center gap-3.5 w-full text-left active:scale-[0.99] transition-transform">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 4px 12px rgba(80,90,130,0.12)' }}>
           <span className="text-3xl leading-none">{level.emoji}</span>
@@ -142,7 +144,11 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
           </div>
           <p className="text-[#6E6E73] text-[12px] mt-0.5 tabular-nums font-medium">{xp.toLocaleString()} XP</p>
         </div>
-      </div>
+        <span className="flex-shrink-0 flex items-center gap-0.5 text-[11px] font-semibold text-[#8E8E93]">
+          등급표
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </span>
+      </button>
 
       {/* 다음 레벨 진행 바 */}
       <div className="relative mt-4">
@@ -287,6 +293,79 @@ export default function GamificationCard({ books, dailyReadings, streak, freezes
           ))}
         </div>
       </div>
+
+      {/* 전체 등급표 — 내 현재 단계 + 앞으로 남은 등급 */}
+      {showLevels && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+          onClick={(e) => e.target === e.currentTarget && setShowLevels(false)}>
+          <div className="w-full sm:max-w-sm bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col"
+            style={{ maxHeight: '82vh', boxShadow: '0 24px 64px rgba(0,0,0,0.28)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' }}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-1 sm:hidden flex-shrink-0" />
+            <div className="px-6 pt-3 pb-3 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h3 className="text-[17px] font-extrabold text-[#1D1D1F] tracking-tight">독서 등급표</h3>
+                <p className="text-[12px] text-[#8E8E93] mt-0.5">전체 {LEVELS.length}단계 · 현재 LV.{levelIdx + 1} {level.title}</p>
+              </div>
+              <button onClick={() => setShowLevels(false)} aria-label="닫기"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F5F7] text-[#6E6E73] hover:bg-gray-200 transition-colors flex-shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-4 pb-4 overflow-y-auto">
+              {LEVELS.map((lv, i) => {
+                const isCurrent = i === levelIdx;
+                const achieved = i < levelIdx;
+                const nextLv = LEVELS[i + 1];
+                return (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-2xl mb-1.5"
+                    style={{
+                      background: isCurrent ? 'linear-gradient(135deg, rgba(129,140,248,0.16), rgba(56,189,248,0.12))' : 'transparent',
+                      border: isCurrent ? '1px solid rgba(129,140,248,0.4)' : '1px solid transparent',
+                    }}>
+                    {/* 엠블럼 */}
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 relative"
+                      style={{
+                        background: achieved || isCurrent ? 'radial-gradient(circle at 30% 25%, #FDE68A, #F59E0B)' : '#EEEEF2',
+                        boxShadow: isCurrent ? '0 4px 14px rgba(245,158,11,0.4)' : 'none',
+                      }}>
+                      <span className="text-[22px] leading-none" style={{ filter: achieved || isCurrent ? 'none' : 'grayscale(1)', opacity: achieved || isCurrent ? 1 : 0.45 }}>{lv.emoji}</span>
+                      {achieved && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                          <svg className="w-2.5 h-2.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" /></svg>
+                        </span>
+                      )}
+                    </div>
+                    {/* 정보 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-bold tracking-wide ${isCurrent ? 'text-[#6366F1]' : 'text-[#AEAEB2]'}`}>LV.{i + 1}</span>
+                        <p className={`text-[14px] font-bold truncate ${achieved || isCurrent ? 'text-[#1D1D1F]' : 'text-[#AEAEB2]'}`}>{lv.title}</p>
+                      </div>
+                      <p className="text-[11px] text-[#8E8E93] mt-0.5 tabular-nums">
+                        {nextLv ? `${lv.xp.toLocaleString()} ~ ${(nextLv.xp - 1).toLocaleString()} XP` : `${lv.xp.toLocaleString()} XP +`}
+                      </p>
+                    </div>
+                    {/* 우측 상태 */}
+                    <div className="flex-shrink-0 text-right">
+                      {isCurrent ? (
+                        <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold text-white" style={{ background: 'linear-gradient(135deg,#818CF8,#38BDF8)' }}>현재</span>
+                      ) : achieved ? (
+                        <span className="text-[10px] font-semibold text-emerald-500">달성</span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-[#C7C7CC] tabular-nums">-{(lv.xp - xp).toLocaleString()} XP</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="text-[11px] text-[#AEAEB2] text-center mt-2 leading-relaxed px-4">
+                XP는 읽은 페이지 1쪽 = 1XP, 완독 1권 = 100XP로 쌓여요.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 레벨업 축하 연출 */}
       {showLevelUp && (
