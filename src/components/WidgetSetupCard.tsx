@@ -15,67 +15,45 @@ let r = null;
 try { r = await new Request(DATA_URL).loadJSON(); } catch (e) { r = null; }
 
 const w = new ListWidget();
-const g = new LinearGradient();
-g.colors = [new Color("#1E2A4A"), new Color("#2B2154")];
-g.locations = [0, 1];
-w.backgroundGradient = g;
-w.setPadding(16, 16, 16, 16);
+w.backgroundColor = new Color("#FFFFFF");
+w.setPadding(18, 18, 18, 18);
 w.url = OPEN_URL;
 
 if (!r) {
   const t = w.addText("데이터를 불러올 수 없어요");
-  t.textColor = Color.white();
+  t.textColor = new Color("#8E8E93");
   t.font = Font.systemFont(13);
 } else {
   const top = w.addStack();
   top.centerAlignContent();
-  const fire = top.addText(r.readToday ? "🔥" : "🌫️");
+  const fire = top.addText("🔥");
   fire.font = Font.systemFont(18);
   top.addSpacer(5);
   const streak = top.addText(String(r.streak) + "일 연속");
   streak.font = Font.boldSystemFont(18);
-  streak.textColor = Color.white();
+  streak.textColor = new Color("#1D1D1F");
   top.addSpacer();
   const nm = top.addText(r.displayName ? r.displayName : "나의 서재");
   nm.font = Font.systemFont(11);
-  nm.textColor = new Color("#FFFFFF", 0.55);
+  nm.textColor = new Color("#AEAEB2");
+
+  w.addSpacer(12);
+  const msg = w.addText(r.readToday ? "오늘 독서 완료!" : "오늘 아직이에요 - 읽어요!");
+  msg.font = Font.semiboldSystemFont(14);
+  msg.textColor = r.readToday ? new Color("#0E9F6E") : new Color("#E8590C");
 
   w.addSpacer(10);
-  const msg = w.addText(r.readToday ? "오늘 독서 완료!" : "오늘 아직이에요 - 읽어요!");
-  msg.font = Font.semiboldSystemFont(13);
-  msg.textColor = r.readToday ? new Color("#67E8F9") : new Color("#FDBA74");
-
-  w.addSpacer(8);
   const pct = Math.max(0, Math.min(1, r.todayPages / Math.max(1, r.dailyGoal)));
-  const bar = w.addImage(drawBar(pct));
+  const bar = w.addImage(drawBar(pct, r.readToday));
   bar.imageSize = new Size(320, 10);
   bar.cornerRadius = 5;
-  w.addSpacer(5);
+  w.addSpacer(6);
   const goal = w.addText("오늘 " + r.todayPages + " / " + r.dailyGoal + "쪽");
-  goal.font = Font.systemFont(11);
-  goal.textColor = new Color("#FFFFFF", 0.7);
-
-  w.addSpacer(10);
-  const row = w.addStack();
-  row.centerAlignContent();
-  chip(row, "⚡ " + r.xp);
-  row.addSpacer(8);
-  chip(row, "Lv." + r.level);
-  row.addSpacer(8);
-  chip(row, "❄️ " + r.freezes);
+  goal.font = Font.systemFont(12);
+  goal.textColor = new Color("#8E8E93");
 }
 
-function chip(stack, text) {
-  const s = stack.addStack();
-  s.backgroundColor = new Color("#FFFFFF", 0.12);
-  s.cornerRadius = 8;
-  s.setPadding(4, 8, 4, 8);
-  const t = s.addText(text);
-  t.font = Font.mediumSystemFont(12);
-  t.textColor = new Color("#FFFFFF", 0.9);
-}
-
-function drawBar(p) {
+function drawBar(p, done) {
   const W = 320, H = 10;
   const dc = new DrawContext();
   dc.size = new Size(W, H);
@@ -83,13 +61,13 @@ function drawBar(p) {
   dc.respectScreenScale = true;
   const bg = new Path();
   bg.addRoundedRect(new Rect(0, 0, W, H), 5, 5);
-  dc.setFillColor(new Color("#FFFFFF", 0.18));
+  dc.setFillColor(new Color("#000000", 0.08));
   dc.addPath(bg);
   dc.fillPath();
   const fw = Math.max(W * p, 8);
   const fp = new Path();
   fp.addRoundedRect(new Rect(0, 0, fw, H), 5, 5);
-  dc.setFillColor(new Color("#22D3EE"));
+  dc.setFillColor(done ? new Color("#34C759") : new Color("#3B7DE8"));
   dc.addPath(fp);
   dc.fillPath();
   return dc.getImage();
@@ -153,7 +131,7 @@ export default function WidgetSetupCard() {
       </div>
       <p className="text-[13px] text-[#1D1D1F] font-medium mb-1">아이패드·아이폰 홈화면에 독서 위젯 놓기</p>
       <p className="text-[12px] text-[#8E8E93] leading-relaxed mb-4">
-        무료 앱 <b>Scriptable</b>로 연속일·XP·오늘 목표를 홈화면에서 바로 볼 수 있어요.
+        무료 앱 <b>Scriptable</b>로 연속일·오늘 목표를 홈화면에서 바로 볼 수 있어요.
       </p>
 
       {!signedIn ? (
