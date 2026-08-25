@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { getToken } from '@/lib/googleDrive';
 import { enableWidget, getWidgetToken, widgetDataUrl } from '@/lib/widget';
 
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
@@ -101,7 +102,7 @@ Script.complete();
 `;
 
 export default function WidgetSetupCard() {
-  const { signedIn, displayName } = useAuth();
+  const { signedIn, displayName, syncNow } = useAuth();
   const [token, setToken] = useState<string | null>(() => getWidgetToken());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -114,11 +115,23 @@ export default function WidgetSetupCard() {
   async function handleEnable() {
     setBusy(true); setError('');
     try {
+      // 화면엔 로그인돼 보여도 실제 구글 토큰이 만료됐을 수 있다(캐시 로그인).
+      // 토큰이 없으면 사용자 제스처 안에서 조용히 재연결한 뒤, 토큰이 들어올 때까지 잠깐 기다린다.
+      if (!getToken()) {
+        void syncNow();
+        for (let i = 0; i < 20 && !getToken(); i++) {
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
+      if (!getToken()) {
+        setError('로그인 연결이 만료됐어요. 설정 맨 위 "지금 동기화"를 눌러 다시 연결한 뒤 시도해주세요');
+        return;
+      }
       const t = await enableWidget(displayName || '나의 서재');
-      if (t) setToken(t); else setError('토큰 발급에 실패했어요. 잠시 후 다시 시도해주세요');
-      setOpen(true);
+      if (t) { setToken(t); setOpen(true); }
+      else setError('토큰 발급에 실패했어요. 잠시 후 다시 시도해주세요');
     } catch {
-      setError('연결에 실패했어요. 로그인 상태를 확인해주세요');
+      setError('연결에 실패했어요. 잠시 후 다시 시도해주세요');
     } finally {
       setBusy(false);
     }
