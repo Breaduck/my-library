@@ -269,7 +269,7 @@ export default function HomePage() {
             <div className="h-9 w-44 rounded-xl bg-black/10 mb-8" />
             <div className="h-10 w-64 rounded-xl bg-black/5 mb-4" />
             <div className="h-12 w-full rounded-xl bg-black/5 mb-6" />
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="rounded-2xl sm:rounded-3xl bg-black/10" style={{ aspectRatio: '2 / 3' }} />
               ))}
@@ -538,7 +538,7 @@ export default function HomePage() {
                 // PC는 마우스로 바로, 아이패드/폰은 2초 롱프레스 후 드래그로 책 위치 바꾸기
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                   <SortableContext items={filtered.map((b) => b.id)} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
                       {filtered.map((book, i) => <SortableGridCard key={book.id} book={book} isDragging={activeId === book.id} index={i} />)}
                     </div>
                   </SortableContext>

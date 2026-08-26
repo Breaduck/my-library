@@ -62,14 +62,14 @@ export default function PlaylistTimerWide({
         @keyframes equalizerW { 0%,100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
       `}</style>
 
-      {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치. LP는 더 왼쪽, 정보는 더 오른쪽으로
-          간격을 넉넉히 벌려 여백을 살린다 */}
-      <div className="relative flex-1 flex min-h-0 items-center justify-center px-6 sm:px-10">
-        <div className="flex items-center justify-center gap-10 sm:gap-24 w-full max-w-5xl mx-auto">
-        {/* 좌측: LP판 — 크게, 세로로도 안 넘치게. 누르면 다른 책으로 전환 */}
+      {/* LP + 정보를 한 덩어리로 묶어 화면 정중앙에 배치. 좁은 화면(폰)에서는 위아래로 쌓고,
+          넓은 화면에서만 LP는 왼쪽·정보는 오른쪽으로 나란히 배치한다 */}
+      <div className="relative flex-1 flex min-h-0 items-center justify-center px-6 sm:px-10 py-4 overflow-y-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-24 w-full max-w-5xl mx-auto">
+        {/* 좌측(폰에서는 상단): LP판 — 크게, 세로로도 안 넘치게. 누르면 다른 책으로 전환 */}
         <button type="button" onClick={onPickBook} aria-label="다른 책 선택"
-          className="relative flex-shrink-0 active:scale-[0.98] transition-transform"
-          style={{ width: 'min(42%, 70vh)', aspectRatio: '1 / 1' }}>
+          className="relative flex-shrink-0 active:scale-[0.98] transition-transform w-[56vw] max-w-[260px] sm:w-[min(42%,70vh)] sm:max-w-none"
+          style={{ aspectRatio: '1 / 1' }}>
           {/* 비닐 디스크 */}
           <div className="absolute inset-0 rounded-full"
             style={{
@@ -127,16 +127,16 @@ export default function PlaylistTimerWide({
           )}
         </button>
 
-        {/* 우측: 정보 + 큰 시간 — 세로 중앙 정렬. max-w로 폭을 제한해 LP와 함께 화면 정중앙에 모이게 한다 */}
-        <div className="flex-1 min-w-0 max-w-sm flex flex-col justify-center">
+        {/* 우측(폰에서는 하단): 정보 + 큰 시간. 폰에서는 가운데 정렬, 넓은 화면에서는 왼쪽 정렬 */}
+        <div className="w-full sm:flex-1 sm:min-w-0 max-w-sm flex flex-col items-center sm:items-start text-center sm:text-left justify-center">
           <p className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.3em] mb-2">읽는중</p>
           <h1 className="text-white font-bold leading-tight line-clamp-2 text-xl sm:text-3xl">{book.title}</h1>
-          <p className="text-white/50 text-sm sm:text-base mt-1 truncate">{book.author}</p>
+          <p className="text-white/50 text-sm sm:text-base mt-1 truncate max-w-full">{book.author}</p>
 
           {/* 큰 시간 */}
-          <div className="mt-6 sm:mt-8">
+          <div className="mt-4 sm:mt-8">
             <p className="text-white font-extralight tabular-nums leading-none"
-              style={{ fontSize: 'clamp(44px, 11vw, 84px)', letterSpacing: '-0.03em' }}>
+              style={{ fontSize: 'clamp(40px, 11vw, 84px)', letterSpacing: '-0.03em' }}>
               {fmt(elapsed % SESSION_TARGET)}
             </p>
             <p className="text-white/40 text-sm mt-2 tabular-nums">남은 트랙 -{fmt(sessionRemaining)}</p>
@@ -152,7 +152,7 @@ export default function PlaylistTimerWide({
 
           {/* 트랙 길이 선택 — 10분 / 30분 / 1시간 + 직접 추가 */}
           {sessionOptions && onSelectMin && (
-            <div className="mt-5 flex flex-wrap items-center gap-1.5">
+            <div className="mt-5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
               {sessionOptions.map((min) => {
                 const active = sessionMin === min;
                 return (
@@ -178,7 +178,7 @@ export default function PlaylistTimerWide({
           )}
 
           {/* 재생 버튼 + EQ + 세션/누적 */}
-          <div className="mt-6 flex items-center gap-4">
+          <div className="mt-6 flex items-center justify-center sm:justify-start gap-4">
             {onToggleRunning && (
               <button
                 onClick={onToggleRunning}
