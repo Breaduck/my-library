@@ -389,6 +389,9 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* 펼쳤을 때 위젯이 맨 위 */}
+            {!readingHidden && todayWidget && <div className="mb-3">{todayWidget}</div>}
+
             {!readingHidden && (
               <div className="space-y-2">
                 {readingBooks.slice(0, 3).map((book) => {
@@ -461,9 +464,6 @@ export default function HomePage() {
                 })}
               </div>
             )}
-
-            {/* 숨기기 상태면 위젯도 같이 숨는다 */}
-            {!readingHidden && todayWidget && <div className="mt-3">{todayWidget}</div>}
           </div>
         )}
 
