@@ -119,6 +119,20 @@ function useAuthState(): AuthApi {
   // idle = 완전 로그아웃. 그 외(connecting/saving/synced/error)는 "기억됨" 상태로 취급.
   const signedIn = state !== 'idle';
 
+  // 친구 검색/표시에 쓰이는 서버 사용자 등록. 토큰이 있을 때마다(로그인 직후·앱 재실행)
+  // 호출해 users 테이블 행이 항상 존재하고 이름/사진이 최신이도록 유지한다.
+  const registerProfile = useCallback((prof: gd.UserProfile) => {
+    // 토큰이 없어 저장 못했던 프로필 사진/이름 변경이 있으면 이번에 함께 반영한다.
+    const pending = pendingProfileRef.current;
+    social.saveProfile({ name: prof.name, googlePicture: prof.picture, ...pending })
+      .then((p) => {
+        pendingProfileRef.current = {};
+        setCustomPicture(p.customPicture || null); setCachedCustomPicture(p.customPicture || null);
+        setCustomName(p.customName || null); setCachedCustomName(p.customName || null);
+      })
+      .catch(() => {});
+  }, []);
+
   const onSignInSuccess = useCallback(async () => {
     setState('saving');
     autoReconnectTried.current = false; // 연결 성공 → 다음 만료 때 자동 재연결 1회 재허용
@@ -129,6 +143,12 @@ function useAuthState(): AuthApi {
 
       let [driveResult, prof] = await Promise.all([gd.loadFromDrive(), gd.fetchUserProfile()]);
       if (prof) setProfile(prof);
+
+      // ★ 친구 검색용 사용자 등록은 Drive 동기화와 분리해 '먼저' 처리한다.
+      // 예전엔 아래 Drive 병합/저장이 모두 성공한 뒤에야 saveProfile을 호출해서,
+      // Drive 권한이 없거나 읽기가 실패한 계정은 users 테이블에 아예 등록되지 않았고
+      // → 닉네임으로 검색해도 찾을 수 없고, 친구 목록에 이름/사진 대신 이메일만 보였다.
+      if (prof) registerProfile(prof);
 
       // 일시적 네트워크 오류로 첫 진입에서 서재가 '빈 것처럼' 보이지 않게 짧게 재시도
       for (let attempt = 0; driveResult.status === 'error' && attempt < 2; attempt++) {
@@ -170,17 +190,6 @@ function useAuthState(): AuthApi {
       await gd.saveToDrive({ books: merged, tombstones: tombs, ...getPersonalData() });
 
       // 친구 기능용 백엔드 동기화(실패해도 Drive 백업엔 영향 없음)
-      if (prof) {
-        // 토큰이 없어 저장 못했던 프로필 사진/이름 변경이 있으면 이번에 함께 반영한다.
-        const pending = pendingProfileRef.current;
-        social.saveProfile({ name: prof.name, googlePicture: prof.picture, ...pending })
-          .then((p) => {
-            pendingProfileRef.current = {};
-            setCustomPicture(p.customPicture || null); setCachedCustomPicture(p.customPicture || null);
-            setCustomName(p.customName || null); setCachedCustomName(p.customName || null);
-          })
-          .catch(() => {});
-      }
       social.syncMyBooks(prepareSharedBooks(merged)).catch(() => {});
       syncStats(merged);
 
@@ -190,7 +199,7 @@ function useAuthState(): AuthApi {
       // 실패해도 로컬 데이터는 그대로 안전. 기억 플래그 유지 → 재연결 가능.
       setState('error');
     }
-  }, []);
+  }, [registerProfile]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -216,6 +225,10 @@ function useAuthState(): AuthApi {
       //   실제 동기화는 책 변경(debounced save)이나 '지금 동기화'에서 처리한다.
       if (gd.getToken()) {
         setState('synced');
+        // 무거운 Drive 병합은 생략하되, 친구 검색에 필요한 사용자 등록만은 조용히 갱신한다.
+        // (팝업 없음 — 이미 유효한 토큰이 있을 때만 실행)
+        const cached = gd.getCachedProfile();
+        if (cached) registerProfile(cached);
       } else if (gd.wasSignedIn()) {
         // 앱을 새로 열 때마다 조용히 재연결을 시도하면, hint를 줘도 구글 팝업창이 순간적으로
         // 열렸다 닫히는 게 보인다(완전히 안 보이게 만드는 옵션은 구글 API에 없음). 그래서 여기서는
@@ -225,7 +238,7 @@ function useAuthState(): AuthApi {
       }
     });
     return () => { cancelled = true; };
-  }, [enabled, onSignInSuccess]);
+  }, [enabled, onSignInSuccess, registerProfile]);
 
   // ⚠️ 배경 타이머로 gd.requestAccess()를 자동 호출하지 않는다 — 사용자 제스처 없이 호출하면
   // 브라우저가 조용한 재인증을 허용하지 않고 실제 구글 계정 선택 팝업을 띄우는 경우가 있어서

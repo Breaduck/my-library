@@ -1,4 +1,4 @@
-import { getToken } from '@/lib/googleDrive';
+import { getToken, ensureToken, invalidateToken } from '@/lib/googleDrive';
 import { Book } from '@/types';
 import { ReadingStats } from '@/lib/storage';
 
@@ -46,10 +46,16 @@ export interface CommentEntry {
   createdAt: string;
 }
 
-async function authFetch(fullPath: string, options: RequestInit = {}): Promise<Response> {
-  const token = getToken();
-  if (!token) throw new Error('not-signed-in');
-  const res = await fetch(fullPath, {
+// 인증이 끊겨 실패한 요청 — 호출부에서 "결과 없음"과 구분해 안내하기 위한 전용 오류.
+export class AuthRequiredError extends Error {
+  constructor() { super('auth-required'); this.name = 'AuthRequiredError'; }
+}
+export function isAuthError(e: unknown): boolean {
+  return e instanceof AuthRequiredError;
+}
+
+function send(fullPath: string, token: string, options: RequestInit): Promise<Response> {
+  return fetch(fullPath, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -57,12 +63,33 @@ async function authFetch(fullPath: string, options: RequestInit = {}): Promise<R
       ...(options.headers as Record<string, string> ?? {}),
     },
   });
+}
+
+// 액세스 토큰은 ~1시간이면 만료되는데 "로그인 기억" 상태는 남아 있어서, 예전엔 만료 후
+// 모든 소셜 요청이 조용히 실패했다(닉네임 검색 0건, 초대/수락 무반응). 이제는
+// (1) 토큰이 없으면 재인증을 기다렸다가 보내고, (2) 401이면 한 번 갱신해 재시도한다.
+// ★ 재인증(구글 팝업)은 사용자 조작에서 시작된 호출에서만 허용한다 — interactive 플래그.
+//   배경 동기화(책/통계/하트비트)는 팝업이 반짝이면 안 되므로 그냥 실패시킨다.
+async function authFetch(fullPath: string, options: RequestInit = {}, interactive = false): Promise<Response> {
+  let token = getToken();
+  if (!token && interactive) token = await ensureToken();
+  if (!token) throw new AuthRequiredError();
+
+  let res = await send(fullPath, token, options);
+  if (res.status === 401) {
+    invalidateToken();
+    if (!interactive) throw new AuthRequiredError();
+    const fresh = await ensureToken();
+    if (!fresh) throw new AuthRequiredError();
+    res = await send(fullPath, fresh, options);
+    if (res.status === 401) throw new AuthRequiredError();
+  }
   if (!res.ok) throw new Error(`social-error-${res.status}`);
   return res;
 }
 
-function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  return authFetch(`${BASE}${path}`, options);
+function apiFetch(path: string, options: RequestInit = {}, interactive = false): Promise<Response> {
+  return authFetch(`${BASE}${path}`, options, interactive);
 }
 
 export async function getProfile(): Promise<ServerProfile | null> {
@@ -91,14 +118,22 @@ export async function saveProfile(fields: { name?: string; googlePicture?: strin
   return data.profile;
 }
 
-export async function listFriends(): Promise<FriendsData> {
-  const res = await apiFetch('/friends');
+// interactive=true는 사용자가 '다시 연결'을 눌렀을 때만 — 만료된 토큰을 재발급받아 불러온다.
+export async function listFriends(interactive = false): Promise<FriendsData> {
+  const res = await apiFetch('/friends', {}, interactive);
   return await res.json() as FriendsData;
 }
 
-async function friendAction(action: string, email: string): Promise<void> {
-  await apiFetch('/friends', { method: 'POST', body: JSON.stringify({ action, email }) });
+// 친구 관련 동작은 모두 사용자 버튼 클릭에서 시작되므로 interactive(필요 시 재인증) 허용.
+async function friendAction(action: string, email: string): Promise<InviteResult> {
+  const res = await apiFetch('/friends', { method: 'POST', body: JSON.stringify({ action, email }) }, true);
+  return await res.json() as InviteResult;
 }
+
+// 서버가 알려주는 초대 결과 — 'pending'(요청 보냄) | 'accepted'(맞초대로 즉시 친구)
+// | 'already-exists'(이미 요청/친구 상태) | 'already-friends'
+export type InviteStatus = 'pending' | 'accepted' | 'already-exists' | 'already-friends';
+export interface InviteResult { ok?: boolean; status?: InviteStatus; error?: string }
 
 export const inviteFriend = (email: string) => friendAction('invite', email);
 export const acceptFriend = (email: string) => friendAction('accept', email);
@@ -106,7 +141,7 @@ export const declineFriend = (email: string) => friendAction('decline', email);
 export const removeFriend = (email: string) => friendAction('remove', email);
 
 export async function lookupByNickname(nickname: string): Promise<FriendEntry[]> {
-  const res = await apiFetch(`/lookup?nickname=${encodeURIComponent(nickname)}`);
+  const res = await apiFetch(`/lookup?nickname=${encodeURIComponent(nickname)}`, {}, true);
   const data = await res.json() as { users: FriendEntry[] };
   return data.users;
 }

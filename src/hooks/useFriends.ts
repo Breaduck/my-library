@@ -97,16 +97,21 @@ export function useFriends(active: boolean) {
   const [data, setData] = useState<FriendsData>(loadFriendsCache);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (interactive = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await social.listFriends();
+      const res = await social.listFriends(interactive);
       setData(res);
+      setNeedsReauth(false);
       saveFriendsCache(res); // 성공했을 때만 캐시 갱신 — 실패 시엔 직전 목록을 그대로 유지
-    } catch {
-      setError('친구 정보를 불러오지 못했어요');
+    } catch (e) {
+      // 토큰 만료로 실패한 경우와 서버 오류를 구분해 안내한다.
+      const auth = social.isAuthError(e);
+      setNeedsReauth(auth);
+      setError(auth ? '구글 연결이 만료돼 최신 목록을 못 불러왔어요' : '친구 정보를 불러오지 못했어요');
     } finally {
       setLoading(false);
     }
@@ -116,27 +121,19 @@ export function useFriends(active: boolean) {
     if (active) void refresh();
   }, [active, refresh]);
 
-  const invite = useCallback(async (email: string) => {
-    await social.inviteFriend(email);
+  // 버튼 클릭에서 호출 — 토큰이 만료됐으면 social 계층이 조용히 재인증한 뒤 요청을 보낸다.
+  const act = useCallback(async (fn: (email: string) => Promise<social.InviteResult>, email: string) => {
+    const res = await fn(email);
     await refresh();
+    return res;
   }, [refresh]);
 
-  const accept = useCallback(async (email: string) => {
-    await social.acceptFriend(email);
-    await refresh();
-  }, [refresh]);
+  const invite = useCallback((email: string) => act(social.inviteFriend, email), [act]);
+  const accept = useCallback((email: string) => act(social.acceptFriend, email), [act]);
+  const decline = useCallback((email: string) => act(social.declineFriend, email), [act]);
+  const remove = useCallback((email: string) => act(social.removeFriend, email), [act]);
 
-  const decline = useCallback(async (email: string) => {
-    await social.declineFriend(email);
-    await refresh();
-  }, [refresh]);
-
-  const remove = useCallback(async (email: string) => {
-    await social.removeFriend(email);
-    await refresh();
-  }, [refresh]);
-
-  return { ...data, loading, error, refresh, invite, accept, decline, remove };
+  return { ...data, loading, error, needsReauth, refresh, invite, accept, decline, remove };
 }
 
 export function useFriendBooks(email: string | undefined) {

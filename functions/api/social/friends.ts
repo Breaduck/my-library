@@ -74,22 +74,46 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const db = env.DB;
 
   if (action === 'invite') {
-    // 상대가 이미 나에게 보낸 요청이 있으면 → 즉시 친구 수락(맞초대)
-    const reverse = await db.prepare(`SELECT * FROM friendships WHERE requester_email = ? AND addressee_email = ? AND status = 'pending'`).bind(target, me).first();
-    if (reverse) {
-      await db.prepare(`UPDATE friendships SET status = 'accepted' WHERE requester_email = ? AND addressee_email = ?`).bind(target, me).run();
+    // 양방향 기존 관계를 한 번에 조회 — 어느 방향이든 이미 친구/요청 중이면 중복 생성하지 않는다.
+    const existing = await db.prepare(
+      `SELECT requester_email, addressee_email, status FROM friendships
+        WHERE (requester_email = ? AND addressee_email = ?) OR (requester_email = ? AND addressee_email = ?)`
+    ).bind(me, target, target, me).first<FriendshipRow>();
+
+    if (existing?.status === 'accepted') return json({ ok: true, status: 'already-friends' });
+
+    // 상대가 이미 나에게 보낸 요청이 있으면 → 즉시 친구 성립(맞초대)
+    if (existing?.status === 'pending' && existing.requester_email === target) {
+      await db.prepare(`UPDATE friendships SET status = 'accepted' WHERE requester_email = ? AND addressee_email = ?`)
+        .bind(target, me).run();
       return json({ ok: true, status: 'accepted' });
     }
-    const existing = await db.prepare(`SELECT * FROM friendships WHERE (requester_email = ? AND addressee_email = ?) OR (requester_email = ? AND addressee_email = ?)`).bind(me, target, target, me).first();
-    if (existing) return json({ ok: true, status: 'already-exists' });
+    // 내가 이미 보낸 요청이 대기 중
+    if (existing?.status === 'pending') return json({ ok: true, status: 'already-exists' });
+
     await db.prepare(`INSERT INTO friendships (requester_email, addressee_email, status, created_at) VALUES (?, ?, 'pending', ?)`)
       .bind(me, target, new Date().toISOString()).run();
     return json({ ok: true, status: 'pending' });
   }
 
   if (action === 'accept') {
-    await db.prepare(`UPDATE friendships SET status = 'accepted' WHERE requester_email = ? AND addressee_email = ? AND status = 'pending'`).bind(target, me).run();
-    return json({ ok: true });
+    // 상대→나 방향의 대기 요청을 수락. 화면이 오래된 목록을 보여주고 있거나(상대가 취소함)
+    // 이미 처리된 요청을 다시 누른 경우를 구분해 알려준다 — 예전엔 무엇도 안 바뀌었는데 ok만 돌려줘
+    // "수락했는데 친구가 안 됐다"로 보였다.
+    const res = await db.prepare(
+      `UPDATE friendships SET status = 'accepted' WHERE requester_email = ? AND addressee_email = ? AND status = 'pending'`
+    ).bind(target, me).run();
+    if ((res.meta?.changes ?? 0) > 0) return json({ ok: true, status: 'accepted' });
+
+    const already = await db.prepare(
+      `SELECT status FROM friendships WHERE status = 'accepted' AND ((requester_email = ? AND addressee_email = ?) OR (requester_email = ? AND addressee_email = ?))`
+    ).bind(me, target, target, me).first();
+    if (already) return json({ ok: true, status: 'already-friends' });
+
+    // 받은 요청이 사라졌다면(상대가 취소) 대신 내가 요청을 보내 관계가 끊기지 않게 한다.
+    await db.prepare(`INSERT OR IGNORE INTO friendships (requester_email, addressee_email, status, created_at) VALUES (?, ?, 'pending', ?)`)
+      .bind(me, target, new Date().toISOString()).run();
+    return json({ ok: true, status: 'pending' });
   }
 
   if (action === 'decline') {

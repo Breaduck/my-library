@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends, useFriendActivity } from '@/hooks/useFriends';
-import { FriendEntry, lookupByNickname } from '@/lib/social';
+import { FriendEntry, InviteStatus, lookupByNickname, isAuthError } from '@/lib/social';
 import LoginModal from '@/components/LoginModal';
 
 const cs = { boxShadow: '0 2px 16px rgba(0,0,0,0.06)' };
@@ -42,7 +42,7 @@ function Avatar({ name, picture, size = 44 }: { name: string; picture: string; s
 
 export default function FriendsPage() {
   const { signedIn, signIn } = useAuth();
-  const { friends, incoming, outgoing, loading, error, invite, accept, decline } = useFriends(signedIn);
+  const { friends, incoming, outgoing, loading, error, needsReauth, refresh, invite, accept, decline } = useFriends(signedIn);
   const activity = useFriendActivity(friends);
   const [inviteMode, setInviteMode] = useState<'email' | 'nickname'>('email');
   const [email, setEmail] = useState('');
@@ -52,7 +52,20 @@ export default function FriendsPage() {
   const [nickname, setNickname] = useState('');
   const [nicknameResults, setNicknameResults] = useState<FriendEntry[] | null>(null);
   const [nicknameBusy, setNicknameBusy] = useState(false);
+  const [nicknameMsg, setNicknameMsg] = useState('');
+  const [actionMsg, setActionMsg] = useState('');
   const [showLogin, setShowLogin] = useState(false);
+
+  // 구글 연결이 끊긴(토큰 만료) 상태와 '결과 없음'을 반드시 구분해 알린다.
+  // 예전엔 둘 다 조용히 실패해서 "있는 닉네임인데 검색이 안 된다"로 보였다.
+  const AUTH_MSG = '구글 연결이 만료됐어요. 다시 로그인한 뒤 시도해주세요';
+
+  const inviteResultMsg: Record<InviteStatus, string> = {
+    pending: '요청을 보냈어요',
+    accepted: '서로 초대해서 바로 친구가 됐어요 🎉',
+    'already-exists': '이미 보낸 요청이 있어요. 상대가 수락하면 친구가 돼요',
+    'already-friends': '이미 친구예요',
+  };
 
   async function handleInvite() {
     const target = email.trim();
@@ -60,11 +73,11 @@ export default function FriendsPage() {
     setInviteBusy(true);
     setInviteMsg('');
     try {
-      await invite(target);
+      const res = await invite(target);
       setEmail('');
-      setInviteMsg('요청을 보냈어요');
-    } catch {
-      setInviteMsg('요청을 보내지 못했어요. 이메일을 확인해주세요');
+      setInviteMsg(inviteResultMsg[res.status ?? 'pending'] ?? '요청을 보냈어요');
+    } catch (e) {
+      setInviteMsg(isAuthError(e) ? AUTH_MSG : '요청을 보내지 못했어요. 이메일을 확인해주세요');
     } finally {
       setInviteBusy(false);
     }
@@ -75,10 +88,11 @@ export default function FriendsPage() {
     if (!n) return;
     setNicknameBusy(true);
     setNicknameResults(null);
+    setNicknameMsg('');
     try {
       setNicknameResults(await lookupByNickname(n));
-    } catch {
-      setNicknameResults([]);
+    } catch (e) {
+      setNicknameMsg(isAuthError(e) ? AUTH_MSG : '검색에 실패했어요. 잠시 후 다시 시도해주세요');
     } finally {
       setNicknameBusy(false);
     }
@@ -86,17 +100,30 @@ export default function FriendsPage() {
 
   async function handleInviteFromSearch(target: string) {
     setBusyEmail(target);
+    setNicknameMsg('');
     try {
-      await invite(target);
+      const res = await invite(target);
       setNicknameResults((prev) => prev?.filter((u) => u.email !== target) ?? null);
+      setNicknameMsg(inviteResultMsg[res.status ?? 'pending'] ?? '요청을 보냈어요');
+    } catch (e) {
+      setNicknameMsg(isAuthError(e) ? AUTH_MSG : '요청을 보내지 못했어요. 잠시 후 다시 시도해주세요');
     } finally {
       setBusyEmail(null);
     }
   }
 
-  async function run(fn: (email: string) => Promise<void>, target: string) {
+  // 수락/거절/취소 — 실패해도 아무 표시가 없어 "승인했는데 친구가 안 된다"로 보였다.
+  async function run(fn: (email: string) => Promise<unknown>, target: string, okMsg: string) {
     setBusyEmail(target);
-    try { await fn(target); } finally { setBusyEmail(null); }
+    setActionMsg('');
+    try {
+      await fn(target);
+      setActionMsg(okMsg);
+    } catch (e) {
+      setActionMsg(isAuthError(e) ? AUTH_MSG : '처리하지 못했어요. 잠시 후 다시 시도해주세요');
+    } finally {
+      setBusyEmail(null);
+    }
   }
 
   return (
@@ -124,6 +151,21 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* 구글 토큰 만료 — 이때 모든 친구 기능이 조용히 실패했었다. 이제 눈에 보이게 알리고
+                사용자 클릭으로 재연결한다(클릭이어야 구글 팝업이 차단되지 않는다). */}
+            {needsReauth && (
+              <div className="bg-[#FFF8E7] border border-[#F2CA8A] rounded-2xl px-4 py-3 flex items-center gap-3">
+                <span className="text-lg">🔌</span>
+                <p className="flex-1 text-[12px] text-[#6E4E14] leading-snug">
+                  구글 연결이 만료돼 친구 목록·검색이 동작하지 않아요
+                </p>
+                <button onClick={() => void refresh(true)} disabled={loading}
+                  className="px-3 py-1.5 rounded-full bg-[#1D1D1F] text-white text-[11px] font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors flex-shrink-0">
+                  다시 연결
+                </button>
+              </div>
+            )}
+
             {/* 친구 목록 — 최상단 */}
             <div className="bg-white rounded-2xl overflow-hidden" style={cs}>
               <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] px-5 pt-5 pb-2 sm:px-6">
@@ -228,10 +270,13 @@ export default function FriendsPage() {
                       찾기
                     </button>
                   </div>
+                  {nicknameMsg && <p className="text-[11px] text-[#6E6E73] mt-2">{nicknameMsg}</p>}
                   {nicknameResults !== null && (
                     <div className="mt-3 space-y-1.5">
                       {nicknameResults.length === 0 ? (
-                        <p className="text-[11px] text-[#AEAEB2] text-center py-2">일치하는 닉네임이 없어요</p>
+                        <p className="text-[11px] text-[#AEAEB2] text-center py-2">
+                          일치하는 사용자가 없어요. 친구가 이 앱에 한 번 로그인한 적이 있어야 찾을 수 있어요
+                        </p>
                       ) : (
                         nicknameResults.map((u) => (
                           <div key={u.email} className="flex items-center gap-3 p-2 rounded-lg bg-[#FAFAFB]">
@@ -249,7 +294,7 @@ export default function FriendsPage() {
                     </div>
                   )}
                   <p className="text-[11px] text-[#AEAEB2] mt-2 leading-relaxed">
-                    친구의 닉네임 또는 이름과 정확히 일치해야 검색돼요.
+                    닉네임·이름의 일부만 입력해도 찾을 수 있어요(2글자 이상). 이메일로도 검색돼요.
                   </p>
                 </>
               )}
@@ -259,17 +304,18 @@ export default function FriendsPage() {
             {incoming.length > 0 && (
               <div className="bg-white rounded-2xl overflow-hidden" style={cs}>
                 <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[#AEAEB2] px-5 pt-5 pb-2 sm:px-6">받은 요청</h2>
+                {actionMsg && <p className="text-[11px] text-[#6E6E73] px-5 sm:px-6 pb-1">{actionMsg}</p>}
                 {incoming.map((f: FriendEntry) => (
                   <div key={f.email} className="flex items-center gap-3 px-5 sm:px-6 py-3 border-t border-[#F5F5F7]">
                     <Avatar name={f.name} picture={f.picture} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-[#1D1D1F] truncate">{f.name}</p>
                     </div>
-                    <button disabled={busyEmail === f.email} onClick={() => run(accept, f.email)}
+                    <button disabled={busyEmail === f.email} onClick={() => run(accept, f.email, '친구가 됐어요 🎉')}
                       className="px-3 py-1.5 rounded-full bg-[#1D1D1F] text-white text-xs font-semibold hover:bg-[#3A3A3C] disabled:opacity-40 transition-colors">
                       수락
                     </button>
-                    <button disabled={busyEmail === f.email} onClick={() => run(decline, f.email)}
+                    <button disabled={busyEmail === f.email} onClick={() => run(decline, f.email, '요청을 거절했어요')}
                       className="px-3 py-1.5 rounded-full bg-[#F5F5F7] text-[#6E6E73] text-xs font-semibold hover:bg-gray-200 disabled:opacity-40 transition-colors">
                       거절
                     </button>
@@ -289,7 +335,7 @@ export default function FriendsPage() {
                       <p className="text-sm font-medium text-[#1D1D1F] truncate">{f.name}</p>
                     </div>
                     <span className="text-[11px] text-[#AEAEB2] mr-1">대기중</span>
-                    <button disabled={busyEmail === f.email} onClick={() => run(decline, f.email)}
+                    <button disabled={busyEmail === f.email} onClick={() => run(decline, f.email, '요청을 취소했어요')}
                       className="px-3 py-1.5 rounded-full bg-[#F5F5F7] text-[#6E6E73] text-xs font-semibold hover:bg-gray-200 disabled:opacity-40 transition-colors">
                       취소
                     </button>
@@ -298,7 +344,7 @@ export default function FriendsPage() {
               </div>
             )}
 
-            {error && <p className="text-[11px] text-red-500 text-center">{error}</p>}
+            {error && !needsReauth && <p className="text-[11px] text-red-500 text-center">{error}</p>}
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { requireEmail, json } from '../../_lib/auth';
+import { requireEmail, canonicalEmail, json } from '../../_lib/auth';
 
 interface Env { DB: D1Database; VITE_GOOGLE_CLIENT_ID?: string }
 
@@ -22,7 +22,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const url = new URL(request.url);
-  const target = url.searchParams.get('email')?.toLowerCase().trim() ?? '';
+  // friendships/users는 canonicalEmail 기준으로 저장되므로 조회 키도 같은 방식으로 정규화해야
+  // 한다. 예전엔 toLowerCase만 해서 Gmail 점(.)/별칭 주소는 친구인데도 not-friends로 막혔다.
+  const target = canonicalEmail(url.searchParams.get('email') ?? '');
   if (!target) return json({ error: 'missing-email' }, 400);
 
   if (target !== me && !(await areFriends(env.DB, me, target))) {

@@ -95,6 +95,41 @@ export function getToken() {
 }
 export function getTokenExpiresAt() { return _tokenExpiresAt; }
 
+// 서버가 401을 돌려줬을 때(구글이 토큰을 조기 폐기한 경우 등) 캐시 토큰을 버린다.
+export function invalidateToken() { setToken(null); }
+
+// ── 토큰 대기열 ────────────────────────────────────────────────────────────
+// 액세스 토큰은 ~1시간이면 만료된다. 만료 후에도 "로그인 기억" 플래그는 남아 있어 UI는
+// 로그인 상태로 보이는데, 이때 친구 API는 토큰이 없어 전부 실패했다(검색 0건, 수락 무반응).
+// ensureToken()은 토큰이 없으면 재인증을 '한 번' 요청하고 그 결과를 Promise로 기다린다.
+// ★ 반드시 사용자 제스처(버튼 클릭) 안에서만 호출할 것 — 배경 호출은 구글 팝업이 반짝인다.
+let _tokenWaiters: ((t: string | null) => void)[] = [];
+let _tokenRequestInFlight = false;
+
+function resolveTokenWaiters(t: string | null) {
+  _tokenRequestInFlight = false;
+  const waiters = _tokenWaiters;
+  _tokenWaiters = [];
+  for (const w of waiters) w(t);
+}
+
+export function ensureToken(timeoutMs = 60_000): Promise<string | null> {
+  const existing = getToken();
+  if (existing) return Promise.resolve(existing);
+  // 토큰 클라이언트가 아직 준비 안 됐거나 아예 로그인한 적이 없으면 팝업을 띄우지 않는다.
+  if (!_tokenClient || !wasSignedIn()) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (t: string | null) => { if (!done) { done = true; resolve(t); } };
+    _tokenWaiters.push(finish);
+    setTimeout(() => finish(null), timeoutMs);
+    if (!_tokenRequestInFlight) {
+      _tokenRequestInFlight = true;
+      requestAccess('', getCachedProfile()?.email);
+    }
+  });
+}
+
 // 액세스 토큰(수명 ~1시간, 휘발성)과 "로그인 기억" 플래그를 분리한다.
 // 토큰이 만료돼도 remembered는 유지 → 다음 로드에서 조용히 재연결(로그아웃처럼 보이지 않음).
 function setToken(t: string | null, expiresInSec?: number) {
@@ -139,12 +174,14 @@ export function initTokenClient(
     // 점진적 승인(구글 콘솔 진단 항목): 이미 승인된 스코프를 새 요청에 합산 (기본값이지만 명시)
     include_granted_scopes: true,
     callback: (response: { access_token?: string; error?: string; expires_in?: number; scope?: string }) => {
-      if (response.error || !response.access_token) { onError(); return; }
+      if (response.error || !response.access_token) { resolveTokenWaiters(null); onError(); return; }
       _grantedScopes = response.scope ?? '';
       setToken(response.access_token, response.expires_in);
+      // 토큰을 기다리던 소셜 요청들을 먼저 깨운다(Drive 병합보다 가볍고 빠름).
+      resolveTokenWaiters(response.access_token);
       onSuccess(response.access_token);
     },
-    error_callback: onError,
+    error_callback: () => { resolveTokenWaiters(null); onError(); },
   });
 }
 
