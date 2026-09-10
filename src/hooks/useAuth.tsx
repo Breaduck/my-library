@@ -157,6 +157,51 @@ function useAuthState(): AuthApi {
       .catch(() => {});
   }, []);
 
+  // ── 다른 기기의 변경을 조용히 받아오기 ────────────────────────────────
+  // 예전엔 앱을 열어도 원격을 전혀 읽지 않았다. 동기화가 도는 시점이
+  // (1) 새 구글 인증 (2) 이 기기에서 책을 고쳤을 때 (3) '지금 동기화' 뿐이라,
+  // "컴퓨터에서 넣은 책이 폰에서 안 보인다"가 정상 동작이었다.
+  // ★ 이제 세션 토큰(90일)으로 서버 백업을 읽을 수 있으므로 구글 토큰도, 팝업도 필요 없다.
+  //   Drive는 건드리지 않는다 — Drive를 읽으려면 구글 토큰이 필요해 팝업 위험이 생긴다.
+  // 병합은 합집합(mergeBooks)이라 이 기기에만 있는 책이 사라질 일은 없다.
+  const lastPullAt = useRef(0);
+  const pullFromServer = useCallback(async (force = false) => {
+    if (!force && Date.now() - lastPullAt.current < 30_000) return; // 과한 호출 방지
+    lastPullAt.current = Date.now();
+    try {
+      const { books: remoteBooks, meta } = await social.loadBackup();
+      const local = readLocalBooks();
+      const tombs = mergeTombstones(getTombstones(), meta?.tombstones ?? []);
+      setTombstones(tombs);
+      if (meta) applyPersonalData(meta);
+
+      const merged = mergeBooks(local, remoteBooks, tombs);
+      if (JSON.stringify(merged) !== JSON.stringify(local)) {
+        // lastSyncedJSON은 일부러 건드리지 않는다 — 뒤따르는 books:changed가
+        // Drive 병합/업로드까지 마무리하게 두는 편이 자가 치유적이다.
+        window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: merged }));
+        setLastSync(new Date());
+      }
+    } catch {
+      /* 세션 없음·네트워크 실패 등 — 로컬은 그대로 안전하므로 조용히 넘어간다 */
+    }
+  }, []);
+
+  // 앱을 열 때, 그리고 다른 앱/탭에 갔다가 돌아올 때마다 최신 내용을 받아온다.
+  // iOS PWA에서는 focus가 안 오는 경우가 있어 visibilitychange를 함께 듣는다.
+  useEffect(() => {
+    if (!signedIn) return;
+    void pullFromServer(true);
+    const onFocus = () => { void pullFromServer(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') void pullFromServer(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [signedIn, pullFromServer]);
+
   const onSignInSuccess = useCallback(async () => {
     setState('saving');
     autoReconnectTried.current = false; // 연결 성공 → 다음 만료 때 자동 재연결 1회 재허용
