@@ -1,4 +1,5 @@
 import { getToken, ensureToken, invalidateToken } from '@/lib/googleDrive';
+import { getSessionToken, ensureSession, clearSession } from '@/lib/session';
 import { Book } from '@/types';
 import { ReadingStats } from '@/lib/storage';
 
@@ -65,21 +66,36 @@ function send(fullPath: string, token: string, options: RequestInit): Promise<Re
   });
 }
 
-// 액세스 토큰은 ~1시간이면 만료되는데 "로그인 기억" 상태는 남아 있어서, 예전엔 만료 후
-// 모든 소셜 요청이 조용히 실패했다(닉네임 검색 0건, 초대/수락 무반응). 이제는
-// (1) 토큰이 없으면 재인증을 기다렸다가 보내고, (2) 401이면 한 번 갱신해 재시도한다.
-// ★ 재인증(구글 팝업)은 사용자 조작에서 시작된 호출에서만 허용한다 — interactive 플래그.
-//   배경 동기화(책/통계/하트비트)는 팝업이 반짝이면 안 되므로 그냥 실패시킨다.
+// 인증 순서:
+//  1) 우리 세션 토큰(90일, 쓸 때마다 연장) — 기본 경로. 구글 토큰이 만료돼도 계속 동작한다.
+//  2) 세션이 아직 없으면 구글 토큰으로 세션을 발급받아 쓴다.
+//  3) 그래도 없으면(로그인 자체가 안 됨) 사용자 조작일 때만 구글 재인증을 시도한다.
+// 예전엔 구글 토큰만 썼기 때문에 한 시간만 지나면 모든 소셜 요청이 조용히 실패했다
+// (닉네임 검색 0건, 초대/수락 무반응). 세션 토큰 도입으로 그 구간이 사라진다.
+// ★ 구글 재인증은 팝업을 띄울 수 있어 사용자 조작(interactive)에서만 허용한다.
 async function authFetch(fullPath: string, options: RequestInit = {}, interactive = false): Promise<Response> {
-  let token = getToken();
-  if (!token && interactive) token = await ensureToken();
+  let token: string | null = getSessionToken();
+  if (!token) token = await ensureSession();
+  if (!token) {
+    // 세션을 못 받았다 = 구글 토큰도 없다. 구글 토큰으로 직접 보내는 경로를 유지(구버전 호환).
+    token = getToken();
+    if (!token && interactive) {
+      token = await ensureToken();
+      if (token) token = (await ensureSession()) ?? token;
+    }
+  }
   if (!token) throw new AuthRequiredError();
 
   let res = await send(fullPath, token, options);
   if (res.status === 401) {
+    // 세션이 만료/해지됐거나 구글 토큰이 죽었다 → 한 번만 새로 받아 재시도.
+    clearSession();
     invalidateToken();
-    if (!interactive) throw new AuthRequiredError();
-    const fresh = await ensureToken();
+    let fresh: string | null = await ensureSession();
+    if (!fresh && interactive) {
+      const google = await ensureToken();
+      if (google) fresh = (await ensureSession()) ?? google;
+    }
     if (!fresh) throw new AuthRequiredError();
     res = await send(fullPath, fresh, options);
     if (res.status === 401) throw new AuthRequiredError();
@@ -206,6 +222,27 @@ export async function getFriendStats(email: string): Promise<ReadingStats | null
   const res = await apiFetch(`/stats?email=${encodeURIComponent(email)}`);
   const data = await res.json() as { stats: ReadingStats | null };
   return data.stats;
+}
+
+// ── 서버 백업 (Drive와 별개) ──────────────────────────────────────────────
+// Drive 백업은 구글 토큰이 살아 있을 때만 동작해서, 만료 구간의 변경은 로컬에만 남았다.
+// 이 백업은 세션 토큰(90일)으로 인증하므로 그 공백을 메운다.
+export interface BackupMeta {
+  tombstones?: string[];
+  dailyReadings?: unknown[];
+  readingDates?: string[];
+  goals?: { readingGoal?: string; monthlyGoal?: string; dailyGoal?: string };
+  personalResetAt?: string;
+}
+
+export async function saveBackup(books: Book[], meta: BackupMeta): Promise<void> {
+  await authFetch('/api/backup/books', { method: 'POST', body: JSON.stringify({ books, meta }) });
+}
+
+export async function loadBackup(): Promise<{ books: Book[]; meta: BackupMeta | null; updatedAt: string }> {
+  const res = await authFetch('/api/backup/books');
+  const data = await res.json() as { books?: Book[]; meta?: BackupMeta | null; updatedAt?: string };
+  return { books: data.books ?? [], meta: data.meta ?? null, updatedAt: data.updatedAt ?? '' };
 }
 
 export interface AdminStats {

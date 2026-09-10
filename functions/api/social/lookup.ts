@@ -22,7 +22,7 @@ function escapeLike(s: string): string {
 // 기억하면 "일치하는 닉네임이 없어요"만 떴다. 이제 완전 일치 → 부분 일치 순으로 찾고,
 // 이메일을 입력한 경우엔 이메일로도 찾는다. (무작위 수집 방지를 위해 2글자 이상 + LIMIT 유지)
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
+  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID, env.DB);
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const url = new URL(request.url);

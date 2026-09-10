@@ -16,7 +16,7 @@ interface Row {
 // 내 책에 '다른 사람'이 남긴 댓글 목록 — 알림/확인용.
 // 책 제목·표지는 내가 공유한 shared_books에서 가져와 함께 내려준다.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
+  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID, env.DB);
   if (!me) return json({ error: 'unauthorized' }, 401);
 
   const { results } = await env.DB.prepare(

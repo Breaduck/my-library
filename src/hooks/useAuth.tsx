@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useContext, createContext, ReactNode } from 'react';
 import * as gd from '@/lib/googleDrive';
 import * as social from '@/lib/social';
+import { ensureSession, revokeSession, clearSession, getSessionEmail } from '@/lib/session';
 import { Book } from '@/types';
 
 import { mergeBooks, getTombstones, setTombstones, mergeTombstones, clearResurrected, prepareSharedBooks, computeReadingStats, getShareStats, clearPersonalData, applyPersonalData, getPersonalData } from '@/lib/storage';
@@ -13,6 +14,13 @@ const OWNER_KEY = 'book-tracker-owner';
 function readLocalBooks(): Book[] {
   try { return JSON.parse(localStorage.getItem('book-tracker') || '[]') as Book[]; }
   catch { return []; }
+}
+
+// 서버(D1) 백업 업로드. 세션 토큰으로 인증하므로 구글 토큰이 만료돼도 동작한다.
+// 절대 예외를 밖으로 던지지 않는다 — 백업 실패가 Drive 동기화나 화면을 막으면 안 된다.
+function backupToServer(books: Book[]) {
+  const p = getPersonalData();
+  social.saveBackup(books, { tombstones: getTombstones(), ...p }).catch(() => {});
 }
 
 function syncStats(books: Book[]) {
@@ -160,6 +168,17 @@ function useAuthState(): AuthApi {
       let [driveResult, prof] = await Promise.all([gd.loadFromDrive(), gd.fetchUserProfile()]);
       if (prof) setProfile(prof);
 
+      // ★ 구글 토큰이 살아 있는 지금 세션 토큰을 발급받는다(90일).
+      // 이후 친구 기능·서버 백업은 구글 토큰 만료와 무관하게 계속 동작한다.
+      // ★★ 계정이 바뀌었다면 이전 계정의 세션을 절대 재사용하면 안 된다 —
+      //    그대로 두면 새로 로그인한 사람이 이전 계정으로 인증돼 남의 친구 목록과
+      //    백업에 접근하게 된다. 반드시 버리고 새로 발급받는다.
+      const prevSessionEmail = getSessionEmail();
+      const sessionStale = !!prof && !!prevSessionEmail
+        && normalizeOwner(prevSessionEmail) !== normalizeOwner(prof.email);
+      if (sessionStale) clearSession();
+      await ensureSession(sessionStale).catch(() => null);
+
       // ★ 친구 검색용 사용자 등록은 Drive 동기화와 분리해 '먼저' 처리한다.
       // 예전엔 아래 Drive 병합/저장이 모두 성공한 뒤에야 saveProfile을 호출해서,
       // Drive 권한이 없거나 읽기가 실패한 계정은 users 테이블에 아예 등록되지 않았고
@@ -195,7 +214,15 @@ function useAuthState(): AuthApi {
       // 일별 기록·연속 독서·목표도 원격과 병합해 로컬에 반영(어떤 기록도 잃지 않음)
       applyPersonalData(remotePayload ?? undefined);
 
-      const merged = mergeBooks(local, remote, tombs);
+      // ★ 서버 백업도 복원 소스로 함께 병합한다.
+      // 구글 토큰이 만료된 구간에 기록한 책은 Drive엔 없고 서버에만 있을 수 있다.
+      // 계정 전환이면 이전 계정의 서버 백업을 끌어오면 안 되므로 건너뛴다.
+      let backupBooks: Book[] = [];
+      if (!isAccountSwitch) {
+        try { backupBooks = (await social.loadBackup()).books; } catch { /* 없거나 실패 — 무시 */ }
+      }
+
+      const merged = mergeBooks(mergeBooks(local, remote, tombs), backupBooks, tombs);
       const mergedJSON = JSON.stringify(merged);
       if (prof) setLocalOwner(prof.email);
 
@@ -205,6 +232,7 @@ function useAuthState(): AuthApi {
       }
       await gd.saveToDrive({ books: merged, tombstones: tombs, ...getPersonalData() });
       clearResurrected(); // 복원분이 Drive에 반영됨 — 부활 표시는 여기서 소멸
+      backupToServer(merged);
 
       // 친구 기능용 백엔드 동기화(실패해도 Drive 백업엔 영향 없음)
       social.syncMyBooks(prepareSharedBooks(merged)).catch(() => {});
@@ -272,6 +300,11 @@ function useAuthState(): AuthApi {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       setState('saving');
       debounceRef.current = setTimeout(async () => {
+        // ★ 서버 백업을 '가장 먼저, 구글과 무관하게' 올린다.
+        // 우리 세션 토큰(90일)으로 인증하므로 구글 토큰이 만료된 구간에도 동작한다 —
+        // 예전엔 이 구간의 변경이 어디에도 백업되지 않고 로컬에만 남아 있었다.
+        backupToServer(books);
+
         // 토큰이 없으면(첫 진입 후 아직 재연결 안 됐거나 만료) 조용히 재연결을 시도하되,
         // ★ 세션당 1회만. 재연결 자체가 구글 팝업을 순간적으로 열었다 닫아서(특히 iPad),
         // 저장할 때마다 팝업이 반짝이는 문제가 있었다. 실패하면 로컬에만 두고,
@@ -281,7 +314,7 @@ function useAuthState(): AuthApi {
             autoReconnectTried.current = true;
             gd.requestAccess('', gd.getCachedProfile()?.email);
           } else {
-            setState('error'); // 로컬은 안전 — 설정의 '지금 동기화'로 언제든 백업 가능
+            setState('error'); // 로컬은 안전 — 서버 백업은 위에서 이미 올라갔다
           }
           return;
         }
@@ -307,6 +340,7 @@ function useAuthState(): AuthApi {
 
           await gd.saveToDrive({ books: merged, tombstones: tombs, ...getPersonalData() });
           clearResurrected(); // 복원분이 Drive에 반영됨 — 부활 표시는 여기서 소멸
+          backupToServer(merged); // 병합 결과로 서버 백업도 최신화
           social.syncMyBooks(prepareSharedBooks(merged)).catch(() => {});
           syncStats(merged);
           setLastSync(new Date());
@@ -386,6 +420,9 @@ function useAuthState(): AuthApi {
 
   const signOut = useCallback(() => {
     gd.signOut();
+    // 세션 토큰은 90일짜리라 로그아웃 시 서버에서도 반드시 무효화한다(로컬에서만 지우면
+    // 유출된 토큰이 계속 살아 있다). 네트워크 실패해도 로컬에서는 이미 제거된다.
+    void revokeSession();
     try { localStorage.removeItem('friends-cache-v1'); } catch { /* ignore */ }
     setProfile(null);
     setLastSync(null);

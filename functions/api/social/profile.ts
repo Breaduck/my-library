@@ -21,7 +21,7 @@ function toProfile(row: UserRow) {
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
+  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID, env.DB);
   if (!email) return json({ error: 'unauthorized' }, 401);
 
   const row = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first<UserRow>();
@@ -30,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
+  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID, env.DB);
   if (!email) return json({ error: 'unauthorized' }, 401);
 
   const body = await request.json() as { name?: string; googlePicture?: string; customPicture?: string | null; customName?: string | null };

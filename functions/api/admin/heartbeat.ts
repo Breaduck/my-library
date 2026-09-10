@@ -5,7 +5,7 @@ interface Env { DB: D1Database; VITE_GOOGLE_CLIENT_ID?: string }
 // 로그인한 사용자가 앱을 보고 있는 동안 주기적으로(30초마다) 호출 — 대략적인 체류시간 집계용.
 // 탭이 백그라운드거나 닫혀 있으면 프론트에서 호출하지 않으므로 실제 사용 시간에 가깝다.
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
+  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID, env.DB);
   if (!email) return json({ error: 'unauthorized' }, 401);
 
   const body = await request.json().catch(() => ({})) as { seconds?: number };

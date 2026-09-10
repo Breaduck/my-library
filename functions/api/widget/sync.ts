@@ -38,7 +38,7 @@ function genToken(): string {
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
+  const me = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID, env.DB);
   if (!me) return json({ error: 'unauthorized' }, 401);
   await ensureTable(env.DB);
 

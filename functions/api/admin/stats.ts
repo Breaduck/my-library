@@ -14,7 +14,7 @@ interface StreakRow { email: string; display_name: string | null; streak: number
 interface CommentRow { id: number; owner_email: string; book_id: string; author_name: string | null; text: string; created_at: string }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID);
+  const email = await requireEmail(request, env.VITE_GOOGLE_CLIENT_ID, env.DB);
   if (!email) return json({ error: 'unauthorized' }, 401);
   if (!isAdmin(email, env.ADMIN_EMAILS)) return json({ error: 'forbidden' }, 403);
 

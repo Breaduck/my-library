@@ -22,12 +22,77 @@ export function canonicalEmail(raw: string): string {
   return `${local}@${domain}`;
 }
 
-// Google OAuth access token(클라이언트가 이미 갖고 있는 GIS 토큰)을 검증해 이메일을 추출.
-// 별도 로그인/세션 시스템 없이 기존 프론트 로그인 흐름을 그대로 재사용한다.
-export async function requireEmail(request: Request, clientId?: string): Promise<string | null> {
+// ── 자체 세션 토큰 ────────────────────────────────────────────────────────
+// 구글 액세스 토큰은 1시간이면 만료되고, 지금 로그인 방식(GIS initTokenClient)은
+// refresh token을 발급하지 않는다. 그래서 구글 토큰은 '최초 신원 확인'에만 쓰고,
+// 이후 우리 API는 여기서 발급하는 세션 토큰으로 인증한다 — 만료는 우리가 정한다.
+export const SESSION_PREFIX = 'mls_';
+const SESSION_TTL_DAYS = 90;
+// 마지막 사용이 하루 이상 지났을 때만 만료를 연장한다(쓸 때마다 쓰면 DB 쓰기가 과해진다).
+const SLIDING_RENEW_MS = 24 * 60 * 60 * 1000;
+
+// 토큰 원문은 DB에 남기지 않는다 — 해시만 저장해 DB가 유출돼도 그대로는 쓰지 못하게.
+export async function hashToken(token: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function generateSessionToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  const b64 = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return SESSION_PREFIX + b64;
+}
+
+export async function createSession(db: D1Database, email: string): Promise<string> {
+  const token = generateSessionToken();
+  const now = new Date();
+  const expires = new Date(now.getTime() + SESSION_TTL_DAYS * 86400_000);
+  await db.prepare(
+    'INSERT INTO sessions (token_hash, email, created_at, last_used_at, expires_at) VALUES (?, ?, ?, ?, ?)'
+  ).bind(await hashToken(token), email, now.toISOString(), now.toISOString(), expires.toISOString()).run();
+  return token;
+}
+
+export async function revokeSession(db: D1Database, token: string): Promise<void> {
+  await db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await hashToken(token)).run();
+}
+
+async function emailFromSession(db: D1Database, token: string): Promise<string | null> {
+  const hash = await hashToken(token);
+  const row = await db.prepare('SELECT email, expires_at, last_used_at FROM sessions WHERE token_hash = ?')
+    .bind(hash).first<{ email: string; expires_at: string; last_used_at: string }>();
+  if (!row) return null;
+
+  const now = new Date();
+  if (new Date(row.expires_at).getTime() <= now.getTime()) {
+    // 만료된 세션은 즉시 정리 — 남겨두면 테이블만 커진다.
+    await db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(hash).run();
+    return null;
+  }
+
+  if (now.getTime() - new Date(row.last_used_at).getTime() > SLIDING_RENEW_MS) {
+    const expires = new Date(now.getTime() + SESSION_TTL_DAYS * 86400_000);
+    await db.prepare('UPDATE sessions SET last_used_at = ?, expires_at = ? WHERE token_hash = ?')
+      .bind(now.toISOString(), expires.toISOString(), hash).run();
+  }
+  return row.email;
+}
+
+// 요청을 인증해 이메일을 반환. 두 가지 토큰을 받는다:
+//  1) 우리 세션 토큰('mls_' 접두) — 기본 경로. db 인자가 필요하다.
+//  2) 구글 액세스 토큰 — 최초 로그인(세션 발급) 및 구버전 클라이언트 호환용.
+export async function requireEmail(request: Request, clientId?: string, db?: D1Database): Promise<string | null> {
   const auth = request.headers.get('Authorization') ?? '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token) return null;
+
+  if (token.startsWith(SESSION_PREFIX)) {
+    if (!db) return null; // 세션 토큰인데 DB가 없으면 검증 불가 → fail-closed
+    try { return await emailFromSession(db, token); } catch { return null; }
+  }
+
   try {
     // 토큰을 쿼리스트링에 넣으면 중간 프록시/서버 로그에 남을 수 있어 POST 본문으로 전달
     const res = await fetch('https://www.googleapis.com/oauth2/v3/tokeninfo', {
