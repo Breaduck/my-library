@@ -77,9 +77,19 @@ export function useBooks() {
 
   const getBook = useCallback((id: string) => loadStore().find((b) => b.id === id), []);
 
+  // ★ 순서만 바꾼다 — 목록에 빠진 책이 있어도 절대 버리지 않는다.
+  // 예전엔 orderedIds에 없는 책이 조용히 사라졌다(툼스톤도 없어 다음 동기화 전까지 로컬에서 소실).
+  // 호출부가 전체 목록을 넘기지 않는 실수를 해도 데이터가 날아가지 않도록 뒤에 이어 붙인다.
   const reorderBooks = useCallback((orderedIds: string[]) => {
-    const map = new Map(loadStore().map((b) => [b.id, b]));
-    const reordered = orderedIds.map((id) => map.get(id)).filter(Boolean) as Book[];
+    const current = loadStore();
+    const map = new Map(current.map((b) => [b.id, b]));
+    const seen = new Set<string>();
+    const reordered: Book[] = [];
+    for (const id of orderedIds) {
+      const b = map.get(id);
+      if (b && !seen.has(id)) { seen.add(id); reordered.push(b); }
+    }
+    for (const b of current) if (!seen.has(b.id)) reordered.push(b);
     commitStore(reordered);
   }, []);
 

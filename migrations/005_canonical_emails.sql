@@ -43,18 +43,27 @@ SELECT e, canon FROM (
 WHERE e <> canon;
 
 -- ── users ────────────────────────────────────────────────────────────────
--- 표준 주소 행에 닉네임/사진이 비어 있으면 옛 행에서 가져온다(설정을 잃지 않게).
+-- (1) 표준 주소 행이 아직 없으면 옛 행 중 '가장 최근에 갱신된' 것으로 만들어 준다.
+--     ORDER BY 덕분에 같은 표준 주소로 접히는 옛 행이 여러 개여도(예: 점 주소와 +별칭 주소로
+--     각각 로그인한 적이 있는 경우) 최신 하나만 채택되고 나머지는 OR IGNORE로 넘어간다.
+--     ★ 예전 방식(옛 행의 email을 바로 UPDATE)은 이 경우 PK 충돌로 마이그레이션이 중단됐다.
+INSERT OR IGNORE INTO users (email, name, custom_name, google_picture, custom_picture, created_at, last_seen_at, total_active_seconds, updated_at)
+SELECT m.new, u.name, u.custom_name, u.google_picture, u.custom_picture, u.created_at, u.last_seen_at, u.total_active_seconds, u.updated_at
+FROM users u JOIN _email_canon m ON m.old = u.email
+ORDER BY u.updated_at DESC;
+
+-- (2) 표준 주소 행에 닉네임/사진이 비어 있으면 옛 행의 최신 값으로 채운다(설정을 잃지 않게).
 UPDATE users SET
   custom_name = COALESCE(NULLIF(custom_name, ''),
-    (SELECT NULLIF(o.custom_name, '') FROM users o JOIN _email_canon m ON o.email = m.old WHERE m.new = users.email)),
+    (SELECT NULLIF(o.custom_name, '') FROM users o JOIN _email_canon m ON o.email = m.old
+      WHERE m.new = users.email AND NULLIF(o.custom_name, '') IS NOT NULL ORDER BY o.updated_at DESC LIMIT 1)),
   custom_picture = COALESCE(NULLIF(custom_picture, ''),
-    (SELECT NULLIF(o.custom_picture, '') FROM users o JOIN _email_canon m ON o.email = m.old WHERE m.new = users.email))
+    (SELECT NULLIF(o.custom_picture, '') FROM users o JOIN _email_canon m ON o.email = m.old
+      WHERE m.new = users.email AND NULLIF(o.custom_picture, '') IS NOT NULL ORDER BY o.updated_at DESC LIMIT 1))
 WHERE email IN (SELECT new FROM _email_canon);
 
-DELETE FROM users WHERE email IN (SELECT old FROM _email_canon WHERE new IN (SELECT email FROM users));
-
-UPDATE users SET email = (SELECT new FROM _email_canon WHERE old = users.email)
-WHERE email IN (SELECT old FROM _email_canon);
+-- (3) 데이터를 모두 표준 주소로 옮겼으니 옛 행 제거
+DELETE FROM users WHERE email IN (SELECT old FROM _email_canon);
 
 -- ── friendships ──────────────────────────────────────────────────────────
 -- UNIQUE(requester, addressee) 때문에 바로 UPDATE 하면 충돌한다 → 표준 주소로 다시 넣고 옛 행 제거.
@@ -83,11 +92,20 @@ WHERE requester_email IN (SELECT old FROM _email_canon)
 -- 자기 자신과의 친구 관계(정규화로 양쪽이 같아진 경우) 제거
 DELETE FROM friendships WHERE requester_email = addressee_email;
 
+-- 이미 'accepted'인 사이에 반대 방향 'pending' 행이 남으면 '보낸 요청 · 대기중'으로 계속 보인다.
+-- (옛 주소로 온 요청과 표준 주소로 온 요청이 방향만 달랐던 경우) → 정리한다.
+DELETE FROM friendships WHERE status = 'pending' AND EXISTS (
+  SELECT 1 FROM friendships f WHERE f.status = 'accepted'
+    AND ((f.requester_email = friendships.requester_email AND f.addressee_email = friendships.addressee_email)
+      OR (f.requester_email = friendships.addressee_email AND f.addressee_email = friendships.requester_email))
+);
+
 -- ── shared_books ─────────────────────────────────────────────────────────
 -- 앱은 동기화할 때마다 서재 전체를 다시 쓰므로 표준 주소 쪽이 최신이다 → 없는 것만 옮긴다.
 INSERT OR IGNORE INTO shared_books (email, book_id, title, author, cover_url, status, rating, current_page, pages, review, updated_at)
 SELECT m.new, s.book_id, s.title, s.author, s.cover_url, s.status, s.rating, s.current_page, s.pages, s.review, s.updated_at
-FROM shared_books s JOIN _email_canon m ON m.old = s.email;
+FROM shared_books s JOIN _email_canon m ON m.old = s.email
+ORDER BY s.updated_at DESC;   -- 같은 책이 두 옛 주소에 있으면 최신 기록이 살아남게(OR IGNORE는 먼저 넣은 쪽을 유지)
 
 DELETE FROM shared_books WHERE email IN (SELECT old FROM _email_canon);
 
@@ -100,14 +118,32 @@ WHERE author_email IN (SELECT old FROM _email_canon);
 -- ── reading_stats ────────────────────────────────────────────────────────
 INSERT OR IGNORE INTO reading_stats (email, total_books, done_books, avg_rating, total_pages, updated_at)
 SELECT m.new, r.total_books, r.done_books, r.avg_rating, r.total_pages, r.updated_at
-FROM reading_stats r JOIN _email_canon m ON m.old = r.email;
+FROM reading_stats r JOIN _email_canon m ON m.old = r.email
+ORDER BY r.updated_at DESC;   -- 중복 시 최신 통계 채택
 DELETE FROM reading_stats WHERE email IN (SELECT old FROM _email_canon);
 
 -- ── widget_data ──────────────────────────────────────────────────────────
--- ★ token 에도 UNIQUE가 걸려 있어 INSERT OR IGNORE 로 옮기면 토큰 충돌로 통째로 무시된 뒤
---   원본이 삭제돼 위젯 데이터가 사라진다. 그래서 '중복 제거 후 이름 바꾸기' 순서로 처리한다.
+-- ★ 여기는 INSERT ... SELECT 를 쓰면 안 된다. 두 가지 이유:
+--   (a) token 에도 UNIQUE가 걸려 있어 INSERT OR IGNORE가 토큰 충돌로 통째로 무시된 뒤
+--       원본만 삭제돼 위젯 데이터가 사라진다(실제로 로컬 테스트에서 재현됨).
+--   (b) 이 테이블은 functions/api/widget/sync.ts 가 런타임에 ALTER로 week_read/week_today를
+--       추가하므로 schema.sql과 컬럼이 다르다 — 컬럼을 열거하면 그 값들이 유실된다.
+--   그래서 행을 옮기지 않고 '중복 제거 후 주소만 UPDATE' 한다(모든 컬럼 그대로 보존).
+
+-- (1) 표준 주소 행이 이미 있으면 옛 행은 버린다(현행 데이터가 최신).
 DELETE FROM widget_data WHERE email IN (SELECT old FROM _email_canon WHERE new IN (SELECT email FROM widget_data));
 
+-- (2) 같은 표준 주소로 접히는 옛 행이 여러 개면 최신 하나만 남긴다(PK/토큰 충돌 방지).
+DELETE FROM widget_data WHERE email IN (
+  SELECT w.email FROM widget_data w JOIN _email_canon m ON m.old = w.email
+  WHERE EXISTS (
+    SELECT 1 FROM widget_data w2 JOIN _email_canon m2 ON m2.old = w2.email
+    WHERE m2.new = m.new AND w2.email <> w.email
+      AND (w2.updated_at > w.updated_at OR (w2.updated_at = w.updated_at AND w2.email > w.email))
+  )
+);
+
+-- (3) 남은 옛 행은 주소만 교체 — token·week_read 등 모든 컬럼이 그대로 따라온다.
 UPDATE widget_data SET email = (SELECT new FROM _email_canon WHERE old = widget_data.email)
 WHERE email IN (SELECT old FROM _email_canon);
 

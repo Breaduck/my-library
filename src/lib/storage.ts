@@ -17,18 +17,29 @@ export function getBooks(): Book[] {
 }
 
 let quotaWarned = false;
-export function saveBooks(books: Book[]): void {
-  if (typeof window === 'undefined') return;
+// 기록성 데이터를 저장하는 공용 쓰기 함수.
+// localStorage가 가득 차면 setItem은 예외를 던진다(기존 값은 그대로 남으므로 손상되진 않는다).
+// 예전엔 saveBooks만 이 예외를 처리했고 일별 독서 기록·툼스톤 등은 그대로 터져 나가,
+// 기록을 남기는 도중 동작이 중단되고 사용자는 이유도 모른 채 저장에 실패했다.
+// 이제 모든 기록 쓰기가 여기를 거쳐 실패를 삼키지 않고 한 번은 반드시 알린다.
+function writeLS(key: string, value: string): boolean {
+  if (typeof window === 'undefined') return false;
   try {
-    localStorage.setItem(KEY, JSON.stringify(books));
+    localStorage.setItem(key, value);
+    return true;
   } catch {
-    // localStorage 용량 초과 — 조용히 삼키면 새로고침 시 기록이 사라진 것처럼 보이므로 반드시 알림.
-    // (로그인 상태라면 아래 이벤트로 Drive에는 그대로 백업되므로 데이터 자체는 지킬 수 있다)
     if (!quotaWarned) {
       quotaWarned = true;
       alert('저장 공간이 가득 차서 이 브라우저에 기록을 저장하지 못했어요.\n표지 이미지가 큰 책을 지우거나, 로그인해서 Drive 백업을 켜주세요.');
     }
+    return false;
   }
+}
+
+export function saveBooks(books: Book[]): void {
+  if (typeof window === 'undefined') return;
+  // 로컬 저장이 실패해도(용량 초과) 이벤트는 반드시 쏜다 — 로그인 상태면 Drive에는 백업된다.
+  writeLS(KEY, JSON.stringify(books));
   window.dispatchEvent(new CustomEvent('books:changed', { detail: books }));
 }
 
@@ -40,7 +51,7 @@ export function getTombstones(): string[] {
 }
 export function setTombstones(ids: string[]): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(TOMB_KEY, JSON.stringify(Array.from(new Set(ids))));
+  writeLS(TOMB_KEY, JSON.stringify(Array.from(new Set(ids))));
 }
 export function addTombstone(id: string): void {
   const t = getTombstones();
@@ -48,6 +59,32 @@ export function addTombstone(id: string): void {
 }
 export function removeTombstone(id: string): void {
   setTombstones(getTombstones().filter((x) => x !== id));
+}
+
+// ── 부활 목록 (백업 복원으로 되살린 책) ───────────────────────────────────
+// 툼스톤은 Drive에도 저장되고 동기화 때 양쪽이 합쳐지므로, 로컬 툼스톤만 지워선
+// 복원한 책이 다음 동기화에서 원격 툼스톤에 걸려 또 사라진다.
+// 여기 등록된 id는 다음 동기화에서 툼스톤 집합에서 제외되고, 그 결과가 Drive에도
+// 반영돼 삭제 기록이 전역으로 사라진다(사용자의 명시적 복원이 과거 삭제보다 우선).
+const RESURRECT_KEY = 'restored-book-ids';
+export function getResurrected(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(RESURRECT_KEY) || '[]'); } catch { return []; }
+}
+export function addResurrected(ids: string[]): void {
+  if (typeof window === 'undefined' || ids.length === 0) return;
+  const next = Array.from(new Set([...getResurrected(), ...ids]));
+  writeLS(RESURRECT_KEY, JSON.stringify(next));
+}
+export function clearResurrected(): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.removeItem(RESURRECT_KEY); } catch { /* ignore */ }
+}
+
+// 로컬+원격 툼스톤을 합치되, 방금 복원한 책은 되살아나도록 제외한다.
+export function mergeTombstones(local: string[], remote: string[] = []): string[] {
+  const resurrect = new Set(getResurrected());
+  return Array.from(new Set([...local, ...remote])).filter((id) => !resurrect.has(id));
 }
 
 // ── 합집합 병합 (툼스톤 제외, updatedAt 최신 우선) — 절대 책을 잃지 않음 ──
@@ -97,10 +134,11 @@ export function getReadingDates(): string[] {
 export function logReadingDate(): void {
   if (typeof window === 'undefined') return;
   const date = localDate();
-  const existing: string[] = JSON.parse(localStorage.getItem(DATES_KEY) || '[]');
+  // getReadingDates()를 거쳐 읽는다 — 저장값이 깨져 있어도 예외로 기록을 통째로 놓치지 않게.
+  const existing = getReadingDates();
   if (!existing.includes(date)) {
     existing.push(date);
-    localStorage.setItem(DATES_KEY, JSON.stringify(existing));
+    writeLS(DATES_KEY, JSON.stringify(existing));
   }
   // 연속 독서 단계 달성 시 보호막 자동 적립
   try { awardFreezesIfEarned(); } catch { /* ignore */ }
@@ -140,7 +178,7 @@ function getFrozenDates(): string[] {
   try { return JSON.parse(localStorage.getItem(FROZEN_DATES_KEY) || '[]'); } catch { return []; }
 }
 function setFrozenDates(a: string[]): void {
-  localStorage.setItem(FROZEN_DATES_KEY, JSON.stringify(Array.from(new Set(a))));
+  writeLS(FROZEN_DATES_KEY, JSON.stringify(Array.from(new Set(a))));
 }
 
 // 연속 독서일 — 실제로 읽은 날 + 보호막으로 메운 날을 함께 계산.
@@ -221,7 +259,7 @@ export function logDailyPages(pages: number, bookId?: string): void {
   } else if (pages > 0) {
     existing.push({ date, pages, bookId, loggedAt: nowIso() });
   }
-  localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
+  writeLS(DAILY_KEY, JSON.stringify(existing));
   if (pages > 0) logReadingDate();
 }
 
@@ -235,7 +273,7 @@ export function subtractDailyPages(amount: number, bookId?: string): void {
   const next = existing[idx].pages - amount;
   if (next > 0) existing[idx] = { ...existing[idx], pages: next, loggedAt: nowIso() };
   else existing.splice(idx, 1);
-  localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
+  writeLS(DAILY_KEY, JSON.stringify(existing));
 }
 
 // Add `delta` pages to today's entry for the given (or unscoped) bookId.
@@ -246,7 +284,7 @@ export function addDailyPages(delta: number, bookId?: string): void {
   const idx = existing.findIndex((d) => d.date === date && d.bookId === bookId);
   if (idx >= 0) existing[idx] = { ...existing[idx], pages: existing[idx].pages + delta, loggedAt: nowIso() };
   else existing.push({ date, pages: delta, bookId, loggedAt: nowIso() });
-  localStorage.setItem(DAILY_KEY, JSON.stringify(existing));
+  writeLS(DAILY_KEY, JSON.stringify(existing));
   logReadingDate();
 }
 
@@ -262,12 +300,12 @@ export function setDailyPages(date: string, pages: number): void {
   const existing = getDailyReadings();
   const filtered = existing.filter((d) => d.date !== date);
   if (pages > 0) filtered.push({ date, pages, loggedAt: nowIso() });
-  localStorage.setItem(DAILY_KEY, JSON.stringify(filtered));
+  writeLS(DAILY_KEY, JSON.stringify(filtered));
   if (pages > 0) {
-    const dates: string[] = JSON.parse(localStorage.getItem(DATES_KEY) || '[]');
+    const dates = getReadingDates(); // 깨진 값이어도 예외 없이 빈 배열로 복구
     if (!dates.includes(date)) {
       dates.push(date);
-      localStorage.setItem(DATES_KEY, JSON.stringify(dates));
+      writeLS(DATES_KEY, JSON.stringify(dates));
     }
   }
 }
@@ -305,7 +343,7 @@ export function setDailyPagesBulkForBook(entries: { date: string; pages: number 
   const others = getDailyReadings().filter((d) => d.bookId !== bookId);
   const stamp = nowIso();
   const mine = entries.filter((e) => e.pages > 0).map((e) => ({ date: e.date, pages: e.pages, bookId, loggedAt: stamp }));
-  localStorage.setItem(DAILY_KEY, JSON.stringify([...others, ...mine]));
+  writeLS(DAILY_KEY, JSON.stringify([...others, ...mine]));
 }
 
 export function getWeeklyPages(): { date: string; pages: number; label: string }[] {
@@ -357,7 +395,7 @@ export function getSharedBookIds(): string[] {
 
 export function setSharedBookIds(ids: string[]): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(SHARED_IDS_KEY, JSON.stringify(Array.from(new Set(ids))));
+  writeLS(SHARED_IDS_KEY, JSON.stringify(Array.from(new Set(ids))));
   window.dispatchEvent(new CustomEvent('visibility:changed'));
 }
 
@@ -529,7 +567,7 @@ export function applyPersonalData(remote: {
   if (Array.isArray(remote.dailyReadings) || resetAdvanced) {
     const remoteDaily = Array.isArray(remote.dailyReadings) ? sanitizeDailyReadings(remote.dailyReadings) : [];
     const merged = mergeDailyReadings(getDailyReadings(), remoteDaily, effectiveReset);
-    localStorage.setItem(DAILY_KEY, JSON.stringify(merged));
+    writeLS(DAILY_KEY, JSON.stringify(merged));
   }
 
   // 연속 독서 날짜: 타임스탬프가 없으므로, 리셋이 올라간 순간 로컬을 비우고(이전 기록 폐기)
@@ -539,7 +577,7 @@ export function applyPersonalData(remote: {
       ? remote.readingDates.filter((d): d is string => typeof d === 'string') : [];
     const base = resetAdvanced ? [] : getReadingDates();
     const merged = Array.from(new Set([...base, ...remoteDates]));
-    localStorage.setItem(DATES_KEY, JSON.stringify(merged));
+    writeLS(DATES_KEY, JSON.stringify(merged));
   }
 
   // 목표는 로컬에 값이 없을 때만 원격 값으로 채운다(현재 기기의 설정을 우선).
@@ -575,6 +613,15 @@ export function importData(json: string, mode: 'merge' | 'replace'): { books: nu
   const incoming: Book[] = Array.isArray(data) ? data : (data.books ?? []);
   if (!Array.isArray(incoming)) throw new Error('올바른 백업 파일이 아니에요');
 
+  // ★ 복원하는 책은 툼스톤(삭제 기록)에서 반드시 빼야 한다.
+  // 툼스톤은 영구 보존되고 mergeBooks가 어디서든 그 id를 걸러내기 때문에, 이걸 지우지 않으면
+  //  - 'merge': 예전에 지웠던 책은 복원해도 그 자리에서 조용히 사라지고
+  //  - 'replace': 일단 복원됐다가 다음 Drive 동기화(mergeBooks)에서 다시 지워진다.
+  // 사용자가 백업에서 명시적으로 되살린 책이므로 과거의 삭제 기록보다 우선한다.
+  const incomingIds = new Set(incoming.map((b) => b?.id).filter(Boolean) as string[]);
+  setTombstones(getTombstones().filter((id) => !incomingIds.has(id)));
+  addResurrected([...incomingIds]); // 다음 동기화에서 원격 툼스톤도 걷어내도록 표시
+
   const next = mode === 'replace' ? incoming : mergeBooks(getBooks(), incoming, getTombstones());
   saveBooks(next);
 
@@ -587,13 +634,13 @@ export function importData(json: string, mode: 'merge' | 'replace'): { books: nu
   if (dr) {
     const incoming = sanitizeDailyReadings(dr);
     const base = mode === 'replace' ? [] : getDailyReadings();
-    localStorage.setItem(DAILY_KEY, JSON.stringify(mergeDailyReadings(base, incoming, effectiveReset)));
+    writeLS(DAILY_KEY, JSON.stringify(mergeDailyReadings(base, incoming, effectiveReset)));
   }
 
   const rd: string[] | undefined = Array.isArray(data) ? undefined : data.readingDates;
   if (rd) {
     const cur = mode === 'replace' ? [] : getReadingDates();
-    localStorage.setItem(DATES_KEY, JSON.stringify(Array.from(new Set([...cur, ...rd]))));
+    writeLS(DATES_KEY, JSON.stringify(Array.from(new Set([...cur, ...rd]))));
   }
 
   if (!Array.isArray(data) && data.settings && mode === 'replace') {

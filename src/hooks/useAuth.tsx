@@ -3,7 +3,7 @@ import * as gd from '@/lib/googleDrive';
 import * as social from '@/lib/social';
 import { Book } from '@/types';
 
-import { mergeBooks, getTombstones, setTombstones, prepareSharedBooks, computeReadingStats, getShareStats, clearPersonalData, applyPersonalData, getPersonalData } from '@/lib/storage';
+import { mergeBooks, getTombstones, setTombstones, mergeTombstones, clearResurrected, prepareSharedBooks, computeReadingStats, getShareStats, clearPersonalData, applyPersonalData, getPersonalData } from '@/lib/storage';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const CUSTOM_PICTURE_KEY = 'social-custom-picture';
@@ -26,6 +26,22 @@ function syncStats(books: Book[]) {
 function getLocalOwner(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(OWNER_KEY);
+}
+
+// 계정 전환 판정용 이메일 정규화 — 서버의 canonicalEmail()과 같은 규칙.
+// ★ 이 비교가 잘못 참이 되면 clearPersonalData()가 돌고 로컬 책이 병합에서 빠져
+//   (원격이 비어 있을 경우) 서재가 통째로 사라진다. 대소문자·Gmail 점/＋별칭처럼
+//   같은 사람인데 표기만 다른 경우를 절대 '계정 전환'으로 오판하면 안 된다.
+function normalizeOwner(raw: string): string {
+  const email = (raw ?? '').trim().toLowerCase();
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return email;
+  let local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const plus = local.indexOf('+');
+  if (plus >= 0) local = local.slice(0, plus);
+  if (domain === 'gmail.com' || domain === 'googlemail.com') return `${local.replace(/\./g, '')}@gmail.com`;
+  return `${local}@${domain}`;
 }
 
 function setLocalOwner(email: string) {
@@ -164,7 +180,7 @@ function useAuthState(): AuthApi {
       // 이 브라우저의 로컬 데이터가 다른 계정 소유라면(계정 전환) 섞이면 안 되므로
       // 로컬을 병합 대상에서 제외하고 Drive(새 계정) 데이터만 사용한다.
       const owner = getLocalOwner();
-      const isAccountSwitch = !!owner && !!prof && owner !== prof.email;
+      const isAccountSwitch = !!owner && !!prof && normalizeOwner(owner) !== normalizeOwner(prof.email);
       // 계정이 바뀌면 이전 계정의 일별 기록·목표·공개 설정도 새 계정에 섞이면 안 됨
       if (isAccountSwitch) clearPersonalData();
 
@@ -173,7 +189,7 @@ function useAuthState(): AuthApi {
       const remote = (remotePayload?.books ?? []) as Book[];
       const tombs = isAccountSwitch
         ? Array.from(new Set(remotePayload?.tombstones ?? []))
-        : Array.from(new Set([...getTombstones(), ...(remotePayload?.tombstones ?? [])]));
+        : mergeTombstones(getTombstones(), remotePayload?.tombstones ?? []);
       setTombstones(tombs);
 
       // 일별 기록·연속 독서·목표도 원격과 병합해 로컬에 반영(어떤 기록도 잃지 않음)
@@ -188,6 +204,7 @@ function useAuthState(): AuthApi {
         window.dispatchEvent(new CustomEvent<Book[]>('books:replace', { detail: merged }));
       }
       await gd.saveToDrive({ books: merged, tombstones: tombs, ...getPersonalData() });
+      clearResurrected(); // 복원분이 Drive에 반영됨 — 부활 표시는 여기서 소멸
 
       // 친구 기능용 백엔드 동기화(실패해도 Drive 백업엔 영향 없음)
       social.syncMyBooks(prepareSharedBooks(merged)).catch(() => {});
@@ -275,7 +292,7 @@ function useAuthState(): AuthApi {
           if (remote.status === 'error') { setState('error'); return; } // 읽기 실패 → 덮어쓰기 금지
           const rp = remote.status === 'ok' ? remote.payload : null;
 
-          const tombs = Array.from(new Set([...getTombstones(), ...(rp?.tombstones ?? [])]));
+          const tombs = mergeTombstones(getTombstones(), rp?.tombstones ?? []);
           setTombstones(tombs);
           applyPersonalData(rp ?? undefined);
 
@@ -289,6 +306,7 @@ function useAuthState(): AuthApi {
           }
 
           await gd.saveToDrive({ books: merged, tombstones: tombs, ...getPersonalData() });
+          clearResurrected(); // 복원분이 Drive에 반영됨 — 부활 표시는 여기서 소멸
           social.syncMyBooks(prepareSharedBooks(merged)).catch(() => {});
           syncStats(merged);
           setLastSync(new Date());
