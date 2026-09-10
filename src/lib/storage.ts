@@ -472,6 +472,10 @@ export function computeReadingStats(books: Book[]): ReadingStats {
 export function clearReadingRecords(): void {
   if (typeof window === 'undefined') return;
   [DAILY_KEY, DATES_KEY, 'daily-popup-date'].forEach((k) => localStorage.removeItem(k));
+  // ★ 미처리 부활 표시도 반드시 지운다. 초기화는 모든 책을 툼스톤에 넣는데, 부활 목록이
+  // 남아 있으면 mergeTombstones가 그 id들을 툼스톤에서 다시 빼내 초기화한 책이 되살아난다.
+  // (백업을 복원한 뒤 로그인 전이라 clearResurrected가 아직 안 돌았을 때 발생)
+  clearResurrected();
   setPersonalResetAt(nowIso());
 }
 
@@ -485,6 +489,7 @@ export function clearPersonalData(): void {
     'reading-goal', 'reading-goal-monthly', 'daily-page-goal',
     VISIBILITY_KEY, SHARED_IDS_KEY, SHARE_REVIEWS_KEY, SHARE_STATS_KEY,
     RESET_KEY,
+    RESURRECT_KEY, // 이전 계정에서 복원한 책의 부활 표시가 새 계정에 적용되면 안 됨
   ].forEach((k) => localStorage.removeItem(k));
 }
 
